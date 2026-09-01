@@ -1,0 +1,13 @@
+# OS / OneDrive
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 에디터
+.vscode/
+.idea/
+*.swp
+
+# 임시 파일
+*.tmp
+*.log
