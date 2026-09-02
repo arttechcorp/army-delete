@@ -38,8 +38,19 @@
     --danger:#b3402f;
     --danger-hi:#c74b38;
     --danger-ink:#ffffff;
+
+    /* 비상정지 스위치 — 돔 캡과 금속 플레이트 */
+    --cap-hi:#ff7a63;
+    --cap:#dc3a26;
+    --cap-deep:#a01d12;
+    --cap-wall:#7a1409;
+    --cap-ink:#fff3f0;
+    --plate:#cdd0c8;
+    --plate-2:#aeb2a8;
+    --plate-edge:#8e938a;
+    --screw:#868b80;
+
     --shadow:0 1px 2px rgba(20,24,26,.05), 0 10px 28px -18px rgba(20,24,26,.28);
-    --shadow-btn:0 6px 0 rgba(0,0,0,.16), 0 14px 26px -14px rgba(179,64,47,.55);
     --scrim:rgba(20,24,26,.62);
 
     --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
@@ -61,8 +72,18 @@
       --danger:#e0705c;
       --danger-hi:#ea8270;
       --danger-ink:#1a0f0c;
+
+      --cap-hi:#ff8f78;
+      --cap:#d33a26;
+      --cap-deep:#8b1a0f;
+      --cap-wall:#5e0f08;
+      --cap-ink:#fff1ed;
+      --plate:#2e342f;
+      --plate-2:#232924;
+      --plate-edge:#3f463f;
+      --screw:#4c534c;
+
       --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
-      --shadow-btn:0 6px 0 rgba(0,0,0,.45), 0 14px 26px -14px rgba(224,112,92,.4);
       --scrim:rgba(0,0,0,.72);
     }
   }
@@ -79,8 +100,18 @@
     --danger:#e0705c;
     --danger-hi:#ea8270;
     --danger-ink:#1a0f0c;
+
+    --cap-hi:#ff8f78;
+    --cap:#d33a26;
+    --cap-deep:#8b1a0f;
+    --cap-wall:#5e0f08;
+    --cap-ink:#fff1ed;
+    --plate:#2e342f;
+    --plate-2:#232924;
+    --plate-edge:#3f463f;
+    --screw:#4c534c;
+
     --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
-    --shadow-btn:0 6px 0 rgba(0,0,0,.45), 0 14px 26px -14px rgba(224,112,92,.4);
     --scrim:rgba(0,0,0,.72);
   }
 
@@ -141,19 +172,40 @@
     margin-bottom:1rem;
   }
 
-  .fields{display:grid;gap:.9rem}
-  @media (min-width:420px){.fields{grid-template-columns:1fr 1fr}}
-  .field{display:flex;flex-direction:column;gap:.35rem;min-width:0}
-  .field label{font-size:.78rem;font-weight:500;color:var(--ink-2)}
+  /* 설정 스트립 — 한 번 입력하면 끝나는 항목이라 시각적 비중을 낮춘다 */
+  .setup{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:.55rem .8rem;
+    padding:.7rem .85rem;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-bottom:1rem;
+  }
+  .pair{display:flex;align-items:center;gap:.45rem}
+  .pair label{
+    font-family:var(--mono);
+    font-size:.66rem;
+    letter-spacing:.14em;
+    color:var(--muted);
+  }
+  .arrow{color:var(--line);font-size:.85rem;user-select:none}
+  /* 좁은 화면에서는 두 줄로 떨어지므로 폭을 맞춰 오른쪽 끝을 정렬한다 */
+  @media (max-width:479px){
+    .arrow{display:none}
+    .pair{flex:1 1 100%}
+    .pair input{flex:1}
+  }
   input[type="date"]{
     font-family:var(--mono);
-    font-size:.95rem;
+    font-size:.8rem;
     color:var(--ink);
     background:var(--ground);
     border:1px solid var(--line);
-    border-radius:6px;
-    padding:.6rem .7rem;
-    width:100%;
+    border-radius:5px;
+    padding:.32rem .42rem;
     min-width:0;
     font-variant-numeric:tabular-nums;
   }
@@ -163,16 +215,15 @@
   }
   :root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.75)}
 
-  .presets{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:1rem;align-items:center}
-  .presets .hint{font-size:.72rem;color:var(--muted);margin-right:.15rem}
+  .presets{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
   .preset{
     font-family:var(--mono);
-    font-size:.74rem;
-    color:var(--ink-2);
+    font-size:.68rem;
+    color:var(--muted);
     background:transparent;
     border:1px solid var(--line);
     border-radius:99px;
-    padding:.3rem .7rem;
+    padding:.22rem .55rem;
     cursor:pointer;
     transition:border-color .15s ease,color .15s ease,background .15s ease;
   }
@@ -180,8 +231,9 @@
 
   .error{
     display:none;
-    margin-top:.9rem;
-    font-size:.82rem;
+    flex-basis:100%;
+    margin:0;
+    font-size:.78rem;
     color:var(--danger);
   }
   .error.on{display:block}
@@ -210,11 +262,21 @@
   }
 
   .bar{
-    height:10px;
+    position:relative;
+    height:8px;
     background:var(--line-soft);
     border:1px solid var(--line);
     border-radius:99px;
     overflow:hidden;
+  }
+  /* 25 / 50 / 75% 눈금 — 계기 눈금이지 장식이 아니다 */
+  .bar::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(90deg,
+      transparent 0 calc(25% - 1px), var(--line) calc(25% - 1px) 25%);
   }
   .bar-fill{
     height:100%;
@@ -240,39 +302,111 @@
     font-variant-numeric:tabular-nums;
   }
 
-  /* ---------- delete button ---------- */
-  /* padding-top 은 -1일 팝업이 떠오를 자리. 버튼 글자와 겹치지 않게 한다. */
-  .stage{position:relative;margin-top:.5rem;padding-top:2.4rem}
+  /* ---------- 비상정지 스위치 ---------- */
+  /* padding-top 은 -1일 팝업이 떠오를 자리 */
+  .console{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:1rem;
+    margin-top:2rem;
+    padding-top:2.4rem;
+  }
+
+  .plate{
+    position:relative;
+    width:clamp(214px,60vw,262px);
+    aspect-ratio:1;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(circle at 50% 32%, var(--plate) 0%, var(--plate-2) 78%);
+    border:1px solid var(--plate-edge);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.35),
+      inset 0 -2px 6px rgba(0,0,0,.18),
+      0 14px 30px -18px rgba(0,0,0,.55);
+  }
+  /* 캡이 앉는 안쪽 홈 */
+  .plate::before{
+    content:"";
+    position:absolute;
+    inset:11%;
+    border-radius:50%;
+    box-shadow:inset 0 2px 5px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.26);
+  }
+  .screw{
+    position:absolute;
+    width:7px;height:7px;
+    border-radius:50%;
+    background:var(--screw);
+    box-shadow:inset 0 1px 1px rgba(0,0,0,.5), 0 1px 0 rgba(255,255,255,.25);
+  }
+  .screw.n{top:6%;left:50%;transform:translateX(-50%)}
+  .screw.s{bottom:6%;left:50%;transform:translateX(-50%)}
+  .screw.w{left:6%;top:50%;transform:translateY(-50%)}
+  .screw.e{right:6%;top:50%;transform:translateY(-50%)}
+
   #deleteBtn{
     position:relative;
-    width:100%;
-    display:block;
-    font-family:var(--sans);
-    font-size:clamp(1.15rem,4.6vw,1.4rem);
-    font-weight:700;
-    letter-spacing:-.02em;
-    color:var(--danger-ink);
-    background:var(--danger);
+    z-index:1;
+    width:71%;
+    aspect-ratio:1;
+    padding:0;
     border:0;
-    border-radius:14px;
-    padding:1.5rem 1rem;
+    border-radius:50%;
     cursor:pointer;
-    box-shadow:var(--shadow-btn);
-    transition:transform .09s ease, background .15s ease, box-shadow .09s ease;
+    font-family:var(--sans);
+    font-size:clamp(1.1rem,4.2vw,1.35rem);
+    font-weight:700;
+    letter-spacing:.03em;
+    color:var(--cap-ink);
+    background:radial-gradient(circle at 38% 27%, var(--cap-hi) 0%, var(--cap) 46%, var(--cap-deep) 100%);
+    text-shadow:0 1px 2px rgba(0,0,0,.42);
+    box-shadow:
+      0 9px 0 var(--cap-wall),
+      0 15px 22px -8px rgba(0,0,0,.5),
+      inset 0 -6px 12px rgba(0,0,0,.3),
+      inset 0 4px 10px rgba(255,255,255,.22);
+    transition:transform .07s ease, box-shadow .07s ease;
     touch-action:manipulation;
     -webkit-user-select:none;user-select:none;
   }
-  #deleteBtn:hover{background:var(--danger-hi)}
-  #deleteBtn.punch{transform:translateY(4px) scale(.985);box-shadow:0 2px 0 rgba(0,0,0,.16)}
-  #deleteBtn .btn-sub{
-    display:block;
+  #deleteBtn:active,
+  #deleteBtn.punch{
+    transform:translateY(7px);
+    box-shadow:
+      0 2px 0 var(--cap-wall),
+      0 5px 10px -6px rgba(0,0,0,.5),
+      inset 0 -3px 8px rgba(0,0,0,.34),
+      inset 0 3px 8px rgba(255,255,255,.16);
+  }
+
+  .ripple{
+    position:absolute;
+    left:50%;top:50%;
+    width:100%;
+    aspect-ratio:1;
+    border-radius:50%;
+    border:1px solid var(--cap);
+    transform:translate(-50%,-50%) scale(1);
+    opacity:.45;
+    pointer-events:none;
+    animation:ring .55s ease-out forwards;
+  }
+  @keyframes ring{
+    to{transform:translate(-50%,-50%) scale(1.32);opacity:0}
+  }
+
+  /* 누르라고 만든 버튼에 붙는 경고 */
+  .warn{
+    margin:0;
     font-family:var(--mono);
-    font-size:.68rem;
-    font-weight:500;
-    letter-spacing:.16em;
-    text-transform:uppercase;
-    opacity:.72;
-    margin-top:.3rem;
+    font-size:.7rem;
+    letter-spacing:.34em;
+    text-indent:.34em;
+    color:var(--muted);
   }
 
   .pop{
@@ -397,26 +531,23 @@
   <h1>군생활 삭제 버튼</h1>
   <p class="sub">아무것도 실제로 삭제되지 않습니다. 그냥 누르세요.</p>
 
-  <section class="card">
-    <div class="card-label">복무 기간 입력</div>
-    <div class="fields">
-      <div class="field">
-        <label for="startDate">입대일</label>
-        <input type="date" id="startDate">
-      </div>
-      <div class="field">
-        <label for="endDate">전역일</label>
-        <input type="date" id="endDate">
-      </div>
+  <div class="setup">
+    <div class="pair">
+      <label for="startDate">입대</label>
+      <input type="date" id="startDate">
+    </div>
+    <span class="arrow" aria-hidden="true">→</span>
+    <div class="pair">
+      <label for="endDate">전역</label>
+      <input type="date" id="endDate">
     </div>
     <div class="presets">
-      <span class="hint">전역일 자동 계산</span>
-      <button class="preset" type="button" data-months="18">육군 · 해병 18개월</button>
-      <button class="preset" type="button" data-months="20">해군 20개월</button>
-      <button class="preset" type="button" data-months="21">공군 21개월</button>
+      <button class="preset" type="button" data-months="18" title="입대일 기준 전역일 자동 계산 · 육군 · 해병 18개월">육군 18</button>
+      <button class="preset" type="button" data-months="20" title="입대일 기준 전역일 자동 계산 · 해군 20개월">해군 20</button>
+      <button class="preset" type="button" data-months="21" title="입대일 기준 전역일 자동 계산 · 공군 21개월">공군 21</button>
     </div>
     <p class="error" id="err"></p>
-  </section>
+  </div>
 
   <section class="card" id="result">
     <div class="card-label">진행 상황</div>
@@ -431,11 +562,15 @@
     <p class="served" id="served"></p>
   </section>
 
-  <div class="stage">
-    <button id="deleteBtn" type="button">
-      군생활 삭제
-      <span class="btn-sub">Delete</span>
-    </button>
+  <div class="console">
+    <div class="plate" id="plate">
+      <span class="screw n"></span>
+      <span class="screw s"></span>
+      <span class="screw w"></span>
+      <span class="screw e"></span>
+      <button id="deleteBtn" type="button" aria-label="군생활 삭제">삭제</button>
+    </div>
+    <p class="warn">누르지 마시오</p>
   </div>
 
   <div class="foot-row">
@@ -473,7 +608,8 @@
   var startEl = $('startDate'), endEl = $('endDate'), errEl = $('err');
   var resultEl = $('result'), pctNum = $('pctNum'), ddayEl = $('dday');
   var barEl = $('bar'), barFill = $('barFill'), remainEl = $('remain'), servedEl = $('served');
-  var btn = $('deleteBtn'), stage = btn.parentNode, countNum = $('countNum'), soundBtn = $('soundBtn');
+  var btn = $('deleteBtn'), plate = $('plate'), countNum = $('countNum'), soundBtn = $('soundBtn');
+  var stage = document.querySelector('.console');
   var adScrim = $('adScrim'), adClose = $('adClose'), adTimer = $('adTimer');
 
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -779,12 +915,27 @@
 
   var punchTimer = null;
   function punch() {
-    btn.className = 'punch';
+    btn.classList.add('punch');
     clearTimeout(punchTimer);
-    punchTimer = setTimeout(function () { btn.className = ''; }, 90);
+    punchTimer = setTimeout(function () { btn.classList.remove('punch'); }, 90);
+  }
+
+  // 캡에서 퍼져 나가는 링. 연타해도 항상 하나만 — 겹치면 산만하고 노드도 쌓인다.
+  function ripple() {
+    var old = plate.querySelector('.ripple');
+    if (old) plate.removeChild(old);
+    var el = document.createElement('span');
+    el.className = 'ripple';
+    plate.appendChild(el);
+    setTimeout(function () {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 600);
   }
 
   function pop() {
+    // 연타 시 상한. 화면에 8개 넘게 떠 있으면 읽히지도 않는다.
+    var live = stage.querySelectorAll('.pop');
+    if (live.length >= 8) stage.removeChild(live[0]);
     var el = document.createElement('span');
     el.className = 'pop';
     el.textContent = '-1일';
@@ -804,7 +955,8 @@
     store(LS.count, String(count));
 
     playClick(count);
-    if (!reduced) { punch(); pop(); }
+    punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
+    if (!reduced) { pop(); ripple(); }
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
 
     if (count % AD_INTERVAL === 0) triggerAd();
