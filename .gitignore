@@ -11,3 +11,6 @@ desktop.ini
 # 임시 파일
 *.tmp
 *.log
+
+.vercel
+.env*
