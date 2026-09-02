@@ -1,0 +1,21 @@
+# Supabase 무료 프로젝트는 7일간 요청이 없으면 정지되고 클라이언트에 오류를 반환한다.
+# 주 1회 찔러서 타이머를 리셋한다.
+# 필요한 시크릿: SUPABASE_URL, SUPABASE_ANON_KEY
+name: keepalive
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'      # 매주 월요일 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping supabase
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$URL" || { echo "SUPABASE_URL 시크릿이 없습니다"; exit 1; }
+          curl -sSf "$URL/rest/v1/rpc/leaderboard" -H "apikey: $KEY" -o /dev/null

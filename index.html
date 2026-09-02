@@ -243,11 +243,18 @@
     background:transparent;
     border:1px solid var(--line);
     border-radius:99px;
-    padding:.22rem .55rem;
+    padding:.22rem .7rem;
+    min-height:32px;              /* 소속 선택을 겸하게 되어 손가락이 닿을 크기가 필요하다 */
     cursor:pointer;
     transition:border-color .15s ease,color .15s ease,background .15s ease;
   }
   .preset:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .preset[aria-pressed="true"]{
+    color:var(--accent);
+    border-color:var(--accent);
+    background:var(--accent-soft);
+    font-weight:600;
+  }
 
   .error{
     display:none;
@@ -506,6 +513,8 @@
     font-variant-numeric:tabular-nums;
   }
 
+  .enter-row{display:flex;gap:.5rem;margin-top:.6rem}
+  .enter-row .shop-enter{flex:1;min-width:0;margin-top:0}
   .shop-enter{
     display:block;
     width:100%;
@@ -692,6 +701,88 @@
     line-height:1.9;
   }
 
+  /* ---------- 리더보드 ---------- */
+  /* 모달 껍데기(.shop-scrim / .shop / .shop-top / .shop-body)는 상점 것을 그대로 쓴다. */
+  .lb-tabs{
+    display:flex;
+    gap:.4rem;
+    padding:0 .9rem .75rem;
+    border-bottom:1px solid var(--line);
+  }
+  .lb-tab{
+    flex:1;
+    font-family:var(--sans);
+    font-size:.82rem;
+    font-weight:600;
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:.45rem .6rem;
+    min-height:38px;
+    cursor:pointer;
+    transition:color .15s ease,border-color .15s ease,background-color .15s ease;
+  }
+  .lb-tab:hover{color:var(--ink);border-color:var(--muted)}
+  .lb-tab[aria-pressed="true"]{
+    color:var(--accent);
+    border-color:var(--accent);
+    background:var(--accent-soft);
+  }
+
+  .lb-list{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+  .lb-row{
+    display:grid;
+    grid-template-columns:1.4rem minmax(3rem,auto) minmax(0,1fr) auto;
+    align-items:center;
+    gap:.6rem;
+    padding:.55rem .7rem;
+    background:var(--ground);
+    border:1px solid var(--line);
+    border-radius:10px;
+  }
+  .lb-row.mine{border-color:var(--accent);background:var(--accent-soft)}
+  .lb-rank{
+    font-family:var(--mono);
+    font-size:.78rem;
+    color:var(--muted);
+    font-variant-numeric:tabular-nums;
+  }
+  .lb-row.mine .lb-rank{color:var(--accent)}
+  .lb-name{font-size:.88rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+  .lb-track{
+    height:8px;
+    border-radius:99px;
+    background:var(--line-soft);
+    overflow:hidden;
+  }
+  .lb-fill{
+    display:block;
+    height:100%;
+    border-radius:99px;
+    background:var(--accent);
+    transition:width .5s cubic-bezier(.22,1,.36,1);
+  }
+  .lb-val{
+    font-family:var(--mono);
+    font-size:.82rem;
+    font-weight:600;
+    color:var(--ink);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .lb-note{
+    margin:.5rem 0 0;
+    font-size:.72rem;
+    line-height:1.65;
+    color:var(--muted);
+  }
+  @media (prefers-reduced-motion: reduce){ .lb-fill{transition:none} }
+  @media (max-width:400px){
+    .lb-row{grid-template-columns:1.2rem minmax(2.6rem,auto) minmax(0,1fr) auto;gap:.45rem}
+    .lb-name{font-size:.82rem}
+  }
+
   /* ---------- 광고 ---------- */
   /* 3단 배치. 본문 폭(540px)은 건드리지 않고 좌우에 레일만 덧붙인다. */
   .shell{
@@ -801,9 +892,10 @@
       <input type="date" id="endDate">
     </div>
     <div class="presets">
-      <button class="preset" type="button" data-months="18" title="입대일 기준 전역일 자동 계산 · 육군 · 해병 18개월">육군 18</button>
-      <button class="preset" type="button" data-months="20" title="입대일 기준 전역일 자동 계산 · 해군 20개월">해군 20</button>
-      <button class="preset" type="button" data-months="21" title="입대일 기준 전역일 자동 계산 · 공군 21개월">공군 21</button>
+      <button class="preset" type="button" data-months="18" data-branch="army" aria-pressed="false" title="전역일 자동 계산 · 육군 18개월 · 리더보드 소속">육군 18</button>
+      <button class="preset" type="button" data-months="18" data-branch="marine" aria-pressed="false" title="전역일 자동 계산 · 해병 18개월 · 리더보드 소속">해병 18</button>
+      <button class="preset" type="button" data-months="20" data-branch="navy" aria-pressed="false" title="전역일 자동 계산 · 해군 20개월 · 리더보드 소속">해군 20</button>
+      <button class="preset" type="button" data-months="21" data-branch="airforce" aria-pressed="false" title="전역일 자동 계산 · 공군 21개월 · 리더보드 소속">공군 21</button>
     </div>
     <p class="error" id="err"></p>
   </div>
@@ -837,7 +929,10 @@
     <p class="wallet-sub">누적 삭제된 일수 <span id="totalNum">0</span>일</p>
   </div>
 
-  <button class="shop-enter" id="shopOpen" type="button">상점 들어가기</button>
+  <div class="enter-row">
+    <button class="shop-enter" id="shopOpen" type="button">상점 들어가기</button>
+    <button class="shop-enter" id="lbOpen" type="button">리더보드</button>
+  </div>
 
   <div class="foot-row">
     <button class="icon-btn" id="soundBtn" type="button" aria-pressed="false">🔊 소리 켬</button>
@@ -845,7 +940,8 @@
 
   <footer>
     실제 복무 기간은 변하지 않습니다.<br>
-    입력한 날짜와 누른 횟수는 이 브라우저에만 저장되며 어디로도 전송되지 않습니다.
+    입력한 날짜와 누른 횟수는 이 브라우저에만 저장됩니다.<br>
+    리더보드에는 소속과 삭제한 일수만 전송됩니다.
   </footer>
 </div>
 
@@ -870,6 +966,20 @@
       <div class="shop-balance">보유 <b id="shopBalance">0</b>일</div>
     </div>
     <div class="shop-body" id="shopBody" aria-live="polite"></div>
+  </div>
+</div>
+
+<div class="shop-scrim" id="lbScrim" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+  <div class="shop">
+    <div class="shop-top">
+      <h2 class="shop-title" id="lbTitle">군별 리더보드</h2>
+      <button class="shop-close" id="lbClose" type="button" aria-label="리더보드 닫기">&times;</button>
+    </div>
+    <div class="lb-tabs">
+      <button class="lb-tab" type="button" data-tab="total" aria-pressed="true">누적</button>
+      <button class="lb-tab" type="button" data-tab="today" aria-pressed="false">오늘</button>
+    </div>
+    <div class="shop-body" id="lbBody" aria-live="polite"></div>
   </div>
 </div>
 
@@ -915,8 +1025,25 @@
     total: 'ad.total',        // 누적 삭제 일수 — 절대 줄지 않는다
     spent: 'ad.spent',        // 상점에서 쓴 누적 일수
     owned: 'ad.owned',        // 보유 아이템 id 목록
+    branch: 'ad.branch',      // 리더보드 소속
+    sent: 'ad.sent',          // 리더보드에 이미 보고한 누적치
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
   };
+
+  /* Supabase — 프로젝트를 만들고 supabase/board.sql 을 실행한 뒤 이 두 줄만 채우면
+     리더보드가 켜진다. 비워두면 리더보드 버튼은 안내 문구만 띄운다.
+     anon key 는 공개되도록 설계된 값이다. service_role key 는 절대 넣지 말 것. */
+  var SB_URL = '';
+  var SB_KEY = '';
+
+  var BRANCHES = [
+    { id: 'army',     label: '육군' },
+    { id: 'marine',   label: '해병' },
+    { id: 'navy',     label: '해군' },
+    { id: 'airforce', label: '공군' }
+  ];
+  var BRANCH_LABEL = {};
+  BRANCHES.forEach(function (b) { BRANCH_LABEL[b.id] = b.label; });
 
   var $ = function (id) { return document.getElementById(id); };
   var startEl = $('startDate'), endEl = $('endDate'), errEl = $('err');
@@ -926,6 +1053,7 @@
   var balanceNum = $('balanceNum'), totalNum = $('totalNum');
   var shopScrim = $('shopScrim'), shopBody = $('shopBody'), shopSearch = $('shopSearch');
   var shopBalance = $('shopBalance'), shopOpen = $('shopOpen'), shopClose = $('shopClose');
+  var lbScrim = $('lbScrim'), lbBody = $('lbBody'), lbOpen = $('lbOpen'), lbClose = $('lbClose');
   var stage = document.querySelector('.console');
   var anchor = $('anchor'), anchorClose = $('anchorClose');
 
@@ -1365,9 +1493,22 @@
 
   shopSearch.addEventListener('input', renderShop);
 
-  function openShop() {
+  // 모달이 둘이 되었다. 포커스 반환·바깥클릭·Esc 를 두 벌 쓰지 않는다.
+  function openModal(scrim, focusEl) {
     lastFocus = document.activeElement;
-    shopScrim.classList.add('on');
+    scrim.classList.add('on');
+    if (focusEl) focusEl.focus();
+  }
+
+  function closeModal(scrim, fallback) {
+    scrim.classList.remove('on');
+    // 모달 안에 있던 요소로는 돌려보내지 않는다 — 이제 화면에 없다
+    var back = (lastFocus && lastFocus.focus && !scrim.contains(lastFocus)) ? lastFocus : fallback;
+    back.focus();
+  }
+
+  function openShop() {
+    openModal(shopScrim, shopSearch);
     if (items === null) {
       itemsError = '';                    // 지난 실패는 붙잡아두지 않는다 — 열 때마다 다시 시도
       renderShop();                       // "불러오는 중…"
@@ -1375,15 +1516,9 @@
     } else {
       renderShop();
     }
-    shopSearch.focus();
   }
 
-  function closeShop() {
-    shopScrim.classList.remove('on');
-    // 상점 안에 있던 요소로는 돌려보내지 않는다 — 이제 화면에 없다
-    var back = (lastFocus && lastFocus.focus && !shopScrim.contains(lastFocus)) ? lastFocus : shopOpen;
-    back.focus();
-  }
+  function closeShop() { closeModal(shopScrim, shopOpen); }
 
   shopOpen.addEventListener('click', openShop);
   shopClose.addEventListener('click', closeShop);
@@ -1391,7 +1526,9 @@
     if (e.target === shopScrim) closeShop();      // 바깥 클릭으로 닫기
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && shopScrim.classList.contains('on')) closeShop();
+    if (e.key !== 'Escape') return;
+    if (shopScrim.classList.contains('on')) closeShop();
+    else if (lbScrim.classList.contains('on')) closeLb();
   });
 
   soundBtn.addEventListener('click', function () {
@@ -1402,6 +1539,156 @@
   });
 
   /* ══════════════════════════════════════════
+     리더보드 — 군별 익명 집계
+     ══════════════════════════════════════════ */
+  var LB_ON = !!(SB_URL && SB_KEY);
+  var branch = load(LS.branch) || '';
+  if (!BRANCH_LABEL[branch]) branch = '';
+  var sent = readInt(LS.sent);
+  if (sent > total) sent = total;        // total 만 지워진 이상 상태 방어
+
+  // 아직 보고하지 않은 몫. 한 번에 보내는 양은 서버 clamp 와 같은 500 으로 맞춘다.
+  function pending(t, s2) { return Math.min(Math.max(t - s2, 0), 500); }
+
+  function syncPresets() {
+    Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (p) {
+      p.setAttribute('aria-pressed', p.getAttribute('data-branch') === branch ? 'true' : 'false');
+    });
+  }
+
+  function setBranch(id) {
+    if (!BRANCH_LABEL[id] || id === branch) return;
+    // 첫 선택 — 도입 이전에 쌓인 누적은 리더보드에 넣지 않는다.
+    // 한 번에 밀어 넣으면 clamp 에 잘리고, 예외를 두면 그게 그대로 치팅 통로가 된다.
+    if (load(LS.sent) === null) {
+      sent = total;
+      store(LS.sent, String(sent));
+    }
+    branch = id;
+    store(LS.branch, id);
+    syncPresets();
+    if (lbScrim.classList.contains('on')) renderBoard();
+  }
+
+  var flushing = false;
+
+  function flush(unloading) {
+    var delta = pending(total, sent);
+    if (!LB_ON || !branch || flushing || delta <= 0) return Promise.resolve();
+
+    var opts = {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_branch: branch, p_delta: delta })
+    };
+
+    if (unloading) {
+      // 이탈 중엔 응답을 기다릴 수 없다. 낙관적으로 전진시킨다 — 최악이 한 묶음 유실.
+      opts.keepalive = true;
+      sent += delta;
+      store(LS.sent, String(sent));
+      try { fetch(SB_URL + '/rest/v1/rpc/tap', opts); } catch (e) {}
+      return Promise.resolve();
+    }
+
+    flushing = true;
+    return fetch(SB_URL + '/rest/v1/rpc/tap', opts).then(function (r) {
+      // 실패하면 sent 를 전진시키지 않는다 — 다음 주기에 그대로 재시도된다.
+      if (r.ok) { sent += delta; store(LS.sent, String(sent)); }
+    }, function () {}).then(function () { flushing = false; });
+  }
+
+  var lbTab = 'total';
+  var lbData;                            // undefined = 아직, null = 실패
+  var lbTimer = null;
+
+  function refreshBoard() {
+    if (!LB_ON) { renderBoard(); return; }
+    fetch(SB_URL + '/rest/v1/rpc/leaderboard', {
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY }
+    }).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
+      .then(function (d) { lbData = d; renderBoard(); });
+  }
+
+  function renderBoard() {
+    if (!LB_ON) {
+      lbBody.innerHTML = '<p class="shop-msg">리더보드가 아직 열리지 않았습니다.</p>';
+      return;
+    }
+    if (lbData === undefined) { lbBody.innerHTML = '<p class="shop-msg">불러오는 중…</p>'; return; }
+    if (lbData === null) {
+      lbBody.innerHTML = '<p class="shop-msg">순위를 불러오지 못했습니다.<br>잠시 뒤 다시 열어 주세요.</p>';
+      return;
+    }
+
+    var d = lbData[lbTab] || {};
+    var rows = BRANCHES.map(function (b) {
+      var n = parseInt(d[b.id], 10);
+      return { id: b.id, label: b.label, n: (isFinite(n) && n > 0) ? n : 0 };
+    }).sort(function (a, b) { return b.n - a.n; });
+
+    var max = rows[0].n || 1;
+    // 값을 색이 아니라 글자로도 읽을 수 있어야 한다 — 막대는 장식이라 aria-hidden.
+    var html = '<ol class="lb-list">';
+    rows.forEach(function (r, i) {
+      html += '<li class="lb-row' + (r.id === branch ? ' mine' : '') + '">'
+            +   '<span class="lb-rank">' + (i + 1) + '</span>'
+            +   '<span class="lb-name">' + r.label + '</span>'
+            +   '<span class="lb-track" aria-hidden="true"><span class="lb-fill" style="width:'
+            +      Math.round(r.n / max * 100) + '%"></span></span>'
+            +   '<span class="lb-val">' + r.n.toLocaleString('ko-KR') + '</span>'
+            + '</li>';
+    });
+    html += '</ol>';
+    html += branch
+      ? '<p class="lb-note">내 소속 <b>' + BRANCH_LABEL[branch] + '</b> · 소속과 삭제한 일수만 전송됩니다.</p>'
+      : '<p class="lb-note">위쪽 <b>군별 버튼</b>으로 소속을 고르면 내 기록도 함께 집계됩니다.</p>';
+    lbBody.innerHTML = html;
+  }
+
+  function openLb() {
+    openModal(lbScrim, lbScrim.querySelector('.lb-tab'));
+    renderBoard();                       // 이전 값이 있으면 바로 보여주고
+    flush(false).then(refreshBoard);     // 내 미보고분을 먼저 반영한 뒤 갱신
+    lbTimer = setInterval(refreshBoard, 15000);
+  }
+
+  function closeLb() {
+    clearInterval(lbTimer);
+    lbTimer = null;
+    closeModal(lbScrim, lbOpen);
+  }
+
+  lbOpen.addEventListener('click', openLb);
+  lbClose.addEventListener('click', closeLb);
+  lbScrim.addEventListener('click', function (e) {
+    if (e.target === lbScrim) closeLb();
+  });
+
+  Array.prototype.forEach.call(lbScrim.querySelectorAll('.lb-tab'), function (t) {
+    t.addEventListener('click', function () {
+      lbTab = t.getAttribute('data-tab');
+      Array.prototype.forEach.call(lbScrim.querySelectorAll('.lb-tab'), function (x) {
+        x.setAttribute('aria-pressed', x === t ? 'true' : 'false');
+      });
+      renderBoard();
+    });
+  });
+
+  if (LB_ON) {
+    // 클릭마다 쏘지 않는다. 연타 1000번이 요청 한두 건으로 줄어든다.
+    setInterval(function () { flush(false); }, 10000);
+    window.addEventListener('pagehide', function () { flush(true); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') flush(true);
+    });
+  }
+
+  /* ══════════════════════════════════════════
      입력 처리
      ══════════════════════════════════════════ */
   startEl.addEventListener('change', function () { store(LS.start, startEl.value); render(); });
@@ -1409,6 +1696,7 @@
 
   Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (p) {
     p.addEventListener('click', function () {
+      setBranch(p.getAttribute('data-branch'));   // 날짜가 없어도 소속은 기록한다
       var s = parseISO(startEl.value);
       if (!s) { setError('먼저 입대일을 입력해 주세요.'); return; }
       // 만기 전역일 = 입대일 + n개월 - 1일
@@ -1427,13 +1715,24 @@
   if (ev) endEl.value = ev;
   renderWallet();
   syncSoundBtn();
+  syncPresets();
   render();
   initAds();
 
-  // 콘솔 검증용
+  // 콘솔 검증용. __army.selfCheck() 로 회계 로직을 확인한다.
   window.__army = {
     calcService: calcService, parseISO: parseISO,
-    addMonths: addMonths, splitMonths: splitMonths
+    addMonths: addMonths, splitMonths: splitMonths,
+    pending: pending,
+    selfCheck: function () {
+      function ok(c, m) { if (!c) throw new Error(m); }
+      ok(pending(10, 0) === 10, '보낸 적 없으면 전부 보낸다');
+      ok(pending(10, 10) === 0, '이미 다 보냈으면 보내지 않는다');
+      ok(pending(3, 10) === 0, 'sent 가 앞서도 음수를 보내지 않는다');
+      ok(pending(9999, 0) === 500, '한 번에 500 을 넘기지 않는다');
+      ok(pending(0, 0) === 0, '아무것도 없으면 0');
+      return 'ok';
+    }
   };
 })();
 </script>
