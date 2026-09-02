@@ -124,8 +124,8 @@
       "price": 200,
       "icon": "🌱",
       "category": "자동",
-      "description": "짬으로 첫 후임을 샀다! 어… 근데 상태가..?(1분 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 60000 }
+      "description": "짬으로 첫 후임을 샀다! 어… 근데 상태가..?(20초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 20000 }
     },
     {
       "id": "rank-pfc",
@@ -133,8 +133,8 @@
       "price": 500,
       "icon": "🔧",
       "category": "자동",
-      "description": "나도 드디어 상병! 어이. 일병. 일해라.(30초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 30000 }
+      "description": "나도 드디어 상병! 어이. 일병. 일해라.(10초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 10000 }
     },
     {
       "id": "rank-cpl",
@@ -142,8 +142,8 @@
       "price": 800,
       "icon": "🛠️",
       "category": "자동",
-      "description": "나도 드디어 병장….? 상병아 일해라!(20초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 20000 }
+      "description": "나도 드디어 병장….? 상병아 일해라!(약 6.7초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 6667 }
     },
     {
       "id": "rank-sgt",
@@ -151,8 +151,8 @@
       "price": 1000,
       "icon": "😎",
       "category": "자동",
-      "description": "어 그래 알아 잘하고, 난 쇼미나 볼게(10초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 10000 }
+      "description": "어 그래 알아 잘하고, 난 쇼미나 볼게(약 3.3초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 3333 }
     },
     {
       "id": "rank-ssgt",
@@ -160,8 +160,8 @@
       "price": 1500,
       "icon": "😰",
       "category": "자동",
-      "description": "나….분명 전역했어야 했는데…..?(5초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 5000 }
+      "description": "나….분명 전역했어야 했는데…..?(약 1.7초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 1667 }
     },
     {
       "id": "rank-sfc",
@@ -169,8 +169,8 @@
       "price": 2500,
       "icon": "🪖",
       "category": "자동",
-      "description": "삽 좀 가져와봐(1초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 1000 }
+      "description": "삽 좀 가져와봐(약 0.33초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 333 }
     },
     {
       "id": "rank-msg",
@@ -178,8 +178,8 @@
       "price": 3500,
       "icon": "🎗️",
       "category": "자동",
-      "description": "장기는 에바야(0.5초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 500 }
+      "description": "장기는 에바야(약 0.17초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 167 }
     }
   ]
 }
