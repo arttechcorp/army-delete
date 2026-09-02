@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "currency": "일",
+  "items": [
+    {
+      "id": "mix-coffee",
+      "name": "믹스커피 한 잔",
+      "price": 3,
+      "icon": "☕",
+      "category": "간식",
+      "description": "종이컵에 타서 마시는 그 맛."
+    },
+    {
+      "id": "choco-pie",
+      "name": "초코파이",
+      "price": 5,
+      "icon": "🍫",
+      "category": "간식",
+      "description": "훈련소의 화폐 단위."
+    },
+    {
+      "id": "ramyeon",
+      "name": "라면 한 봉지",
+      "price": 8,
+      "icon": "🍜",
+      "category": "간식",
+      "description": "취침 점호 전에 몰래."
+    },
+    {
+      "id": "pc-hour",
+      "name": "사지방 1시간",
+      "price": 20,
+      "icon": "🖥️",
+      "category": "자유시간",
+      "description": "자리 맡는 게 반이다."
+    },
+    {
+      "id": "budae",
+      "name": "부대찌개 정식",
+      "price": 25,
+      "icon": "🍲",
+      "category": "식사",
+      "description": "이름값 하는 메뉴."
+    },
+    {
+      "id": "chicken",
+      "name": "치킨 한 마리",
+      "price": 40,
+      "icon": "🍗",
+      "category": "식사",
+      "description": "위병소 앞에서 받는 그 봉지."
+    },
+    {
+      "id": "nap",
+      "name": "오후 낮잠 2시간",
+      "price": 60,
+      "icon": "😴",
+      "category": "자유시간",
+      "description": "아무도 안 깨우는 두 시간."
+    },
+    {
+      "id": "day-out",
+      "name": "평일 외출",
+      "price": 120,
+      "icon": "🚶",
+      "category": "휴가",
+      "description": "저녁 점호 전까지는 돌아와야 한다."
+    },
+    {
+      "id": "weekend-out",
+      "name": "주말 외박",
+      "price": 250,
+      "icon": "🏠",
+      "category": "휴가",
+      "description": "집 침대에서 자는 하룻밤."
+    },
+    {
+      "id": "reward-leave",
+      "name": "포상휴가 3일",
+      "price": 500,
+      "icon": "🎖️",
+      "category": "휴가",
+      "description": "받아본 사람만 아는 기쁨."
+    },
+    {
+      "id": "long-leave",
+      "name": "위로휴가 일주일",
+      "price": 1000,
+      "icon": "✈️",
+      "category": "휴가",
+      "description": "달력에 동그라미를 치게 된다."
+    },
+    {
+      "id": "early-discharge",
+      "name": "조기 전역",
+      "price": 9999,
+      "icon": "🕊️",
+      "category": "전설",
+      "description": "존재한다는 소문만 무성하다."
+    }
+  ]
+}

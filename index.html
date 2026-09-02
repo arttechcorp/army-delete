@@ -63,6 +63,7 @@
     --socket-deep:#767c71;
 
     --shadow:0 1px 2px rgba(20,24,26,.05), 0 10px 28px -18px rgba(20,24,26,.28);
+    --scrim:rgba(20,24,26,.62);
 
     --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -99,6 +100,7 @@
       --socket-deep:#0b0f0c;
 
       --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
+      --scrim:rgba(0,0,0,.72);
     }
   }
   :root[data-theme="dark"]{
@@ -130,6 +132,7 @@
     --socket-deep:#0b0f0c;
 
     --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
+    --scrim:rgba(0,0,0,.72);
   }
 
   *{box-sizing:border-box}
@@ -467,18 +470,203 @@
   .foot-row{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:flex-end;
     gap:1rem;
-    margin-top:1rem;
+    margin-top:.9rem;
     flex-wrap:wrap;
   }
-  .count{
+
+  /* ---------- 지갑 ---------- */
+  /* 위쪽 큰 숫자는 쓸 수 있는 잔액, 아래 작은 줄은 줄어들지 않는 누적 기록 */
+  .wallet{
+    margin-top:1.5rem;
+    padding:1rem 1.1rem .9rem;
+    background:var(--accent-soft);
+    border:1px solid var(--accent);
+    border-radius:12px;
+    text-align:center;
+  }
+  .wallet-main{
+    margin:0;
     font-family:var(--mono);
-    font-size:.82rem;
-    color:var(--muted);
+    font-size:clamp(1.7rem,7vw,2.2rem);
+    font-weight:600;
+    line-height:1.15;
+    letter-spacing:-.02em;
+    color:var(--accent);
     font-variant-numeric:tabular-nums;
   }
-  .count b{color:var(--ink);font-weight:600}
+  .wallet-main .unit{font-size:.55em;font-weight:500;margin-left:.15em}
+  .wallet-sub{
+    margin:.45rem 0 0;
+    font-family:var(--mono);
+    font-size:.72rem;
+    letter-spacing:.02em;
+    color:var(--ink-2);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .shop-enter{
+    display:block;
+    width:100%;
+    margin-top:.6rem;
+    font-family:var(--sans);
+    font-size:.95rem;
+    font-weight:600;
+    letter-spacing:-.01em;
+    color:var(--ink);
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:.75rem;
+    cursor:pointer;
+    transition:border-color .15s ease,color .15s ease;
+  }
+  .shop-enter:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- 상점 ---------- */
+  .shop-scrim{
+    position:fixed;inset:0;
+    background:var(--scrim);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:1rem;
+    z-index:60;
+  }
+  .shop-scrim.on{display:flex}
+  .shop{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:560px;
+    max-height:min(85vh,760px);
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .shop-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    padding:.8rem .9rem .6rem;
+  }
+  .shop-title{
+    margin:0;
+    font-size:1.05rem;
+    font-weight:700;
+    letter-spacing:-.01em;
+  }
+  .shop-close{
+    width:30px;height:30px;
+    line-height:1;
+    font-size:1.2rem;
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:50%;
+    cursor:pointer;
+  }
+  .shop-close:hover{color:var(--ink);border-color:var(--muted)}
+
+  /* 왼쪽 끝 검색, 오른쪽 끝 잔액 */
+  .shop-bar{
+    display:flex;
+    align-items:center;
+    gap:.75rem;
+    padding:0 .9rem .75rem;
+    border-bottom:1px solid var(--line);
+  }
+  .shop-search{
+    flex:1;
+    min-width:0;
+    font-family:var(--sans);
+    font-size:.85rem;
+    color:var(--ink);
+    background:var(--ground);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:.45rem .6rem;
+  }
+  .shop-search:focus{border-color:var(--accent);outline:none}
+  .shop-balance{
+    flex:none;
+    font-family:var(--mono);
+    font-size:.8rem;
+    color:var(--muted);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .shop-balance b{color:var(--accent);font-size:1.05rem;font-weight:600}
+
+  .shop-body{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    padding:.85rem .9rem 1rem;
+    display:grid;
+    gap:.55rem;
+    align-content:start;
+  }
+  .shop-msg{
+    padding:2.5rem 1rem;
+    text-align:center;
+    color:var(--muted);
+    font-size:.88rem;
+    line-height:1.7;
+  }
+
+  .item{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center;
+    gap:.85rem;
+    padding:.7rem .8rem;
+    background:var(--ground);
+    border:1px solid var(--line);
+    border-radius:10px;
+  }
+  .item.owned{border-color:var(--accent);background:var(--accent-soft)}
+  .item-icon{font-size:1.6rem;line-height:1}
+  .item-name{margin:0;font-size:.92rem;font-weight:600;letter-spacing:-.01em}
+  .item-desc{margin:.15rem 0 0;font-size:.76rem;color:var(--muted);line-height:1.5}
+  .item-cat{
+    font-family:var(--mono);
+    font-size:.62rem;
+    letter-spacing:.1em;
+    color:var(--muted);
+  }
+  .item-buy{display:flex;flex-direction:column;align-items:flex-end;gap:.3rem}
+  .item-price{
+    font-family:var(--mono);
+    font-size:.82rem;
+    font-weight:600;
+    color:var(--ink);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .item.short .item-price{color:var(--danger)}
+  .buy-btn{
+    font-family:var(--sans);
+    font-size:.76rem;
+    font-weight:600;
+    color:var(--danger-ink);
+    background:var(--accent);
+    border:0;
+    border-radius:7px;
+    padding:.35rem .7rem;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .buy-btn[disabled]{
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--line);
+    cursor:default;
+  }
   .icon-btn{
     font-family:var(--mono);
     font-size:.74rem;
@@ -644,8 +832,14 @@
     <p class="warn">누르지 마시오</p>
   </div>
 
+  <div class="wallet">
+    <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 삭제됨</span></p>
+    <p class="wallet-sub">누적 삭제된 일수 <span id="totalNum">0</span>일</p>
+  </div>
+
+  <button class="shop-enter" id="shopOpen" type="button">상점 들어가기</button>
+
   <div class="foot-row">
-    <div class="count"><b id="countNum">0</b>번 삭제됨</div>
     <button class="icon-btn" id="soundBtn" type="button" aria-pressed="false">🔊 소리 켬</button>
   </div>
 
@@ -665,6 +859,20 @@
 
 </div><!-- /.shell -->
 
+<div class="shop-scrim" id="shopScrim" role="dialog" aria-modal="true" aria-labelledby="shopTitle">
+  <div class="shop">
+    <div class="shop-top">
+      <h2 class="shop-title" id="shopTitle">상점</h2>
+      <button class="shop-close" id="shopClose" type="button" aria-label="상점 닫기">&times;</button>
+    </div>
+    <div class="shop-bar">
+      <input type="search" class="shop-search" id="shopSearch" placeholder="아이템 검색" autocomplete="off" aria-label="아이템 검색">
+      <div class="shop-balance">보유 <b id="shopBalance">0</b>일</div>
+    </div>
+    <div class="shop-body" id="shopBody" aria-live="polite"></div>
+  </div>
+</div>
+
 <aside class="anchor" id="anchor" aria-label="광고">
   <button class="anchor-close" id="anchorClose" type="button" aria-label="광고 닫기">&times;</button>
   <ins class="adsbygoogle" id="adAnchor"
@@ -682,13 +890,22 @@
      ══════════════════════════════════════════ */
   var COMBO_RESET_MS = 1200;     // 이 시간 이상 쉬면 콤보 초기화
   var MAX_VOICES = 8;            // 동시 발음 상한
-  var LS = { start: 'ad.start', end: 'ad.end', count: 'ad.count', muted: 'ad.muted' };
+  var LS = {
+    start: 'ad.start', end: 'ad.end', muted: 'ad.muted',
+    total: 'ad.total',        // 누적 삭제 일수 — 절대 줄지 않는다
+    spent: 'ad.spent',        // 상점에서 쓴 누적 일수
+    owned: 'ad.owned',        // 보유 아이템 id 목록
+    legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
+  };
 
   var $ = function (id) { return document.getElementById(id); };
   var startEl = $('startDate'), endEl = $('endDate'), errEl = $('err');
   var resultEl = $('result'), pctNum = $('pctNum'), ddayEl = $('dday');
   var barEl = $('bar'), barFill = $('barFill'), remainEl = $('remain'), servedEl = $('served');
-  var btn = $('deleteBtn'), plate = $('plate'), countNum = $('countNum'), soundBtn = $('soundBtn');
+  var btn = $('deleteBtn'), plate = $('plate'), soundBtn = $('soundBtn');
+  var balanceNum = $('balanceNum'), totalNum = $('totalNum');
+  var shopScrim = $('shopScrim'), shopBody = $('shopBody'), shopSearch = $('shopSearch');
+  var shopBalance = $('shopBalance'), shopOpen = $('shopOpen'), shopClose = $('shopClose');
   var stage = document.querySelector('.console');
   var anchor = $('anchor'), anchorClose = $('anchorClose');
 
@@ -957,8 +1174,27 @@
   /* ══════════════════════════════════════════
      클릭
      ══════════════════════════════════════════ */
-  var count = parseInt(load(LS.count) || '0', 10);
-  if (!isFinite(count) || count < 0) count = 0;
+  function readInt(key) {
+    var n = parseInt(load(key) || '0', 10);
+    return (isFinite(n) && n > 0) ? n : 0;
+  }
+
+  // 지갑 도입 전에는 클릭 수가 ad.count 하나에만 있었다. 그 값을 누적으로 넘긴다.
+  var total = readInt(LS.total) || readInt(LS.legacy);
+  var spent = readInt(LS.spent);
+  var owned = [];
+  try {
+    var raw = JSON.parse(load(LS.owned) || '[]');
+    if (Object.prototype.toString.call(raw) === '[object Array]') owned = raw;
+  } catch (e) {}
+
+  function balance() { return Math.max(0, total - spent); }
+
+  function renderWallet() {
+    balanceNum.textContent = balance().toLocaleString('ko-KR');
+    totalNum.textContent = total.toLocaleString('ko-KR');
+    shopBalance.textContent = balance().toLocaleString('ko-KR');
+  }
 
   var punchTimer = null;
   function punch() {
@@ -997,14 +1233,145 @@
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   btn.addEventListener('click', function () {
-    count++;
-    countNum.textContent = count.toLocaleString('ko-KR');
-    store(LS.count, String(count));
+    total++;
+    store(LS.total, String(total));
+    renderWallet();
+    if (shopScrim.classList.contains('on')) renderShop();   // 열어둔 채 눌러도 잔액이 맞게
 
-    playClick(count);
+    playClick(total);
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
     if (!reduced) { pop(); ripple(); }
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+  });
+
+  /* ══════════════════════════════════════════
+     상점
+     ══════════════════════════════════════════ */
+  var items = null;          // null = 아직 안 불러옴
+  var itemsError = '';
+  var lastFocus = null;
+
+  // 아이템 정의는 items.json 한 곳에만 둔다. 아티팩트처럼 파일을 같이 올릴 수
+  // 없는 환경을 위해, 페이지 안에 인라인 사본이 있으면 그쪽을 먼저 쓴다.
+  function loadItems() {
+    var inline = document.getElementById('shopItemsInline');
+    if (inline) {
+      try {
+        items = JSON.parse(inline.textContent).items || [];
+        return Promise.resolve();
+      } catch (e) {
+        itemsError = '아이템 목록을 읽을 수 없습니다.';
+        return Promise.resolve();
+      }
+    }
+    return fetch('items.json')
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) { items = data.items || []; })
+      .catch(function () {
+        // file:// 로 열면 브라우저가 로컬 fetch 를 막는다. 배포본에서는 정상.
+        itemsError = location.protocol === 'file:'
+          ? '파일을 직접 열면 아이템 목록을 불러올 수 없습니다. 배포된 주소에서 확인해 주세요.'
+          : 'items.json 을 불러오지 못했습니다.';
+      });
+  }
+
+  function itemMatches(item, q) {
+    if (!q) return true;
+    return (item.name + ' ' + (item.description || '') + ' ' + (item.category || ''))
+      .toLowerCase().indexOf(q) > -1;
+  }
+
+  function renderShop() {
+    if (itemsError) { shopBody.innerHTML = '<p class="shop-msg">' + itemsError + '</p>'; return; }
+    if (items === null) { shopBody.innerHTML = '<p class="shop-msg">불러오는 중…</p>'; return; }
+
+    var q = shopSearch.value.trim().toLowerCase();
+    var list = items.filter(function (it) { return itemMatches(it, q); });
+
+    if (!list.length) {
+      shopBody.innerHTML = '<p class="shop-msg">' +
+        (q ? '"' + esc(q) + '" 에 맞는 아이템이 없습니다.' : '아이템이 없습니다.') + '</p>';
+      return;
+    }
+
+    var bal = balance();
+    shopBody.innerHTML = list.map(function (it) {
+      var has = owned.indexOf(it.id) > -1;
+      var short = !has && bal < it.price;
+      var label = has ? '보유 중' : (short ? '부족' : '구매');
+      return '<article class="item' + (has ? ' owned' : '') + (short ? ' short' : '') + '">' +
+        '<div class="item-icon" aria-hidden="true">' + esc(it.icon || '📦') + '</div>' +
+        '<div>' +
+          '<div class="item-cat">' + esc(it.category || '') + '</div>' +
+          '<h3 class="item-name">' + esc(it.name) + '</h3>' +
+          '<p class="item-desc">' + esc(it.description || '') + '</p>' +
+        '</div>' +
+        '<div class="item-buy">' +
+          '<div class="item-price">' + it.price.toLocaleString('ko-KR') + '일</div>' +
+          '<button class="buy-btn" type="button" data-id="' + esc(it.id) + '"' +
+            (has || short ? ' disabled' : '') + '>' + label + '</button>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function buy(id) {
+    var item = items && items.filter(function (it) { return it.id === id; })[0];
+    if (!item) return;
+    if (owned.indexOf(id) > -1) return;      // 이미 보유
+    if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
+
+    spent += item.price;
+    owned.push(id);
+    store(LS.spent, String(spent));
+    store(LS.owned, JSON.stringify(owned));
+    renderWallet();
+    renderShop();
+  }
+
+  shopBody.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.buy-btn');
+    if (b && !b.disabled) buy(b.getAttribute('data-id'));
+  });
+
+  shopSearch.addEventListener('input', renderShop);
+
+  function openShop() {
+    lastFocus = document.activeElement;
+    shopScrim.classList.add('on');
+    if (items === null) {
+      itemsError = '';                    // 지난 실패는 붙잡아두지 않는다 — 열 때마다 다시 시도
+      renderShop();                       // "불러오는 중…"
+      loadItems().then(renderShop);
+    } else {
+      renderShop();
+    }
+    shopSearch.focus();
+  }
+
+  function closeShop() {
+    shopScrim.classList.remove('on');
+    // 상점 안에 있던 요소로는 돌려보내지 않는다 — 이제 화면에 없다
+    var back = (lastFocus && lastFocus.focus && !shopScrim.contains(lastFocus)) ? lastFocus : shopOpen;
+    back.focus();
+  }
+
+  shopOpen.addEventListener('click', openShop);
+  shopClose.addEventListener('click', closeShop);
+  shopScrim.addEventListener('click', function (e) {
+    if (e.target === shopScrim) closeShop();      // 바깥 클릭으로 닫기
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && shopScrim.classList.contains('on')) closeShop();
   });
 
   soundBtn.addEventListener('click', function () {
@@ -1038,7 +1405,7 @@
   var sv = load(LS.start), ev = load(LS.end);
   if (sv) startEl.value = sv;
   if (ev) endEl.value = ev;
-  countNum.textContent = count.toLocaleString('ko-KR');
+  renderWallet();
   syncSoundBtn();
   render();
   initAds();
