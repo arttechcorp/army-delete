@@ -97,6 +97,89 @@
       "icon": "🕊️",
       "category": "전설",
       "description": "존재한다는 소문만 무성하다."
+    },
+
+    {
+      "id": "work-detail",
+      "name": "작업 나가기",
+      "price": 500,
+      "icon": "⛏️",
+      "category": "배수",
+      "description": "일을 하다보니 시간이 빨리간다….",
+      "effect": { "type": "multiplier", "value": 2 }
+    },
+    {
+      "id": "genie-tv",
+      "name": "지니티비",
+      "price": 1000,
+      "icon": "📺",
+      "category": "배수",
+      "description": "티비와 함께하니 군생활이 녹는다!",
+      "effect": { "type": "multiplier", "value": 3 }
+    },
+
+    {
+      "id": "rank-pvt",
+      "name": "이병",
+      "price": 200,
+      "icon": "🌱",
+      "category": "자동",
+      "description": "짬으로 첫 후임을 샀다! 어… 근데 상태가..?(1분 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 60000 }
+    },
+    {
+      "id": "rank-pfc",
+      "name": "일병",
+      "price": 500,
+      "icon": "🔧",
+      "category": "자동",
+      "description": "나도 드디어 상병! 어이. 일병. 일해라.(30초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 30000 }
+    },
+    {
+      "id": "rank-cpl",
+      "name": "상병",
+      "price": 800,
+      "icon": "🛠️",
+      "category": "자동",
+      "description": "나도 드디어 병장….? 상병아 일해라!(20초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 20000 }
+    },
+    {
+      "id": "rank-sgt",
+      "name": "병장",
+      "price": 1000,
+      "icon": "😎",
+      "category": "자동",
+      "description": "어 그래 알아 잘하고, 난 쇼미나 볼게(10초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 10000 }
+    },
+    {
+      "id": "rank-ssgt",
+      "name": "하사",
+      "price": 1500,
+      "icon": "😰",
+      "category": "자동",
+      "description": "나….분명 전역했어야 했는데…..?(5초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 5000 }
+    },
+    {
+      "id": "rank-sfc",
+      "name": "중사",
+      "price": 2500,
+      "icon": "🪖",
+      "category": "자동",
+      "description": "삽 좀 가져와봐(1초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 1000 }
+    },
+    {
+      "id": "rank-msg",
+      "name": "상사",
+      "price": 3500,
+      "icon": "🎗️",
+      "category": "자동",
+      "description": "장기는 에바야(0.5초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 500 }
     }
   ]
 }

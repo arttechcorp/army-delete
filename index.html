@@ -442,6 +442,58 @@
     to{transform:translate(-50%,-50%) scale(1.32);opacity:0}
   }
 
+  /* 자동으로 버튼을 눌러주는 대원들. 디자인 전이라 일단 정사각형. */
+  .crew{
+    display:grid;
+    grid-template-columns:repeat(2,42px);
+    gap:6px;
+    justify-content:center;
+    margin-top:.9rem;
+  }
+  .crew:empty{display:none}
+  /* 플레이트 옆에 자리가 나오는 폭부터는 버튼 오른쪽에 세운다 */
+  @media (min-width:560px){
+    .crew{
+      position:absolute;
+      right:0;
+      top:50%;
+      transform:translateY(-50%);
+      margin:0;
+    }
+  }
+  .crew-unit{
+    width:42px;height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:var(--mono);
+    font-size:.62rem;
+    color:var(--ink-2);
+    background:var(--surface);
+    border:1px solid var(--line);
+    transition:background .12s ease,border-color .12s ease,transform .12s ease,color .12s ease;
+  }
+  .crew-unit.tick{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--danger-ink);
+    transform:scale(1.12);
+  }
+
+  /* 배수 아이템을 쓰고 있을 때 지갑에 붙는 표시 */
+  .mult-badge{
+    display:inline-block;
+    margin-left:.4rem;
+    padding:.1rem .4rem;
+    font-family:var(--mono);
+    font-size:.62rem;
+    font-weight:600;
+    color:var(--danger-ink);
+    background:var(--accent);
+    border-radius:99px;
+    vertical-align:middle;
+  }
+
   /* 누르라고 만든 버튼에 붙는 경고 */
   .warn{
     margin:0;
@@ -829,11 +881,12 @@
       <span class="screw e"></span>
       <button id="deleteBtn" type="button" aria-label="군생활 삭제">삭제</button>
     </div>
+    <div class="crew" id="crew" aria-hidden="true"></div>
     <p class="warn">누르지 마시오</p>
   </div>
 
   <div class="wallet">
-    <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 삭제됨</span></p>
+    <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 삭제됨</span><span class="mult-badge" id="multBadge" hidden></span></p>
     <p class="wallet-sub">누적 삭제된 일수 <span id="totalNum">0</span>일</p>
   </div>
 
@@ -904,6 +957,7 @@
   var barEl = $('bar'), barFill = $('barFill'), remainEl = $('remain'), servedEl = $('served');
   var btn = $('deleteBtn'), plate = $('plate'), soundBtn = $('soundBtn');
   var balanceNum = $('balanceNum'), totalNum = $('totalNum');
+  var crew = $('crew'), multBadge = $('multBadge');
   var shopScrim = $('shopScrim'), shopBody = $('shopBody'), shopSearch = $('shopSearch');
   var shopBalance = $('shopBalance'), shopOpen = $('shopOpen'), shopClose = $('shopClose');
   var stage = document.querySelector('.console');
@@ -1194,6 +1248,17 @@
     balanceNum.textContent = balance().toLocaleString('ko-KR');
     totalNum.textContent = total.toLocaleString('ko-KR');
     shopBalance.textContent = balance().toLocaleString('ko-KR');
+    var m = multiplier();
+    multBadge.hidden = m <= 1;
+    multBadge.textContent = '×' + m;
+  }
+
+  // 한 번 누를 때 올라가는 일수. 자동 클릭에도 똑같이 적용된다.
+  function addDays(n) {
+    total += n;
+    store(LS.total, String(total));
+    renderWallet();
+    refreshShopSoon();
   }
 
   var punchTimer = null;
@@ -1221,7 +1286,7 @@
     if (live.length >= 8) stage.removeChild(live[0]);
     var el = document.createElement('span');
     el.className = 'pop';
-    el.textContent = '-1일';
+    el.textContent = '-' + multiplier() + '일';
     el.style.left = (25 + Math.random() * 50) + '%';
     el.style.top = (0.8 + Math.random() * 0.9) + 'rem';
     stage.appendChild(el);
@@ -1233,10 +1298,7 @@
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   btn.addEventListener('click', function () {
-    total++;
-    store(LS.total, String(total));
-    renderWallet();
-    if (shopScrim.classList.contains('on')) renderShop();   // 열어둔 채 눌러도 잔액이 맞게
+    addDays(multiplier());
 
     playClick(total);
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
@@ -1250,6 +1312,61 @@
   var items = null;          // null = 아직 안 불러옴
   var itemsError = '';
   var lastFocus = null;
+
+  /* ── 아이템 효과 ──
+     multiplier: 한 번 누를 때 올라가는 일수 배수. 겹치지 않고 가장 높은 것만 적용된다.
+     auto:       제 주기마다 알아서 버튼을 눌러주는 대원. 산 만큼 늘어난다. */
+
+  function ownedItems() {
+    if (!items) return [];
+    return items.filter(function (it) { return owned.indexOf(it.id) > -1; });
+  }
+
+  function multiplier() {
+    var m = 1;
+    ownedItems().forEach(function (it) {
+      if (it.effect && it.effect.type === 'multiplier') m = Math.max(m, it.effect.value);
+    });
+    return m;
+  }
+
+  var autoTimers = [];
+  var lastAutoPunch = 0;
+
+  function autoTick(item) {
+    addDays(multiplier());
+    flashCrew(item.id);
+    // 상사까지 다 사면 초당 14번이다. 그대로 punch 하면 눌린 채로 멈춘 것처럼 보인다.
+    var now = Date.now();
+    if (now - lastAutoPunch > 130) { lastAutoPunch = now; punch(); }
+  }
+
+  function applyEffects() {
+    autoTimers.forEach(clearInterval);
+    autoTimers = [];
+
+    var autos = ownedItems().filter(function (it) {
+      return it.effect && it.effect.type === 'auto' && it.effect.intervalMs > 0;
+    });
+
+    autos.forEach(function (it) {
+      autoTimers.push(setInterval(function () { autoTick(it); }, it.effect.intervalMs));
+    });
+
+    crew.innerHTML = autos.map(function (it) {
+      return '<div class="crew-unit" data-id="' + esc(it.id) + '" title="' + esc(it.name) + '">' +
+             esc(it.name) + '</div>';
+    }).join('');
+
+    renderWallet();
+  }
+
+  function flashCrew(id) {
+    var el = crew.querySelector('[data-id="' + id + '"]');
+    if (!el) return;
+    el.classList.add('tick');
+    setTimeout(function () { el.classList.remove('tick'); }, 160);
+  }
 
   // 아이템 정의는 items.json 한 곳에만 둔다. 아티팩트처럼 파일을 같이 올릴 수
   // 없는 환경을 위해, 페이지 안에 인라인 사본이 있으면 그쪽을 먼저 쓴다.
@@ -1318,6 +1435,15 @@
     }).join('');
   }
 
+  // 자동 클릭이 초당 여러 번 돌아가므로 그때마다 카드를 다시 그리면 낭비다.
+  // 잔액 숫자는 renderWallet 이 즉시 갱신하고, 카드는 여기서 묶어서 갱신한다.
+  var shopRefreshQueued = false;
+  function refreshShopSoon() {
+    if (shopRefreshQueued || !shopScrim.classList.contains('on')) return;
+    shopRefreshQueued = true;
+    setTimeout(function () { shopRefreshQueued = false; renderShop(); }, 400);
+  }
+
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -1334,7 +1460,7 @@
     owned.push(id);
     store(LS.spent, String(spent));
     store(LS.owned, JSON.stringify(owned));
-    renderWallet();
+    applyEffects();          // 산 즉시 배수·자동 대원이 붙는다
     renderShop();
   }
 
@@ -1351,7 +1477,7 @@
     if (items === null) {
       itemsError = '';                    // 지난 실패는 붙잡아두지 않는다 — 열 때마다 다시 시도
       renderShop();                       // "불러오는 중…"
-      loadItems().then(renderShop);
+      loadItems().then(function () { applyEffects(); renderShop(); });
     } else {
       renderShop();
     }
@@ -1409,6 +1535,8 @@
   syncSoundBtn();
   render();
   initAds();
+  // 상점을 열지 않아도 자동 대원이 일해야 하므로 아이템은 시작할 때 읽는다
+  loadItems().then(applyEffects);
 
   // 콘솔 검증용
   window.__army = {
