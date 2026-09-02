@@ -332,7 +332,7 @@
   .plate::before{
     content:"";
     position:absolute;
-    inset:11%;
+    inset:13%;
     border-radius:50%;
     box-shadow:inset 0 2px 5px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.26);
   }
@@ -351,7 +351,7 @@
   #deleteBtn{
     position:relative;
     z-index:1;
-    width:71%;
+    width:62%;
     aspect-ratio:1;
     padding:0;
     border:0;
@@ -364,9 +364,12 @@
     color:var(--cap-ink);
     background:radial-gradient(circle at 38% 27%, var(--cap-hi) 0%, var(--cap) 46%, var(--cap-deep) 100%);
     text-shadow:0 1px 2px rgba(0,0,0,.42);
+    /* 벽이 아래로만 뻗으므로, 그만큼 아래 마진을 줘야 원 안에서 광학적으로 중앙에 온다.
+       transform 이 아니라 마진으로 잡아야 눌림 애니메이션과 값이 얽히지 않는다. */
+    margin-bottom:7px;
     box-shadow:
-      0 9px 0 var(--cap-wall),
-      0 15px 22px -8px rgba(0,0,0,.5),
+      0 7px 0 var(--cap-wall),
+      0 13px 20px -8px rgba(0,0,0,.5),
       inset 0 -6px 12px rgba(0,0,0,.3),
       inset 0 4px 10px rgba(255,255,255,.22);
     transition:transform .07s ease, box-shadow .07s ease;
