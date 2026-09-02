@@ -347,7 +347,9 @@
   .plate::before{
     content:"";
     position:absolute;
-    inset:15%;
+    /* 캡(69%)보다 아주 조금만 넓게 — 눌렸을 때 드러나는 면이 반드시 이 어두운 안쪽이어야 한다.
+       캡이 더 넓으면 밝은 플레이트가 드러나서 다시 구멍처럼 보인다. */
+    inset:14%;
     border-radius:50%;
     background:radial-gradient(circle at 50% 12%, var(--socket-deep) 0%, var(--socket) 72%);
     box-shadow:
@@ -370,7 +372,7 @@
   #deleteBtn{
     position:relative;
     z-index:1;
-    width:62%;
+    width:69%;
     aspect-ratio:1;
     padding:0;
     border:0;
@@ -385,7 +387,7 @@
     text-shadow:0 1px 2px rgba(0,0,0,.42);
     /* 원통 높이만큼 아래 마진을 줘야 원 안에서 광학적으로 중앙에 온다.
        transform 이 아니라 마진으로 잡아야 눌림 애니메이션과 값이 얽히지 않는다. */
-    margin-bottom:18px;
+    margin-bottom:22px;
     /* 4단으로 쌓은 측면 — 아래로 갈수록 어두워져 원통으로 읽힌다.
        눌림 상태와 레이어 수·순서가 같아야 box-shadow 가 보간된다. */
     box-shadow:
@@ -393,9 +395,10 @@
       0 9px 0 var(--cap-wall-2),
       0 13px 0 var(--cap-wall-2),
       0 18px 0 var(--cap-wall-3),
-      0 22px 16px -10px rgba(0,0,0,.5),
+      0 4px 14px 2px rgba(0,0,0,.28),      /* 머리 밑 접촉 그림자 — 회색 위로 번져 떠 있는 게 보인다 */
+      0 24px 18px -8px rgba(0,0,0,.42),
       inset 0 -9px 15px rgba(0,0,0,.34),
-      inset 0 5px 12px rgba(255,255,255,.24);
+      inset 0 6px 11px rgba(255,255,255,.28);
     transition:transform .12s ease, box-shadow .12s ease;   /* 놓을 때 — 천천히 올라온다 */
     touch-action:manipulation;
     -webkit-user-select:none;user-select:none;
@@ -410,7 +413,8 @@
       0 3px 0 var(--cap-wall-2),
       0 4px 0 var(--cap-wall-2),
       0 6px 0 var(--cap-wall-3),
-      0 8px 10px -7px rgba(0,0,0,.45),
+      0 2px 7px 0 rgba(0,0,0,.36),         /* 내려앉으면 접촉 그림자가 좁고 진해진다 */
+      0 10px 12px -8px rgba(0,0,0,.4),
       inset 0 -5px 11px rgba(0,0,0,.42),
       inset 0 3px 9px rgba(255,255,255,.14);
     transition:transform .05s ease, box-shadow .05s ease;   /* 누를 때 — 빠르게 들어간다 */
