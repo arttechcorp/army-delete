@@ -43,12 +43,18 @@
     --cap-hi:#ff7a63;
     --cap:#dc3a26;
     --cap-deep:#a01d12;
-    --cap-wall:#7a1409;
     --cap-ink:#fff3f0;
+    /* 원통 측면 — 위에서 아래로 어두워진다 */
+    --cap-wall:#96200f;
+    --cap-wall-2:#7a1409;
+    --cap-wall-3:#5c0e06;
     --plate:#cdd0c8;
     --plate-2:#aeb2a8;
     --plate-edge:#8e938a;
     --screw:#868b80;
+    /* 캡이 내려앉는 배럴 안쪽 */
+    --socket:#9ba196;
+    --socket-deep:#767c71;
 
     --shadow:0 1px 2px rgba(20,24,26,.05), 0 10px 28px -18px rgba(20,24,26,.28);
     --scrim:rgba(20,24,26,.62);
@@ -76,12 +82,16 @@
       --cap-hi:#ff8f78;
       --cap:#d33a26;
       --cap-deep:#8b1a0f;
-      --cap-wall:#5e0f08;
       --cap-ink:#fff1ed;
+      --cap-wall:#7a1a0d;
+      --cap-wall-2:#5e0f08;
+      --cap-wall-3:#440a04;
       --plate:#2e342f;
       --plate-2:#232924;
       --plate-edge:#3f463f;
       --screw:#4c534c;
+      --socket:#171c18;
+      --socket-deep:#0b0f0c;
 
       --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
       --scrim:rgba(0,0,0,.72);
@@ -104,12 +114,16 @@
     --cap-hi:#ff8f78;
     --cap:#d33a26;
     --cap-deep:#8b1a0f;
-    --cap-wall:#5e0f08;
     --cap-ink:#fff1ed;
+    --cap-wall:#7a1a0d;
+    --cap-wall-2:#5e0f08;
+    --cap-wall-3:#440a04;
     --plate:#2e342f;
     --plate-2:#232924;
     --plate-edge:#3f463f;
     --screw:#4c534c;
+    --socket:#171c18;
+    --socket-deep:#0b0f0c;
 
     --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
     --scrim:rgba(0,0,0,.72);
@@ -328,13 +342,18 @@
       inset 0 -2px 6px rgba(0,0,0,.18),
       0 14px 30px -18px rgba(0,0,0,.55);
   }
-  /* 캡이 앉는 안쪽 홈 */
+  /* 캡이 내려앉는 배럴. 누르면 이 안쪽이 위로 드러나므로 어둡게 채운다 —
+     여기가 밝으면 눌린 게 아니라 구멍이 뚫린 것처럼 보인다. */
   .plate::before{
     content:"";
     position:absolute;
-    inset:13%;
+    inset:15%;
     border-radius:50%;
-    box-shadow:inset 0 2px 5px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.26);
+    background:radial-gradient(circle at 50% 12%, var(--socket-deep) 0%, var(--socket) 72%);
+    box-shadow:
+      inset 0 9px 14px rgba(0,0,0,.55),
+      inset 0 -3px 6px rgba(255,255,255,.07),
+      0 1px 0 rgba(255,255,255,.28);
   }
   .screw{
     position:absolute;
@@ -364,26 +383,37 @@
     color:var(--cap-ink);
     background:radial-gradient(circle at 38% 27%, var(--cap-hi) 0%, var(--cap) 46%, var(--cap-deep) 100%);
     text-shadow:0 1px 2px rgba(0,0,0,.42);
-    /* 벽이 아래로만 뻗으므로, 그만큼 아래 마진을 줘야 원 안에서 광학적으로 중앙에 온다.
+    /* 원통 높이만큼 아래 마진을 줘야 원 안에서 광학적으로 중앙에 온다.
        transform 이 아니라 마진으로 잡아야 눌림 애니메이션과 값이 얽히지 않는다. */
-    margin-bottom:7px;
+    margin-bottom:18px;
+    /* 4단으로 쌓은 측면 — 아래로 갈수록 어두워져 원통으로 읽힌다.
+       눌림 상태와 레이어 수·순서가 같아야 box-shadow 가 보간된다. */
     box-shadow:
-      0 7px 0 var(--cap-wall),
-      0 13px 20px -8px rgba(0,0,0,.5),
-      inset 0 -6px 12px rgba(0,0,0,.3),
-      inset 0 4px 10px rgba(255,255,255,.22);
-    transition:transform .07s ease, box-shadow .07s ease;
+      0 4px 0 var(--cap-wall),
+      0 9px 0 var(--cap-wall-2),
+      0 13px 0 var(--cap-wall-2),
+      0 18px 0 var(--cap-wall-3),
+      0 22px 16px -10px rgba(0,0,0,.5),
+      inset 0 -9px 15px rgba(0,0,0,.34),
+      inset 0 5px 12px rgba(255,255,255,.24);
+    transition:transform .12s ease, box-shadow .12s ease;   /* 놓을 때 — 천천히 올라온다 */
     touch-action:manipulation;
     -webkit-user-select:none;user-select:none;
   }
   #deleteBtn:active,
   #deleteBtn.punch{
-    transform:translateY(7px);
+    /* 12px 내려가고 벽은 18 → 6px. 합이 그대로 18 이라 원통 밑면은 제자리에 고정되고,
+       전체가 미끄러지는 대신 위에서 눌려 들어가는 것으로 읽힌다. */
+    transform:translateY(12px);
     box-shadow:
       0 2px 0 var(--cap-wall),
-      0 5px 10px -6px rgba(0,0,0,.5),
-      inset 0 -3px 8px rgba(0,0,0,.34),
-      inset 0 3px 8px rgba(255,255,255,.16);
+      0 3px 0 var(--cap-wall-2),
+      0 4px 0 var(--cap-wall-2),
+      0 6px 0 var(--cap-wall-3),
+      0 8px 10px -7px rgba(0,0,0,.45),
+      inset 0 -5px 11px rgba(0,0,0,.42),
+      inset 0 3px 9px rgba(255,255,255,.14);
+    transition:transform .05s ease, box-shadow .05s ease;   /* 누를 때 — 빠르게 들어간다 */
   }
 
   .ripple{
