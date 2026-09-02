@@ -11,15 +11,21 @@
 
 <!--
   ─────────────────────────────────────────────────────────────
-  광고(AdSense H5 Games Ads) 활성화 방법
+  광고(AdSense 디스플레이 광고) 활성화 방법
   ─────────────────────────────────────────────────────────────
-  1) AdSense 승인 + "H5 Games Ads" 활성화 (기본은 꺼져 있음)
-  2) 아래 script 주석을 풀고 ca-pub-XXXXXXXXXXXXXXXX 를 실제 게시자 ID로 교체
-  3) 도메인 루트에 ads.txt 배치, HTTPS로 배포 (file:// 에서는 동작하지 않음)
-  주석 상태에서는 자동으로 개발용 광고 플레이스홀더가 대신 뜹니다.
+  1) AdSense 대시보드에서 "디스플레이 광고" 단위 3개를 만든다
+       · 좌측 레일  160x600
+       · 우측 레일  160x600
+       · 하단 배너  320x100 (모바일)
+  2) 받은 슬롯 ID 를 아래 본문의 data-ad-slot 3곳에 넣는다
+       SLOT_LEFT / SLOT_RIGHT / SLOT_ANCHOR
+  3) ca-pub-XXXXXXXXXXXXXXXX 를 실제 게시자 ID로 교체한다 (아래 script + <ins> 3곳)
+  4) 아래 script 주석을 풀고, 도메인 루트에 ads.txt 를 두고 HTTPS 로 배포한다
+       (file:// 에서는 광고 SDK 가 동작하지 않는다)
+
+  주석 상태에서는 각 자리에 개발용 플레이스홀더가 대신 표시된다.
 
   <script async
-    data-ad-frequency-hint="30s"
     src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
     crossorigin="anonymous"></script>
 -->
@@ -57,7 +63,6 @@
     --socket-deep:#767c71;
 
     --shadow:0 1px 2px rgba(20,24,26,.05), 0 10px 28px -18px rgba(20,24,26,.28);
-    --scrim:rgba(20,24,26,.62);
 
     --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -94,7 +99,6 @@
       --socket-deep:#0b0f0c;
 
       --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
-      --scrim:rgba(0,0,0,.72);
     }
   }
   :root[data-theme="dark"]{
@@ -126,7 +130,6 @@
     --socket-deep:#0b0f0c;
 
     --shadow:0 1px 2px rgba(0,0,0,.45), 0 10px 28px -18px rgba(0,0,0,.8);
-    --scrim:rgba(0,0,0,.72);
   }
 
   *{box-sizing:border-box}
@@ -501,37 +504,36 @@
     line-height:1.9;
   }
 
-  /* ---------- ad modal (dev placeholder) ---------- */
-  .scrim{
-    position:fixed;inset:0;
-    background:var(--scrim);
-    display:none;
-    align-items:center;
+  /* ---------- 광고 ---------- */
+  /* 3단 배치. 본문 폭(540px)은 건드리지 않고 좌우에 레일만 덧붙인다. */
+  .shell{
+    display:flex;
     justify-content:center;
-    padding:1.25rem;
-    z-index:50;
+    align-items:flex-start;      /* 레일이 세로로 늘어나면 sticky 가 죽는다 */
+    gap:clamp(1.25rem,3vw,2.25rem);
   }
-  .scrim.on{display:flex}
-  .adbox{
-    width:100%;
-    max-width:360px;
-    background:var(--surface);
-    border:1px solid var(--line);
-    border-radius:12px;
-    padding:1.5rem;
-    text-align:center;
-    box-shadow:var(--shadow);
+  .rail{display:none}
+  /* 540 + 2×(160 + 게이터) 를 담으려면 이 정도는 필요하다 */
+  @media (min-width:960px){
+    .rail{
+      display:block;
+      flex:0 0 160px;
+      position:sticky;
+      top:clamp(2rem,7vw,3.5rem);
+    }
   }
-  .adbox .tag{
+
+  .ad-tag{
     font-family:var(--mono);
-    font-size:.64rem;
+    font-size:.58rem;
     letter-spacing:.18em;
     text-transform:uppercase;
     color:var(--muted);
+    margin-bottom:.4rem;
+    text-align:center;
   }
+  /* SDK 가 없을 때(로컬·광고차단기·미승인 도메인) 자리만 보여주는 상자 */
   .adslot{
-    margin:1rem 0 1.25rem;
-    height:220px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -539,22 +541,44 @@
     border-radius:8px;
     color:var(--muted);
     font-family:var(--mono);
-    font-size:.8rem;
-    background:var(--ground);
+    font-size:.72rem;
+    background:var(--surface);
   }
-  .adbox button{
-    width:100%;
-    font-family:var(--sans);
-    font-size:.9rem;
-    font-weight:600;
-    color:var(--ink);
-    background:var(--ground);
+  .rail .adslot{height:600px}
+
+  /* 하단 고정 배너 — 모바일에만 */
+  .anchor{
+    position:fixed;
+    left:0;right:0;bottom:0;
+    z-index:40;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.5rem;
+    padding:.4rem .5rem;
+    background:var(--surface);
+    border-top:1px solid var(--line);
+    box-shadow:0 -4px 16px -12px rgba(0,0,0,.5);
+  }
+  @media (min-width:960px){.anchor{display:none}}
+  .anchor.closed{display:none}
+  /* 고정 배너가 푸터를 가리지 않도록 그만큼 비워둔다 */
+  @media (max-width:959px){body{padding-bottom:132px}}
+  body.ad-closed{padding-bottom:0}
+  .anchor .adslot{height:100px;width:320px;max-width:100%}
+  .anchor-close{
+    position:absolute;
+    top:-13px;right:.5rem;
+    width:26px;height:26px;
+    line-height:1;
+    font-size:1rem;
+    color:var(--muted);
+    background:var(--surface);
     border:1px solid var(--line);
-    border-radius:8px;
-    padding:.7rem;
+    border-radius:50%;
     cursor:pointer;
   }
-  .adbox button[disabled]{color:var(--muted);cursor:default}
+  .anchor-close:hover{color:var(--ink)}
 
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important;transition-duration:.001ms !important}
@@ -562,6 +586,16 @@
 </style>
 </head>
 <body>
+
+<div class="shell">
+
+<aside class="rail" aria-label="광고">
+  <div class="ad-tag">Advertisement</div>
+  <ins class="adsbygoogle" id="adLeft"
+       style="display:inline-block;width:160px;height:600px"
+       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="SLOT_LEFT"></ins>
+</aside>
 
 <div class="wrap">
   <div class="mark">Service Terminator</div>
@@ -621,13 +655,23 @@
   </footer>
 </div>
 
-<div class="scrim" id="adScrim" role="dialog" aria-modal="true" aria-label="광고">
-  <div class="adbox">
-    <div class="tag">Advertisement</div>
-    <div class="adslot">광고 자리 · 개발용 플레이스홀더</div>
-    <button type="button" id="adClose" disabled>닫기 (<span id="adTimer">5</span>)</button>
-  </div>
-</div>
+<aside class="rail" aria-label="광고">
+  <div class="ad-tag">Advertisement</div>
+  <ins class="adsbygoogle" id="adRight"
+       style="display:inline-block;width:160px;height:600px"
+       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="SLOT_RIGHT"></ins>
+</aside>
+
+</div><!-- /.shell -->
+
+<aside class="anchor" id="anchor" aria-label="광고">
+  <button class="anchor-close" id="anchorClose" type="button" aria-label="광고 닫기">&times;</button>
+  <ins class="adsbygoogle" id="adAnchor"
+       style="display:inline-block;width:320px;height:100px"
+       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="SLOT_ANCHOR"></ins>
+</aside>
 
 <script>
 (function () {
@@ -636,7 +680,6 @@
   /* ══════════════════════════════════════════
      설정
      ══════════════════════════════════════════ */
-  var AD_INTERVAL = 50;          // 몇 번 누를 때마다 광고를 띄울지
   var COMBO_RESET_MS = 1200;     // 이 시간 이상 쉬면 콤보 초기화
   var MAX_VOICES = 8;            // 동시 발음 상한
   var LS = { start: 'ad.start', end: 'ad.end', count: 'ad.count', muted: 'ad.muted' };
@@ -647,7 +690,7 @@
   var barEl = $('bar'), barFill = $('barFill'), remainEl = $('remain'), servedEl = $('served');
   var btn = $('deleteBtn'), plate = $('plate'), countNum = $('countNum'), soundBtn = $('soundBtn');
   var stage = document.querySelector('.console');
-  var adScrim = $('adScrim'), adClose = $('adClose'), adTimer = $('adTimer');
+  var anchor = $('anchor'), anchorClose = $('anchorClose');
 
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -868,81 +911,48 @@
   }
 
   /* ══════════════════════════════════════════
-     광고 — AdSense H5 Games Ads
+     광고 — AdSense 디스플레이 배너 (좌우 레일 + 모바일 하단)
      ══════════════════════════════════════════ */
-  var adInFlight = false;
-  var adsReady = false;
 
-  if (typeof window.adConfig === 'function') {
-    window.adConfig({
-      preloadAdBreaks: 'on',
-      sound: 'on',
-      onReady: function () { adsReady = true; }
-    });
-  }
-
-  function beforeAd() {
-    if (ctx && ctx.state === 'running') ctx.suspend();
-  }
-  function afterAd() {
-    if (ctx && ctx.state === 'suspended' && !muted) ctx.resume();
-  }
-
-  // 광고 호출은 전부 여기를 지난다. 다른 네트워크로 갈아탈 때 이 함수만 고치면 된다.
-  function triggerAd() {
-    if (adInFlight) return;
-    adInFlight = true;
-
-    if (typeof window.adBreak !== 'function') {
-      // 로컬 개발 · 광고 차단기 · 미승인 도메인 → 플레이스홀더로 대체
-      beforeAd();
-      showDevAd(function () { afterAd(); adInFlight = false; });
+  // 폭이 0이거나 display:none 인 컨테이너에 push 하면 광고가 채워지지 않고
+  // 콘솔에 availableWidth=0 오류만 남는다. 지금 실제로 보이는 단위에만 push 한다.
+  // 같은 <ins> 에 두 번 push 할 수 없으므로 리사이즈 대응은 하지 않는다.
+  function initAds() {
+    // SDK 가 없으면(로컬 · 광고차단기 · 미승인 도메인) 세 자리 모두 플레이스홀더로.
+    // 어차피 표시 여부는 CSS 가 정하므로 폭에 따라 고를 이유가 없다.
+    if (typeof window.adsbygoogle === 'undefined') {
+      [$('adLeft'), $('adRight'), $('adAnchor')].forEach(showAdPlaceholder);
       return;
     }
 
-    window.adBreak({
-      type: 'next',
-      name: 'delete-milestone',
-      beforeAd: beforeAd,
-      afterAd: afterAd,
-      adBreakDone: function (info) {
-        // viewed / dismissed / frequencyCapped / notReady / noAdPreloaded /
-        // timeout / error / ignored / other — 어느 쪽이든 앱은 계속 돌아간다.
-        adInFlight = false;
-        if (window.console && console.debug) {
-          console.debug('[ad] breakStatus =', info && info.breakStatus);
-        }
+    var wide = window.matchMedia('(min-width:960px)').matches;
+    var units = wide ? [$('adLeft'), $('adRight')] : [$('adAnchor')];
+
+    units.forEach(function (ins) {
+      if (!ins) return;
+      try {
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        showAdPlaceholder(ins);
       }
     });
   }
 
-  var devAdTimer = null;
-  function showDevAd(done) {
-    var left = 5;
-    adTimer.textContent = left;
-    adClose.disabled = true;
-    adScrim.className = 'scrim on';
-
-    clearInterval(devAdTimer);
-    devAdTimer = setInterval(function () {
-      left--;
-      adTimer.textContent = left;
-      if (left <= 0) {
-        clearInterval(devAdTimer);
-        adClose.disabled = false;
-        adClose.textContent = '닫기';
-      }
-    }, 1000);
-
-    adClose.onclick = function () {
-      if (adClose.disabled) return;
-      clearInterval(devAdTimer);
-      adScrim.className = 'scrim';
-      adClose.innerHTML = '닫기 (<span id="adTimer">5</span>)';
-      adTimer = $('adTimer');
-      done();
-    };
+  // <ins> 를 같은 크기의 점선 상자로 바꿔 배치를 눈으로 확인할 수 있게 한다
+  function showAdPlaceholder(ins) {
+    if (!ins || !ins.parentNode) return;
+    var box = document.createElement('div');
+    box.className = 'adslot';
+    box.textContent = '광고 자리';
+    box.style.width = ins.style.width;
+    box.style.height = ins.style.height;
+    ins.parentNode.replaceChild(box, ins);
   }
+
+  anchorClose.addEventListener('click', function () {
+    anchor.classList.add('closed');
+    document.body.classList.add('ad-closed');   // 배너 자리로 비워둔 여백도 같이 회수
+  });
 
   /* ══════════════════════════════════════════
      클릭
@@ -995,8 +1005,6 @@
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
     if (!reduced) { pop(); ripple(); }
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
-
-    if (count % AD_INTERVAL === 0) triggerAd();
   });
 
   soundBtn.addEventListener('click', function () {
@@ -1033,6 +1041,7 @@
   countNum.textContent = count.toLocaleString('ko-KR');
   syncSoundBtn();
   render();
+  initAds();
 
   // 콘솔 검증용
   window.__army = {
