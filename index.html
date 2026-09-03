@@ -11,24 +11,43 @@
 
 <!--
   ─────────────────────────────────────────────────────────────
-  광고(AdSense 디스플레이 광고) 활성화 방법
+  광고(AdSense 디스플레이 광고) — 켜져 있음
   ─────────────────────────────────────────────────────────────
-  1) AdSense 대시보드에서 "디스플레이 광고" 단위 3개를 만든다
-       · 좌측 레일  160x600
-       · 우측 레일  160x600
-       · 하단 배너  320x100 (모바일)
-  2) 받은 슬롯 ID 를 아래 본문의 data-ad-slot 3곳에 넣는다
-       SLOT_LEFT / SLOT_RIGHT / SLOT_ANCHOR
-  3) ca-pub-XXXXXXXXXXXXXXXX 를 실제 게시자 ID로 교체한다 (아래 script + <ins> 3곳)
-  4) 아래 script 주석을 풀고, 도메인 루트에 ads.txt 를 두고 HTTPS 로 배포한다
-       (file:// 에서는 광고 SDK 가 동작하지 않는다)
+  게시자 ID : ca-pub-8694678185722423   (로더 + <ins> 3곳)
+  광고 단위 : 좌측 레일 5518200303 / 우측 레일 9040361546 / 하단 1545014900
+              자리마다 단위가 달라서 AdSense 보고서에서 따로 볼 수 있다.
 
-  주석 상태에서는 각 자리에 개발용 플레이스홀더가 대신 표시된다.
+  AdSense 쪽 단위 이름은 배치와 어긋나 있다 — 1545014900 이 "ad_vertical_",
+  9040361546 이 "ad_horazontal_2" 인데 실제로는 그 반대 자리에 있다.
+  셋 다 반응형("auto") 단위라 이름은 송출에 영향이 없다. 헷갈리면
+  AdSense 에서 단위 이름만 바꾸면 된다 — 슬롯 ID 는 그대로다.
 
-  <script async
-    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
-    crossorigin="anonymous"></script>
+  단위는 반응형("auto")으로 만들어졌지만 여기서는 고정 크기로 쓴다.
+  <ins> 에 width/height 를 주고 data-ad-format 을 빼면 그 크기로 요청한다.
+  레일 160x600, 하단 320x100 — 이 레이아웃이 그 크기에 맞춰져 있다.
+
+  실제로 광고가 나오려면 AdSense 에서 이 도메인이 승인되어야 하고,
+  도메인 루트에 ads.txt 가 있어야 한다 (저장소의 ads.txt 참고).
+  file:// 에서는 SDK 가 동작하지 않는다.
+
+  ─────────────────────────────────────────────────────────────
+  보상형 광고(H5 Games Ads) 활성화 방법 — 위와 별개 절차다
+  ─────────────────────────────────────────────────────────────
+  5) AdSense 계정에서 "H5 Games Ads" 를 신청하고 승인받는다.
+     디스플레이 광고 승인과 별개이고, 이 사이트가 HTML5 게임으로
+     인정될지는 Google 이 정한다. 스크립트 태그는 위 로더 하나면 된다.
+
+  승인 전(또는 주석 상태)에는 광고 자리에 개발용 플레이스홀더가 뜨고,
+  보상 버튼은 플레이스홀더 모달로 전체 흐름을 확인할 수 있다.
+
+  정책: 보상형 광고에만 "광고 보고 받기" 문구를 붙일 수 있다.
+        레일·하단 배너에는 어떤 유도 문구도 붙이면 안 된다.
+
 -->
+
+<script async
+  src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8694678185722423"
+  crossorigin="anonymous"></script>
 
 <style>
   :root{
@@ -449,6 +468,58 @@
     to{transform:translate(-50%,-50%) scale(1.32);opacity:0}
   }
 
+  /* 자동으로 버튼을 눌러주는 대원들. 디자인 전이라 일단 정사각형. */
+  .crew{
+    display:grid;
+    grid-template-columns:repeat(2,42px);
+    gap:6px;
+    justify-content:center;
+    margin-top:.9rem;
+  }
+  .crew:empty{display:none}
+  /* 플레이트 옆에 자리가 나오는 폭부터는 버튼 오른쪽에 세운다 */
+  @media (min-width:560px){
+    .crew{
+      position:absolute;
+      right:0;
+      top:50%;
+      transform:translateY(-50%);
+      margin:0;
+    }
+  }
+  .crew-unit{
+    width:42px;height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:var(--mono);
+    font-size:.62rem;
+    color:var(--ink-2);
+    background:var(--surface);
+    border:1px solid var(--line);
+    transition:background .12s ease,border-color .12s ease,transform .12s ease,color .12s ease;
+  }
+  .crew-unit.tick{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--danger-ink);
+    transform:scale(1.12);
+  }
+
+  /* 배수 아이템을 쓰고 있을 때 지갑에 붙는 표시 */
+  .mult-badge{
+    display:inline-block;
+    margin-left:.4rem;
+    padding:.1rem .4rem;
+    font-family:var(--mono);
+    font-size:.62rem;
+    font-weight:600;
+    color:var(--danger-ink);
+    background:var(--accent);
+    border-radius:99px;
+    vertical-align:middle;
+  }
+
   /* 누르라고 만든 버튼에 붙는 경고 */
   .warn{
     margin:0;
@@ -611,11 +682,17 @@
   }
   .shop-balance b{color:var(--accent);font-size:1.05rem;font-weight:600}
 
-  .shop-body{
+  /* 스크롤은 바깥이 맡는다 — 보상 줄도 아이템과 같이 스크롤되어야 한다 */
+  .shop-scroll{
     flex:1;
     min-height:0;
     overflow-y:auto;
     padding:.85rem .9rem 1rem;
+    display:grid;
+    gap:.55rem;
+    align-content:start;
+  }
+  .shop-body{
     display:grid;
     gap:.55rem;
     align-content:start;
@@ -626,6 +703,96 @@
     color:var(--muted);
     font-size:.88rem;
     line-height:1.7;
+  }
+
+  /* 개발용 보상형 광고 모달 — SDK 가 없을 때만 쓴다 */
+  .scrim{
+    position:fixed;inset:0;
+    background:var(--scrim);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:1.25rem;
+    z-index:70;
+  }
+  .scrim.on{display:flex}
+  .adbox{
+    width:100%;
+    max-width:360px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:1.5rem;
+    text-align:center;
+    box-shadow:var(--shadow);
+  }
+  .adbox .tag{
+    font-family:var(--mono);
+    font-size:.64rem;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .adbox .adslot{
+    margin:1rem 0 1.25rem;
+    height:200px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px dashed var(--line);
+    border-radius:8px;
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:.8rem;
+    background:var(--ground);
+  }
+  .adbox button{
+    width:100%;
+    font-family:var(--sans);
+    font-size:.9rem;
+    font-weight:600;
+    color:var(--ink);
+    background:var(--ground);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:.7rem;
+    cursor:pointer;
+  }
+
+  /* 보상형 광고 줄. 아이템이 아니라는 걸 액센트 테두리로 구분한다. */
+  .reward-row{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center;
+    gap:.85rem;
+    padding:.7rem .8rem;
+    background:var(--accent-soft);
+    border:1px solid var(--accent);
+    border-radius:10px;
+    margin-bottom:.2rem;
+  }
+  .reward-row[hidden]{display:none}
+  .reward-icon{font-size:1.6rem;line-height:1}
+  .reward-title{margin:0;font-size:.92rem;font-weight:600;letter-spacing:-.01em}
+  .reward-note{margin:.15rem 0 0;font-size:.76rem;color:var(--ink-2);line-height:1.5}
+  .reward-btn{
+    font-family:var(--sans);
+    font-size:.76rem;
+    font-weight:600;
+    color:var(--danger-ink);
+    background:var(--accent);
+    border:0;
+    border-radius:7px;
+    padding:.35rem .8rem;
+    cursor:pointer;
+    white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  .reward-btn[disabled]{
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--line);
+    cursor:default;
   }
 
   .item{
@@ -690,6 +857,7 @@
   }
   .icon-btn:hover{color:var(--ink);border-color:var(--muted)}
 
+  footer a{color:var(--accent)}
   footer{
     margin-top:2.75rem;
     padding-top:1.5rem;
@@ -859,6 +1027,15 @@
   }
   .anchor-close:hover{color:var(--ink)}
 
+  /* iOS Safari 는 글자 16px 미만인 입력창에 포커스가 가면 페이지를 강제로
+     확대하고, 그 배율을 되돌리지 않는다. 그래서 상점을 열었다 닫으면 본문이
+     확대된 채로 남아 두 화면의 배율이 어긋난다.
+     터치 기기에서만 16px 로 올린다 — 마우스 쓰는 화면은 촘촘한 편이 낫다. */
+  @media (pointer: coarse){
+    input[type="date"],
+    .shop-search{ font-size:16px }
+  }
+
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important;transition-duration:.001ms !important}
   }
@@ -872,8 +1049,8 @@
   <div class="ad-tag">Advertisement</div>
   <ins class="adsbygoogle" id="adLeft"
        style="display:inline-block;width:160px;height:600px"
-       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-       data-ad-slot="SLOT_LEFT"></ins>
+       data-ad-client="ca-pub-8694678185722423"
+       data-ad-slot="5518200303"></ins>
 </aside>
 
 <div class="wrap">
@@ -921,11 +1098,12 @@
       <span class="screw e"></span>
       <button id="deleteBtn" type="button" aria-label="군생활 삭제">삭제</button>
     </div>
+    <div class="crew" id="crew" aria-hidden="true"></div>
     <p class="warn">누르지 마시오</p>
   </div>
 
   <div class="wallet">
-    <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 삭제됨</span></p>
+    <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 삭제됨</span><span class="mult-badge" id="multBadge" hidden></span></p>
     <p class="wallet-sub">누적 삭제된 일수 <span id="totalNum">0</span>일</p>
   </div>
 
@@ -941,7 +1119,8 @@
   <footer>
     실제 복무 기간은 변하지 않습니다.<br>
     입력한 날짜와 누른 횟수는 이 브라우저에만 저장됩니다.<br>
-    리더보드에는 소속과 삭제한 일수만 전송됩니다.
+    리더보드에는 소속과 삭제한 일수만 전송됩니다.<br>
+    <a href="privacy.html">개인정보처리방침</a>
   </footer>
 </div>
 
@@ -949,8 +1128,8 @@
   <div class="ad-tag">Advertisement</div>
   <ins class="adsbygoogle" id="adRight"
        style="display:inline-block;width:160px;height:600px"
-       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-       data-ad-slot="SLOT_RIGHT"></ins>
+       data-ad-client="ca-pub-8694678185722423"
+       data-ad-slot="9040361546"></ins>
 </aside>
 
 </div><!-- /.shell -->
@@ -965,7 +1144,25 @@
       <input type="search" class="shop-search" id="shopSearch" placeholder="아이템 검색" autocomplete="off" aria-label="아이템 검색">
       <div class="shop-balance">보유 <b id="shopBalance">0</b>일</div>
     </div>
-    <div class="shop-body" id="shopBody" aria-live="polite"></div>
+    <div class="shop-scroll">
+      <div class="reward-row" id="rewardRow" hidden>
+        <div class="reward-icon" aria-hidden="true">🎬</div>
+        <div>
+          <p class="reward-title" id="rewardTitle">광고 보고 일수 받기</p>
+          <p class="reward-note" id="rewardNote">끝까지 보면 지급됩니다.</p>
+        </div>
+        <button class="reward-btn" id="rewardBtn" type="button">보기</button>
+      </div>
+      <div class="shop-body" id="shopBody" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="adScrim" role="dialog" aria-modal="true" aria-label="보상형 광고">
+  <div class="adbox">
+    <div class="tag" id="adTitle">보상형 광고 · 개발용</div>
+    <div class="adslot" id="adSlotBox">광고 재생 중…</div>
+    <button type="button" id="adClose">건너뛰기</button>
   </div>
 </div>
 
@@ -987,30 +1184,10 @@
   <button class="anchor-close" id="anchorClose" type="button" aria-label="광고 닫기">&times;</button>
   <ins class="adsbygoogle" id="adAnchor"
        style="display:inline-block;width:320px;height:100px"
-       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-       data-ad-slot="SLOT_ANCHOR"></ins>
+       data-ad-client="ca-pub-8694678185722423"
+       data-ad-slot="1545014900"></ins>
 </aside>
 
-<script type="application/json" id="shopItemsInline">
-{
-  "version": 1,
-  "currency": "일",
-  "items": [
-    { "id": "mix-coffee", "name": "믹스커피 한 잔", "price": 3, "icon": "☕", "category": "간식", "description": "종이컵에 타서 마시는 그 맛." },
-    { "id": "choco-pie", "name": "초코파이", "price": 5, "icon": "🍫", "category": "간식", "description": "훈련소의 화폐 단위." },
-    { "id": "ramyeon", "name": "라면 한 봉지", "price": 8, "icon": "🍜", "category": "간식", "description": "취침 점호 전에 몰래." },
-    { "id": "pc-hour", "name": "사지방 1시간", "price": 20, "icon": "🖥️", "category": "자유시간", "description": "자리 맡는 게 반이다." },
-    { "id": "budae", "name": "부대찌개 정식", "price": 25, "icon": "🍲", "category": "식사", "description": "이름값 하는 메뉴." },
-    { "id": "chicken", "name": "치킨 한 마리", "price": 40, "icon": "🍗", "category": "식사", "description": "위병소 앞에서 받는 그 봉지." },
-    { "id": "nap", "name": "오후 낮잠 2시간", "price": 60, "icon": "😴", "category": "자유시간", "description": "아무도 안 깨우는 두 시간." },
-    { "id": "day-out", "name": "평일 외출", "price": 120, "icon": "🚶", "category": "휴가", "description": "저녁 점호 전까지는 돌아와야 한다." },
-    { "id": "weekend-out", "name": "주말 외박", "price": 250, "icon": "🏠", "category": "휴가", "description": "집 침대에서 자는 하룻밤." },
-    { "id": "reward-leave", "name": "포상휴가 3일", "price": 500, "icon": "🎖️", "category": "휴가", "description": "받아본 사람만 아는 기쁨." },
-    { "id": "long-leave", "name": "위로휴가 일주일", "price": 1000, "icon": "✈️", "category": "휴가", "description": "달력에 동그라미를 치게 된다." },
-    { "id": "early-discharge", "name": "조기 전역", "price": 9999, "icon": "🕊️", "category": "전설", "description": "존재한다는 소문만 무성하다." }
-  ]
-}
-</script>
 <script>
 (function () {
   'use strict';
@@ -1027,6 +1204,8 @@
     owned: 'ad.owned',        // 보유 아이템 id 목록
     branch: 'ad.branch',      // 리더보드 소속
     sent: 'ad.sent',          // 리더보드에 이미 보고한 누적치
+    rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
+    boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
   };
 
@@ -1051,9 +1230,13 @@
   var barEl = $('bar'), barFill = $('barFill'), remainEl = $('remain'), servedEl = $('served');
   var btn = $('deleteBtn'), plate = $('plate'), soundBtn = $('soundBtn');
   var balanceNum = $('balanceNum'), totalNum = $('totalNum');
+  var crew = $('crew'), multBadge = $('multBadge');
   var shopScrim = $('shopScrim'), shopBody = $('shopBody'), shopSearch = $('shopSearch');
   var shopBalance = $('shopBalance'), shopOpen = $('shopOpen'), shopClose = $('shopClose');
   var lbScrim = $('lbScrim'), lbBody = $('lbBody'), lbOpen = $('lbOpen'), lbClose = $('lbClose');
+  var rewardRow = $('rewardRow'), rewardBtn = $('rewardBtn');
+  var rewardTitle = $('rewardTitle'), rewardNote = $('rewardNote');
+  var adScrim = $('adScrim'), adTitle = $('adTitle'), adSlotBox = $('adSlotBox'), adClose = $('adClose');
   var stage = document.querySelector('.console');
   var anchor = $('anchor'), anchorClose = $('anchorClose');
 
@@ -1283,15 +1466,31 @@
   // 콘솔에 availableWidth=0 오류만 남는다. 지금 실제로 보이는 단위에만 push 한다.
   // 같은 <ins> 에 두 번 push 할 수 없으므로 리사이즈 대응은 하지 않는다.
   function initAds() {
-    // SDK 가 없으면(로컬 · 광고차단기 · 미승인 도메인) 세 자리 모두 플레이스홀더로.
-    // 어차피 표시 여부는 CSS 가 정하므로 폭에 따라 고를 이유가 없다.
-    if (typeof window.adsbygoogle === 'undefined') {
+    // 보상형 광고(H5 Games Ads)는 SDK 가 있을 때만 설정한다.
+    // 디스플레이 광고와 로더가 같아서 별도 스크립트는 필요 없다.
+    if (typeof window.adConfig === 'function') {
+      try {
+        window.adConfig({ preloadAdBreaks: 'on', sound: 'on' });
+      } catch (e) { /* 설정 실패해도 디스플레이 광고는 그대로 간다 */ }
+    }
+
+    // 로더가 async 라 이 시점에 window.adsbygoogle 이 없는 건 정상이다.
+    // 배열에 push 해두면 SDK 가 도착해서 처리한다 — 이걸 "SDK 없음" 으로
+    // 판정하면 광고가 영영 뜨지 않는다. 스크립트 태그 유무로만 가른다.
+    if (!document.querySelector('script[src*="adsbygoogle.js"]')) {
       [$('adLeft'), $('adRight'), $('adAnchor')].forEach(showAdPlaceholder);
       return;
     }
 
     var wide = window.matchMedia('(min-width:960px)').matches;
     var units = wide ? [$('adLeft'), $('adRight')] : [$('adAnchor')];
+
+    // push({}) 는 "문서 순서상 아직 안 채운 첫 <ins>" 를 채운다. 지금 안 쓰는
+    // 자리를 남겨두면 모바일에서 그 한 번이 숨겨진 좌측 레일로 가버리고
+    // (폭 0 오류) 하단 배너는 끝내 비어 있는다. 미리 걷어낸다.
+    [$('adLeft'), $('adRight'), $('adAnchor')].forEach(function (ins) {
+      if (ins && units.indexOf(ins) === -1 && ins.parentNode) ins.parentNode.removeChild(ins);
+    });
 
     units.forEach(function (ins) {
       if (!ins) return;
@@ -1301,6 +1500,19 @@
         showAdPlaceholder(ins);
       }
     });
+
+    // 광고차단기 · 미승인 도메인 · 재고 없음 — 어느 쪽이든 칸이 안 채워진다.
+    // 빈 자리를 그냥 두면 레이아웃이 뚫린 것처럼 보이므로 점선 상자로 되돌린다.
+    setTimeout(function () {
+      units.forEach(function (ins) {
+        // <ins> 는 CSS 로 높이가 잡혀 있어 offsetHeight 로는 판별이 안 된다.
+        // 채워졌는지는 SDK 가 남기는 data-ad-status 로 본다.
+        if (ins && ins.parentNode &&
+            (ins.getAttribute('data-ad-status') === 'unfilled' || !ins.querySelector('iframe'))) {
+          showAdPlaceholder(ins);
+        }
+      });
+    }, 3000);
   }
 
   // <ins> 를 같은 크기의 점선 상자로 바꿔 배치를 눈으로 확인할 수 있게 한다
@@ -1342,6 +1554,17 @@
     balanceNum.textContent = balance().toLocaleString('ko-KR');
     totalNum.textContent = total.toLocaleString('ko-KR');
     shopBalance.textContent = balance().toLocaleString('ko-KR');
+    var m = multiplier();
+    multBadge.hidden = m <= 1;
+    multBadge.textContent = '×' + m;
+  }
+
+  // 한 번 누를 때 올라가는 일수. 자동 클릭에도 똑같이 적용된다.
+  function addDays(n) {
+    total += n;
+    store(LS.total, String(total));
+    renderWallet();
+    refreshShopSoon();
   }
 
   var punchTimer = null;
@@ -1369,7 +1592,7 @@
     if (live.length >= 8) stage.removeChild(live[0]);
     var el = document.createElement('span');
     el.className = 'pop';
-    el.textContent = '-1일';
+    el.textContent = '-' + multiplier() + '일';
     el.style.left = (25 + Math.random() * 50) + '%';
     el.style.top = (0.8 + Math.random() * 0.9) + 'rem';
     stage.appendChild(el);
@@ -1381,10 +1604,7 @@
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   btn.addEventListener('click', function () {
-    total++;
-    store(LS.total, String(total));
-    renderWallet();
-    if (shopScrim.classList.contains('on')) renderShop();   // 열어둔 채 눌러도 잔액이 맞게
+    addDays(multiplier());
 
     playClick(total);
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
@@ -1399,13 +1619,219 @@
   var itemsError = '';
   var lastFocus = null;
 
+  /* ── 아이템 효과 ──
+     multiplier: 한 번 누를 때 올라가는 일수 배수. 겹치지 않고 가장 높은 것만 적용된다.
+     auto:       제 주기마다 알아서 버튼을 눌러주는 대원. 산 만큼 늘어난다. */
+
+  function ownedItems() {
+    if (!items) return [];
+    return items.filter(function (it) { return owned.indexOf(it.id) > -1; });
+  }
+
+  // 공유로 켠 한시적 배수. 남은 시간(ms) — 0 이면 꺼진 것.
+  function boostLeft() {
+    var until = parseInt(load(LS.boost) || '0', 10);
+    return (isFinite(until) && until > Date.now()) ? until - Date.now() : 0;
+  }
+
+  function shareItem() {
+    return (items || []).filter(function (it) {
+      return it.effect && it.effect.type === 'share';
+    })[0];
+  }
+
+  function multiplier() {
+    var boosted = boostLeft() > 0 && shareItem();
+    var m = boosted ? boosted.effect.value : 1;
+    ownedItems().forEach(function (it) {
+      if (it.effect && it.effect.type === 'multiplier') m = Math.max(m, it.effect.value);
+    });
+    return m;
+  }
+
+  var autoTimers = [];
+  var lastAutoPunch = 0;
+
+  function autoTick(item) {
+    addDays(multiplier());
+    flashCrew(item.id);
+    // 상사까지 다 사면 초당 14번이다. 그대로 punch 하면 눌린 채로 멈춘 것처럼 보인다.
+    var now = Date.now();
+    if (now - lastAutoPunch > 130) { lastAutoPunch = now; punch(); }
+  }
+
+  function applyEffects() {
+    autoTimers.forEach(clearInterval);
+    autoTimers = [];
+
+    var autos = ownedItems().filter(function (it) {
+      return it.effect && it.effect.type === 'auto' && it.effect.intervalMs > 0;
+    });
+
+    autos.forEach(function (it) {
+      autoTimers.push(setInterval(function () { autoTick(it); }, it.effect.intervalMs));
+    });
+
+    crew.innerHTML = autos.map(function (it) {
+      return '<div class="crew-unit" data-id="' + esc(it.id) + '" title="' + esc(it.name) + '">' +
+             esc(it.name) + '</div>';
+    }).join('');
+
+    renderWallet();
+    renderReward();          // 보상 설정도 items.json 에서 같이 오므로 여기서 갱신
+  }
+
+  function flashCrew(id) {
+    var el = crew.querySelector('[data-id="' + id + '"]');
+    if (!el) return;
+    el.classList.add('tick');
+    setTimeout(function () { el.classList.remove('tick'); }, 160);
+  }
+
+  /* ══════════════════════════════════════════
+     보상형 광고 (H5 Games Ads)
+     ══════════════════════════════════════════ */
+  var rewardCfg = null;          // items.json 의 reward 설정
+  var rewardInFlight = false;
+  var rewardTimer = null;        // 쿨다운 카운트다운
+
+  function cooldownLeft() {
+    if (!rewardCfg) return 0;
+    var at = parseInt(load(LS.rewardAt) || '0', 10);
+    if (!isFinite(at) || at <= 0) return 0;
+    var left = Math.ceil((at + rewardCfg.cooldownSec * 1000 - Date.now()) / 1000);
+    return left > 0 ? left : 0;
+  }
+
+  function mmss(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  // 버튼 상태는 항상 여기서만 정한다. note 를 넘기면 안내 문구도 같이 바꾼다.
+  function renderReward(note) {
+    clearInterval(rewardTimer);
+    if (!rewardCfg) { rewardRow.hidden = true; return; }
+
+    rewardRow.hidden = false;
+    rewardTitle.textContent = '광고 보고 ' + rewardCfg.days.toLocaleString('ko-KR') + '일 받기';
+    if (note) rewardNote.textContent = note;
+
+    var left = cooldownLeft();
+    if (left > 0) {
+      rewardBtn.disabled = true;
+      rewardBtn.textContent = mmss(left) + ' 후';
+      if (!note) rewardNote.textContent = '조금 뒤에 다시 받을 수 있습니다.';
+      rewardTimer = setInterval(function () {
+        var n = cooldownLeft();
+        if (n <= 0) { renderReward('끝까지 보면 지급됩니다.'); return; }
+        rewardBtn.textContent = mmss(n) + ' 후';
+      }, 1000);
+      return;
+    }
+
+    rewardBtn.disabled = rewardInFlight;
+    rewardBtn.textContent = rewardInFlight ? '불러오는 중…' : '보기';
+    if (!note) rewardNote.textContent = '끝까지 보면 지급됩니다.';
+  }
+
+  // 광고가 뜬 동안 앱을 멈춘다. 뒤에서 잔액이 오르면 보상 체감이 사라지고
+  // 소리가 광고와 겹친다.
+  function pauseForAd() {
+    if (ctx && ctx.state === 'running') ctx.suspend();
+    autoTimers.forEach(clearInterval);
+    autoTimers = [];
+  }
+  function resumeAfterAd() {
+    if (ctx && ctx.state === 'suspended' && !muted) ctx.resume();
+    applyEffects();          // 타이머를 원래대로 재구성 (idempotent)
+  }
+
+  function grantReward() {
+    addDays(rewardCfg.days);           // 배수를 곱하지 않는다 — 보상은 고정액
+    store(LS.rewardAt, String(Date.now()));
+    renderReward('+' + rewardCfg.days.toLocaleString('ko-KR') + '일 받았습니다.');
+  }
+
+  function watchRewardAd() {
+    if (!rewardCfg || rewardInFlight || cooldownLeft() > 0) return;
+    rewardInFlight = true;
+    renderReward('광고를 불러오는 중…');
+
+    // SDK 가 없으면(로컬 · 미승인 · 광고차단기) 플레이스홀더로 흐름만 확인한다
+    if (typeof window.adBreak !== 'function') {
+      pauseForAd();
+      showDevRewardAd(function (completed) {
+        resumeAfterAd();
+        rewardInFlight = false;
+        if (completed) grantReward();
+        else renderReward('끝까지 봐야 받을 수 있습니다.');
+      });
+      return;
+    }
+
+    var offered = false;
+    window.adBreak({
+      type: 'reward',
+      name: 'shop-reward',
+      beforeReward: function (showAdFn) { offered = true; showAdFn(); },
+      beforeAd: pauseForAd,
+      afterAd: resumeAfterAd,
+      adViewed: grantReward,                                   // 보상은 오직 여기서만
+      adDismissed: function () { renderReward('끝까지 봐야 받을 수 있습니다.'); },
+      adBreakDone: function (info) {
+        // beforeReward 가 아예 안 불렸으면 지금 줄 광고가 없다는 뜻이다.
+        rewardInFlight = false;
+        if (!offered) renderReward('지금은 볼 수 있는 광고가 없습니다.');
+        else renderReward();
+        if (window.console && console.debug) {
+          console.debug('[ad] reward breakStatus =', info && info.breakStatus);
+        }
+      }
+    });
+  }
+
+  // 개발용 — 실제 광고 대신 5초짜리 가짜 광고. 중간에 닫으면 미지급.
+  function showDevRewardAd(done) {
+    var left = 5, timer = null, finished = false;
+    adTitle.textContent = '보상형 광고 · 개발용';
+    adSlotBox.textContent = '광고 재생 중…';
+    adScrim.className = 'scrim on';
+    adClose.disabled = false;
+    adClose.textContent = '건너뛰기';
+
+    timer = setInterval(function () {
+      left--;
+      adSlotBox.textContent = left > 0 ? '광고 재생 중… ' + left : '시청 완료';
+      if (left <= 0) {
+        clearInterval(timer);
+        finished = true;
+        adClose.textContent = '닫고 보상 받기';
+      }
+    }, 1000);
+
+    adClose.onclick = function () {
+      clearInterval(timer);
+      adScrim.className = 'scrim';
+      done(finished);
+    };
+  }
+
+  rewardBtn.addEventListener('click', watchRewardAd);
+
   // 아이템 정의는 items.json 한 곳에만 둔다. 아티팩트처럼 파일을 같이 올릴 수
   // 없는 환경을 위해, 페이지 안에 인라인 사본이 있으면 그쪽을 먼저 쓴다.
   function loadItems() {
+    // 아이템과 보상 설정을 같은 파일에서 함께 읽는다
+    function take(data) {
+      items = data.items || [];
+      if (data.reward && data.reward.days > 0) rewardCfg = data.reward;
+    }
+
     var inline = document.getElementById('shopItemsInline');
     if (inline) {
       try {
-        items = JSON.parse(inline.textContent).items || [];
+        take(JSON.parse(inline.textContent));
         return Promise.resolve();
       } catch (e) {
         itemsError = '아이템 목록을 읽을 수 없습니다.';
@@ -1417,7 +1843,7 @@
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
-      .then(function (data) { items = data.items || []; })
+      .then(take)
       .catch(function () {
         // file:// 로 열면 브라우저가 로컬 fetch 를 막는다. 배포본에서는 정상.
         itemsError = location.protocol === 'file:'
@@ -1447,10 +1873,14 @@
 
     var bal = balance();
     shopBody.innerHTML = list.map(function (it) {
-      var has = owned.indexOf(it.id) > -1;
-      var short = !has && bal < it.price;
-      var label = has ? '보유 중' : (short ? '부족' : '구매');
-      return '<article class="item' + (has ? ' owned' : '') + (short ? ' short' : '') + '">' +
+      var isShare = it.effect && it.effect.type === 'share';
+      var left = isShare ? boostLeft() : 0;
+      var has = !isShare && owned.indexOf(it.id) > -1;
+      var short = !isShare && !has && bal < it.price;
+      var label = isShare
+        ? (left > 0 ? mmss(Math.ceil(left / 1000)) + ' 남음' : '공유하기')
+        : (has ? '보유 중' : (short ? '부족' : '구매'));
+      return '<article class="item' + (has || left > 0 ? ' owned' : '') + (short ? ' short' : '') + '">' +
         '<div class="item-icon" aria-hidden="true">' + esc(it.icon || '📦') + '</div>' +
         '<div>' +
           '<div class="item-cat">' + esc(it.category || '') + '</div>' +
@@ -1458,12 +1888,22 @@
           '<p class="item-desc">' + esc(it.description || '') + '</p>' +
         '</div>' +
         '<div class="item-buy">' +
-          '<div class="item-price">' + it.price.toLocaleString('ko-KR') + '일</div>' +
+          '<div class="item-price">' +
+            (isShare ? '무료' : it.price.toLocaleString('ko-KR') + '일') + '</div>' +
           '<button class="buy-btn" type="button" data-id="' + esc(it.id) + '"' +
-            (has || short ? ' disabled' : '') + '>' + label + '</button>' +
+            (has || short || left > 0 ? ' disabled' : '') + '>' + label + '</button>' +
         '</div>' +
       '</article>';
     }).join('');
+  }
+
+  // 자동 클릭이 초당 여러 번 돌아가므로 그때마다 카드를 다시 그리면 낭비다.
+  // 잔액 숫자는 renderWallet 이 즉시 갱신하고, 카드는 여기서 묶어서 갱신한다.
+  var shopRefreshQueued = false;
+  function refreshShopSoon() {
+    if (shopRefreshQueued || !shopScrim.classList.contains('on')) return;
+    shopRefreshQueued = true;
+    setTimeout(function () { shopRefreshQueued = false; renderShop(); }, 400);
   }
 
   function esc(s) {
@@ -1475,6 +1915,7 @@
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
     if (!item) return;
+    if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
     if (owned.indexOf(id) > -1) return;      // 이미 보유
     if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
 
@@ -1482,7 +1923,7 @@
     owned.push(id);
     store(LS.spent, String(spent));
     store(LS.owned, JSON.stringify(owned));
-    renderWallet();
+    applyEffects();          // 산 즉시 배수·자동 대원이 붙는다
     renderShop();
   }
 
@@ -1490,6 +1931,39 @@
     var b = e.target.closest && e.target.closest('.buy-btn');
     if (b && !b.disabled) buy(b.getAttribute('data-id'));
   });
+
+  // 공유 여부는 어차피 확인할 수 없다. 공유창을 띄웠거나 링크를 복사했으면 준다.
+  function shareLink(item) {
+    var url = location.href;
+    function grant() {
+      store(LS.boost, String(Date.now() + item.effect.durationMs));
+      renderWallet();
+      renderShop();
+      watchBoost();
+    }
+    function copy() {
+      if (navigator.clipboard) navigator.clipboard.writeText(url).then(grant, grant);
+      else grant();
+    }
+    // 공유창을 닫았거나 iframe 이 막으면 복사로 넘어간다
+    if (navigator.share) navigator.share({ title: document.title, url: url }).then(grant, copy);
+    else copy();
+  }
+
+  // 남은 시간 카운트다운. 부스트가 켜져 있는 동안에만 돈다 — 상시 타이머로 두면
+  // 아무 일 없을 때도 카드를 계속 갈아치운다.
+  // ponytail: 카드 전체를 다시 그린다. 10여 개라 문제없고, 수백 개로 늘면
+  //           버튼 하나만 갱신하도록 바꿀 것.
+  var boostTimer = null;
+  function watchBoost() {
+    clearInterval(boostTimer);
+    if (boostLeft() <= 0) return;
+    boostTimer = setInterval(function () {
+      var over = boostLeft() <= 0;
+      if (over) { clearInterval(boostTimer); renderWallet(); }   // 배지도 ×1 로 돌린다
+      if (shopScrim.classList.contains('on')) renderShop();
+    }, 1000);
+  }
 
   shopSearch.addEventListener('input', renderShop);
 
@@ -1508,11 +1982,15 @@
   }
 
   function openShop() {
-    openModal(shopScrim, shopSearch);
+    // 터치 기기에서 검색창에 바로 포커스를 주면 키보드가 튀어 올라오고
+    // 상점이 키보드에 가린다. 포커스는 대화상자 안에 두되(Esc·스크린리더용)
+    // 검색은 사용자가 직접 누를 때만 열리게 한다.
+    var coarse = window.matchMedia('(pointer: coarse)').matches;
+    openModal(shopScrim, coarse ? shopClose : shopSearch);
     if (items === null) {
       itemsError = '';                    // 지난 실패는 붙잡아두지 않는다 — 열 때마다 다시 시도
       renderShop();                       // "불러오는 중…"
-      loadItems().then(renderShop);
+      loadItems().then(function () { applyEffects(); renderShop(); });
     } else {
       renderShop();
     }
@@ -1527,6 +2005,8 @@
   });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
+    // 보상 광고가 위에 떠 있으면 뒤의 모달을 닫지 않는다. 광고는 제 버튼으로만 닫힌다.
+    if (adScrim.classList.contains('on')) return;
     if (shopScrim.classList.contains('on')) closeShop();
     else if (lbScrim.classList.contains('on')) closeLb();
   });
@@ -1714,6 +2194,9 @@
   syncPresets();
   render();
   initAds();
+  // 상점을 열지 않아도 자동 대원이 일해야 하므로 아이템은 시작할 때 읽는다
+  loadItems().then(applyEffects);
+  watchBoost();
 
   // 콘솔 검증용. __army.selfCheck() 로 회계 로직을 확인한다.
   window.__army = {

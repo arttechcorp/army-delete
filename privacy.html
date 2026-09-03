@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인정보처리방침 · 군생활 삭제 버튼</title>
+
+<!-- AdSense 사이트 소유권 확인용. 이 페이지에는 광고 단위가 없고 로더만 둔다. -->
+<script async
+  src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8694678185722423"
+  crossorigin="anonymous"></script>
+<style>
+  :root{
+    --ground:#f4f5f2; --surface:#ffffff; --ink:#14181a; --ink-2:#414a4c;
+    --muted:#78827f; --line:#dfe2dc; --accent:#4a5d23;
+    --sans:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0e1210; --surface:#161b18; --ink:#e9ede8; --ink-2:#b4bdb6;
+      --muted:#7e8880; --line:#262d28; --accent:#9dbb5a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e1210; --surface:#161b18; --ink:#e9ede8; --ink-2:#b4bdb6;
+    --muted:#7e8880; --line:#262d28; --accent:#9dbb5a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:clamp(2rem,7vw,3.5rem) clamp(1.1rem,4vw,1.75rem) 5rem;
+    background:var(--ground); color:var(--ink);
+    font-family:var(--sans); line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  main{max-width:620px;margin:0 auto}
+  .mark{
+    font-family:var(--mono); font-size:.68rem; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--accent);
+  }
+  h1{font-size:clamp(1.6rem,5vw,2.1rem);line-height:1.2;letter-spacing:-.03em;margin:.6rem 0 .3rem}
+  .updated{color:var(--muted);font-family:var(--mono);font-size:.75rem;margin:0 0 2.5rem}
+  h2{font-size:1.05rem;letter-spacing:-.01em;margin:2.4rem 0 .6rem;padding-top:1.4rem;border-top:1px solid var(--line)}
+  p,li{color:var(--ink-2);font-size:.94rem}
+  ul{padding-left:1.2rem}
+  li{margin-bottom:.35rem}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:.05em .35em}
+  a{color:var(--accent)}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.88rem}
+  th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);color:var(--ink-2)}
+  th{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  td:first-child{font-family:var(--mono);font-size:.82rem;white-space:nowrap;color:var(--ink)}
+  .back{display:inline-block;margin-top:3rem;font-size:.88rem}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">Privacy</div>
+  <h1>개인정보처리방침</h1>
+  <p class="updated">최종 수정 2026-09-03 · 군생활 삭제 버튼 (army-delete.vercel.app)</p>
+
+  <p>이 사이트는 회원가입이 없고, 서버에 저장하는 데이터베이스도 없습니다. 여러분이 입력하거나 만든 값은 <strong>여러분의 브라우저 안에만</strong> 남습니다.</p>
+
+  <h2>브라우저에 저장하는 것</h2>
+  <p><code>localStorage</code>에 아래 값을 저장합니다. 저희 서버로 전송되지 않으며, 저희는 이 값을 볼 수 없습니다.</p>
+  <table>
+    <tr><th>키</th><th>내용</th></tr>
+    <tr><td>ad.start / ad.end</td><td>입력한 입대일·전역일</td></tr>
+    <tr><td>ad.total / ad.spent</td><td>누적 삭제 일수, 상점에서 쓴 일수</td></tr>
+    <tr><td>ad.owned</td><td>보유한 상점 아이템 목록</td></tr>
+    <tr><td>ad.muted</td><td>소리 켬/끔 설정</td></tr>
+    <tr><td>ad.rewardAt</td><td>마지막 광고 보상 시각 (쿨다운용)</td></tr>
+    <tr><td>ad.boostUntil</td><td>공유 배수가 끝나는 시각</td></tr>
+    <tr><td>ad.count</td><td>예전 버전의 클릭 수 (있으면 이어받음)</td></tr>
+  </table>
+  <p>브라우저의 사이트 데이터를 지우면 전부 사라집니다. 기기 사이에 동기화되지 않습니다.</p>
+
+  <h2>광고 — Google AdSense</h2>
+  <p>이 사이트는 Google AdSense로 광고를 게재합니다. 이 과정에서 <strong>Google과 그 파트너가 쿠키를 사용</strong>하며, 광고를 게재하고 성과를 측정하기 위해 다음과 같은 정보가 Google에 전달될 수 있습니다.</p>
+  <ul>
+    <li>IP 주소, 기기·브라우저 정보, 대략적인 위치</li>
+    <li>이 사이트와 다른 사이트 방문 이력에 기반한 관심 분야</li>
+    <li>광고 노출·클릭 기록</li>
+  </ul>
+  <p>Google은 <strong>광고 쿠키를 사용해 이용자의 이전 방문 기록을 바탕으로 맞춤 광고를 게재</strong>합니다. 이용자는 <a href="https://adssettings.google.com" target="_blank" rel="noopener">Google 광고 설정</a>에서 맞춤 광고를 끌 수 있고, <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener">aboutads.info</a>에서 다른 제공업체의 맞춤 광고도 함께 거부할 수 있습니다.</p>
+  <p>Google의 데이터 처리 방식은 <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google의 파트너 사이트 정책</a>에서 확인할 수 있습니다.</p>
+
+  <h2>보상형 광고</h2>
+  <p>상점에서 "광고 보고 일수 받기"를 누르면 광고가 재생되고, 끝까지 보면 게임 내 일수를 받습니다. 시청 여부만 판단할 뿐 별도로 수집하는 정보는 없으며, 광고 자체에는 위 AdSense 항목이 그대로 적용됩니다.</p>
+
+  <h2>링크 공유</h2>
+  <p>"소문내기"를 누르면 기기의 공유 기능이 열리거나 링크가 클립보드에 복사됩니다. <strong>누구에게 공유했는지는 저희가 알 수 없고 기록하지도 않습니다.</strong> 저장하는 것은 배수가 끝나는 시각뿐입니다.</p>
+
+  <h2>외부로 나가는 요청</h2>
+  <ul>
+    <li><strong>Google Fonts</strong> — 글꼴을 받아옵니다. 이 과정에서 IP 주소가 Google에 전달됩니다.</li>
+    <li><strong>Google AdSense</strong> — 위 광고 항목 참고.</li>
+  </ul>
+  <p>그 밖에 분석 도구나 추적 스크립트는 사용하지 않습니다.</p>
+
+  <h2>아동</h2>
+  <p>이 사이트는 만 14세 미만 아동을 대상으로 하지 않으며, 아동으로부터 개인정보를 의도적으로 수집하지 않습니다.</p>
+
+  <h2>변경</h2>
+  <p>내용이 바뀌면 이 페이지를 갱신하고 위의 최종 수정일을 고칩니다.</p>
+
+  <h2>문의</h2>
+  <p>궁금한 점은 <a href="mailto:jihwanbu26@gmail.com">jihwanbu26@gmail.com</a> 으로 보내주세요.</p>
+
+  <a class="back" href="./">← 돌아가기</a>
+</main>
+</body>
+</html>

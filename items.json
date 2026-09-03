@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "currency": "일",
+
+  "//reward": "보상형 광고 1회 시청 보상. days 는 고정액이라 배수 아이템의 영향을 받지 않는다.",
+  "reward": { "days": 100, "cooldownSec": 300 },
+
+  "items": [
+    {
+      "id": "long-leave",
+      "name": "위로휴가 일주일",
+      "price": 1000,
+      "icon": "✈️",
+      "category": "휴가",
+      "description": "달력에 동그라미를 치게 된다."
+    },
+    {
+      "id": "early-discharge",
+      "name": "조기 전역",
+      "price": 9999,
+      "icon": "🕊️",
+      "category": "전설",
+      "description": "존재한다는 소문만 무성하다."
+    },
+
+    {
+      "id": "share-link",
+      "name": "소문내기",
+      "price": 0,
+      "icon": "🔗",
+      "category": "공유",
+      "description": "링크를 퍼뜨리면 30분간 3배로 눌린다.",
+      "effect": { "type": "share", "value": 3, "durationMs": 1800000 }
+    },
+
+    {
+      "id": "work-detail",
+      "name": "작업 나가기",
+      "price": 500,
+      "icon": "⛏️",
+      "category": "배수",
+      "description": "일을 하다보니 시간이 빨리간다….",
+      "effect": { "type": "multiplier", "value": 2 }
+    },
+    {
+      "id": "genie-tv",
+      "name": "지니티비",
+      "price": 1000,
+      "icon": "📺",
+      "category": "배수",
+      "description": "티비와 함께하니 군생활이 녹는다!",
+      "effect": { "type": "multiplier", "value": 3 }
+    },
+
+    {
+      "id": "rank-pvt",
+      "name": "이병",
+      "price": 200,
+      "icon": "🌱",
+      "category": "자동",
+      "description": "짬으로 첫 후임을 샀다! 어… 근데 상태가..?(약 13.3초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 13333 }
+    },
+    {
+      "id": "rank-pfc",
+      "name": "일병",
+      "price": 500,
+      "icon": "🔧",
+      "category": "자동",
+      "description": "나도 드디어 상병! 어이. 일병. 일해라.(약 6.7초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 6667 }
+    },
+    {
+      "id": "rank-cpl",
+      "name": "상병",
+      "price": 800,
+      "icon": "🛠️",
+      "category": "자동",
+      "description": "나도 드디어 병장….? 상병아 일해라!(약 4.4초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 4445 }
+    },
+    {
+      "id": "rank-sgt",
+      "name": "병장",
+      "price": 1000,
+      "icon": "😎",
+      "category": "자동",
+      "description": "어 그래 알아 잘하고, 난 쇼미나 볼게(약 2.2초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 2222 }
+    },
+    {
+      "id": "rank-ssgt",
+      "name": "하사",
+      "price": 1500,
+      "icon": "😰",
+      "category": "자동",
+      "description": "나….분명 전역했어야 했는데…..?(약 1.1초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 1111 }
+    },
+    {
+      "id": "rank-sfc",
+      "name": "중사",
+      "price": 2500,
+      "icon": "🪖",
+      "category": "자동",
+      "description": "삽 좀 가져와봐(약 0.22초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 222 }
+    },
+    {
+      "id": "rank-msg",
+      "name": "상사",
+      "price": 3500,
+      "icon": "🎗️",
+      "category": "자동",
+      "description": "장기는 에바야(약 0.11초 단위로 버튼을 눌러줍니다.)",
+      "effect": { "type": "auto", "intervalMs": 111 }
+    }
+  ]
+}
