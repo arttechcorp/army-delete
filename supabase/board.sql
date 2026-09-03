@@ -50,6 +50,10 @@ as $$
 $$;
 
 -- 기본값에 기대지 않고 노출면을 직접 정한다.
+-- Supabase 는 public 스키마 테이블에 anon/authenticated GRANT 를 기본으로 준다.
+-- RLS 가 이미 막지만 방어선을 하나만 두지 않는다.
+revoke all on table public.board from anon, authenticated;
+
 revoke all on function public.tap(text, int) from public;
 revoke all on function public.leaderboard()  from public;
 grant execute on function public.tap(text, int) to anon;
