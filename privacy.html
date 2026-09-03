@@ -57,9 +57,10 @@
 <main>
   <div class="mark">Privacy</div>
   <h1>개인정보처리방침</h1>
-  <p class="updated">최종 수정 2026-09-03 · 군생활 삭제 버튼 (army-delete.vercel.app)</p>
+  <p class="updated">최종 수정 2026-09-04 · 군생활 삭제 버튼 (army-delete.vercel.app)</p>
 
-  <p>이 사이트는 회원가입이 없고, 서버에 저장하는 데이터베이스도 없습니다. 여러분이 입력하거나 만든 값은 <strong>여러분의 브라우저 안에만</strong> 남습니다.</p>
+  <p>이 사이트는 회원가입이 없고, 여러분이 입력하거나 만든 값은 기본적으로 <strong>여러분의 브라우저 안에만</strong> 남습니다.</p>
+  <p>딱 하나 예외가 리더보드입니다. 전우들과 군별 합계를 집계하기 위해 <strong>Google 계정 로그인 후 소속 군과 누적 삭제 일수</strong>가 서버로 동기화됩니다. 자세한 내용은 아래 <a href="#leaderboard">리더보드</a> 항목에 있습니다.</p>
 
   <h2>브라우저에 저장하는 것</h2>
   <p><code>localStorage</code>에 아래 값을 저장합니다. 저희 서버로 전송되지 않으며, 저희는 이 값을 볼 수 없습니다.</p>
@@ -71,6 +72,7 @@
     <tr><td>ad.muted</td><td>소리 켬/끔 설정</td></tr>
     <tr><td>ad.rewardAt</td><td>마지막 광고 보상 시각 (쿨다운용)</td></tr>
     <tr><td>ad.boostUntil</td><td>공유 배수가 끝나는 시각</td></tr>
+    <tr><td>ad.branch</td><td>리더보드에서 고른 군 (육군·해병·해군·공군)</td></tr>
     <tr><td>ad.count</td><td>예전 버전의 클릭 수 (있으면 이어받음)</td></tr>
   </table>
   <p>브라우저의 사이트 데이터를 지우면 전부 사라집니다. 기기 사이에 동기화되지 않습니다.</p>
