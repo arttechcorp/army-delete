@@ -1,0 +1,28 @@
+# Supabase 무료 프로젝트는 7일간 요청이 없으면 정지되고 클라이언트에 오류를 반환한다.
+# 주 1회 찔러서 타이머를 리셋한다.
+#
+# 시크릿을 쓰지 않는다. 여기 들어가는 두 값은 index.html 에 그대로 박혀 공개되는 값이라
+# 숨길 실익이 없고, 리포지토리 시크릿 등록에는 admin 권한이 필요하기 때문이다.
+name: keepalive
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'      # 매주 월요일 03:00 UTC
+  workflow_dispatch:
+
+env:
+  # index.html 의 SB_URL / SB_KEY 와 같은 값으로 채운다.
+  SB_URL: 'https://ompghqwkphavxwjypzov.supabase.co'
+  SB_KEY: 'sb_publishable_DIBHz9Qy9uuWughmTFpOwQ_7GVPaKHD'
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping supabase
+        run: |
+          if [ -z "$SB_URL" ]; then
+            echo "SB_URL 이 비어 있습니다. keepalive.yml 의 env 를 채워 주세요."
+            exit 0
+          fi
+          curl -sSf "$SB_URL/rest/v1/rpc/leaderboard" -H "apikey: $SB_KEY" -o /dev/null
