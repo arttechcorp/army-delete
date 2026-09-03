@@ -1030,11 +1030,11 @@
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
   };
 
-  /* Supabase — 프로젝트를 만들고 supabase/board.sql 을 실행한 뒤 이 두 줄만 채우면
-     리더보드가 켜진다. 비워두면 리더보드 버튼은 안내 문구만 띄운다.
-     anon key 는 공개되도록 설계된 값이다. service_role key 는 절대 넣지 말 것. */
-  var SB_URL = '';
-  var SB_KEY = '';
+  /* Supabase — 비워두면 리더보드 버튼은 안내 문구만 띄운다.
+     publishable key(sb_publishable_…) 는 공개되도록 설계된 값이다.
+     secret key(sb_secret_…) 는 절대 넣지 말 것. */
+  var SB_URL = 'https://ompghqwkphavxwjypzov.supabase.co';
+  var SB_KEY = 'sb_publishable_DIBHz9Qy9uuWughmTFpOwQ_7GVPaKHD';
 
   var BRANCHES = [
     { id: 'army',     label: '육군' },
@@ -1578,11 +1578,7 @@
 
     var opts = {
       method: 'POST',
-      headers: {
-        apikey: SB_KEY,
-        Authorization: 'Bearer ' + SB_KEY,
-        'Content-Type': 'application/json'
-      },
+      headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ p_branch: branch, p_delta: delta })
     };
 
@@ -1609,7 +1605,7 @@
   function refreshBoard() {
     if (!LB_ON) { renderBoard(); return; }
     fetch(SB_URL + '/rest/v1/rpc/leaderboard', {
-      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY }
+      headers: { apikey: SB_KEY }
     }).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
       .then(function (d) { lbData = d; renderBoard(); });
   }

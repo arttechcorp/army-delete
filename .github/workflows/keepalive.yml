@@ -12,8 +12,8 @@ on:
 
 env:
   # index.html 의 SB_URL / SB_KEY 와 같은 값으로 채운다.
-  SB_URL: ''
-  SB_KEY: ''
+  SB_URL: 'https://ompghqwkphavxwjypzov.supabase.co'
+  SB_KEY: 'sb_publishable_DIBHz9Qy9uuWughmTFpOwQ_7GVPaKHD'
 
 jobs:
   ping:

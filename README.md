@@ -125,12 +125,15 @@ __army.calcService('2026-03-02', '2027-09-01', new Date(2026, 8, 1))
 
 ```js
 var SB_URL = 'https://<프로젝트>.supabase.co';
-var SB_KEY = '<anon key>';
+var SB_KEY = 'sb_publishable_...';
 ```
 
-anon key 는 공개되도록 설계된 값입니다. 테이블은 RLS 로 잠겨 있고 노출면은 함수 두 개뿐이라,
-anon key 로 할 수 있는 일은 **1~500 범위로 잘린 증가**와 조회가 전부입니다.
-`service_role` key 는 절대 넣지 마세요.
+publishable key 는 공개되도록 설계된 값입니다. 테이블은 RLS 로 잠겨 있고 노출면은 함수 두 개뿐이라,
+이 키로 할 수 있는 일은 **1~500 범위로 잘린 증가**와 조회가 전부입니다.
+`sb_secret_…` 키는 절대 넣지 마세요.
+
+인증은 `apikey` 헤더 하나로 합니다. 새 키 포맷에서 `Authorization` 은 로그인한 사용자의 JWT
+자리라, publishable key 를 거기 넣지 않습니다.
 
 비워두면 리더보드 버튼은 안내 문구만 띄우고, 나머지 기능은 그대로 동작합니다.
 
