@@ -150,8 +150,9 @@ anon key 로 할 수 있는 일은 **1~500 범위로 잘린 증가**와 조회�
 ### 운영
 
 Supabase 무료 프로젝트는 **7일간 요청이 없으면 정지되고 클라이언트에 오류를 반환합니다.**
-`.github/workflows/keepalive.yml` 이 주 1회 찔러 타이머를 리셋합니다. 리포지토리 시크릿에
-`SUPABASE_URL` 과 `SUPABASE_ANON_KEY` 를 넣어 두세요.
+`.github/workflows/keepalive.yml` 이 주 1회 찔러 타이머를 리셋합니다. 그 파일의 `env` 에
+`index.html` 과 같은 두 값을 적어 두세요 — 어차피 공개되는 값이라 시크릿으로 숨길 실익이 없고,
+리포지토리 시크릿 등록에는 admin 권한이 필요합니다. 비워 두면 워크플로는 조용히 건너뜁니다.
 
 ### 검증
 
