@@ -13,4 +13,6 @@ desktop.ini
 *.log
 
 .vercel
-.env*
+.env
+.env.*
+!.env.example

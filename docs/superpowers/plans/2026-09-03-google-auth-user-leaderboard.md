@@ -164,3 +164,4 @@
   git add README.md privacy.html
   git commit -m "docs: 구글 로그인 리더보드 반영에 따른 README 및 개인정보처리방침 갱신"
   ```
+
