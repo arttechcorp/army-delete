@@ -48,6 +48,13 @@
 <script async
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8694678185722423"
   crossorigin="anonymous"></script>
+<script>
+  /* H5 Games Ads(Ad Placement API). adBreak / adConfig 는 로더가 만들어 주지
+     않는다 — 문서대로 adsbygoogle 큐에 밀어 넣는 별칭을 직접 선언해야 한다.
+     이게 없으면 H5 가 승인돼도 보상형 광고가 영영 호출되지 않는다. */
+  window.adsbygoogle = window.adsbygoogle || [];
+  window.adBreak = window.adConfig = function (o) { window.adsbygoogle.push(o); };
+</script>
 
 <style>
   :root{
@@ -1630,8 +1637,10 @@
     rewardInFlight = true;
     renderReward('광고를 불러오는 중…');
 
-    // SDK 가 없으면(로컬 · 미승인 · 광고차단기) 플레이스홀더로 흐름만 확인한다
-    if (typeof window.adBreak !== 'function') {
+    // 개발용 모달은 로컬에서만 쓴다. adBreak 별칭은 항상 정의되어 있어서
+    // SDK 유무로 가를 수 없고, 배포본에서 이 경로를 타면 광고 없이 일수가
+    // 나가버린다.
+    if (isDevHost() || typeof window.adBreak !== 'function') {
       pauseForAd();
       showDevRewardAd(function (completed) {
         resumeAfterAd();
@@ -1642,7 +1651,17 @@
       return;
     }
 
-    var offered = false;
+    var offered = false, settled = false;
+    // 광고차단기가 로더를 막으면 큐를 아무도 비우지 않아 콜백이 영영 안 온다.
+    // 버튼이 "불러오는 중…" 에 멎지 않도록 풀어준다. 보상은 주지 않는다.
+    var giveUp = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      rewardInFlight = false;
+      resumeAfterAd();
+      renderReward('지금은 볼 수 있는 광고가 없습니다.');
+    }, 12000);
+
     window.adBreak({
       type: 'reward',
       name: 'shop-reward',
@@ -1653,6 +1672,9 @@
       adDismissed: function () { renderReward('끝까지 봐야 받을 수 있습니다.'); },
       adBreakDone: function (info) {
         // beforeReward 가 아예 안 불렸으면 지금 줄 광고가 없다는 뜻이다.
+        clearTimeout(giveUp);
+        if (settled) return;
+        settled = true;
         rewardInFlight = false;
         if (!offered) renderReward('지금은 볼 수 있는 광고가 없습니다.');
         else renderReward();
@@ -1661,6 +1683,10 @@
         }
       }
     });
+  }
+
+  function isDevHost() {
+    return location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   }
 
   // 개발용 — 실제 광고 대신 5초짜리 가짜 광고. 중간에 닫으면 미지급.
