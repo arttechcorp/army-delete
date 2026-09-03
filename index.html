@@ -1074,6 +1074,7 @@
     spent: 'ad.spent',        // 상점에서 쓴 누적 일수
     owned: 'ad.owned',        // 보유 아이템 id 목록
     rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
+    boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
   };
 
@@ -1459,8 +1460,21 @@
     return items.filter(function (it) { return owned.indexOf(it.id) > -1; });
   }
 
+  // 공유로 켠 한시적 배수. 남은 시간(ms) — 0 이면 꺼진 것.
+  function boostLeft() {
+    var until = parseInt(load(LS.boost) || '0', 10);
+    return (isFinite(until) && until > Date.now()) ? until - Date.now() : 0;
+  }
+
+  function shareItem() {
+    return (items || []).filter(function (it) {
+      return it.effect && it.effect.type === 'share';
+    })[0];
+  }
+
   function multiplier() {
-    var m = 1;
+    var boosted = boostLeft() > 0 && shareItem();
+    var m = boosted ? boosted.effect.value : 1;
     ownedItems().forEach(function (it) {
       if (it.effect && it.effect.type === 'multiplier') m = Math.max(m, it.effect.value);
     });
@@ -1691,10 +1705,14 @@
 
     var bal = balance();
     shopBody.innerHTML = list.map(function (it) {
-      var has = owned.indexOf(it.id) > -1;
-      var short = !has && bal < it.price;
-      var label = has ? '보유 중' : (short ? '부족' : '구매');
-      return '<article class="item' + (has ? ' owned' : '') + (short ? ' short' : '') + '">' +
+      var isShare = it.effect && it.effect.type === 'share';
+      var left = isShare ? boostLeft() : 0;
+      var has = !isShare && owned.indexOf(it.id) > -1;
+      var short = !isShare && !has && bal < it.price;
+      var label = isShare
+        ? (left > 0 ? mmss(Math.ceil(left / 1000)) + ' 남음' : '공유하기')
+        : (has ? '보유 중' : (short ? '부족' : '구매'));
+      return '<article class="item' + (has || left > 0 ? ' owned' : '') + (short ? ' short' : '') + '">' +
         '<div class="item-icon" aria-hidden="true">' + esc(it.icon || '📦') + '</div>' +
         '<div>' +
           '<div class="item-cat">' + esc(it.category || '') + '</div>' +
@@ -1702,9 +1720,10 @@
           '<p class="item-desc">' + esc(it.description || '') + '</p>' +
         '</div>' +
         '<div class="item-buy">' +
-          '<div class="item-price">' + it.price.toLocaleString('ko-KR') + '일</div>' +
+          '<div class="item-price">' +
+            (isShare ? '무료' : it.price.toLocaleString('ko-KR') + '일') + '</div>' +
           '<button class="buy-btn" type="button" data-id="' + esc(it.id) + '"' +
-            (has || short ? ' disabled' : '') + '>' + label + '</button>' +
+            (has || short || left > 0 ? ' disabled' : '') + '>' + label + '</button>' +
         '</div>' +
       '</article>';
     }).join('');
@@ -1728,6 +1747,7 @@
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
     if (!item) return;
+    if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
     if (owned.indexOf(id) > -1) return;      // 이미 보유
     if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
 
@@ -1743,6 +1763,39 @@
     var b = e.target.closest && e.target.closest('.buy-btn');
     if (b && !b.disabled) buy(b.getAttribute('data-id'));
   });
+
+  // 공유 여부는 어차피 확인할 수 없다. 공유창을 띄웠거나 링크를 복사했으면 준다.
+  function shareLink(item) {
+    var url = location.href;
+    function grant() {
+      store(LS.boost, String(Date.now() + item.effect.durationMs));
+      renderWallet();
+      renderShop();
+      watchBoost();
+    }
+    function copy() {
+      if (navigator.clipboard) navigator.clipboard.writeText(url).then(grant, grant);
+      else grant();
+    }
+    // 공유창을 닫았거나 iframe 이 막으면 복사로 넘어간다
+    if (navigator.share) navigator.share({ title: document.title, url: url }).then(grant, copy);
+    else copy();
+  }
+
+  // 남은 시간 카운트다운. 부스트가 켜져 있는 동안에만 돈다 — 상시 타이머로 두면
+  // 아무 일 없을 때도 카드를 계속 갈아치운다.
+  // ponytail: 카드 전체를 다시 그린다. 10여 개라 문제없고, 수백 개로 늘면
+  //           버튼 하나만 갱신하도록 바꿀 것.
+  var boostTimer = null;
+  function watchBoost() {
+    clearInterval(boostTimer);
+    if (boostLeft() <= 0) return;
+    boostTimer = setInterval(function () {
+      var over = boostLeft() <= 0;
+      if (over) { clearInterval(boostTimer); renderWallet(); }   // 배지도 ×1 로 돌린다
+      if (shopScrim.classList.contains('on')) renderShop();
+    }, 1000);
+  }
 
   shopSearch.addEventListener('input', renderShop);
 
@@ -1812,6 +1865,7 @@
   initAds();
   // 상점을 열지 않아도 자동 대원이 일해야 하므로 아이템은 시작할 때 읽는다
   loadItems().then(applyEffects);
+  watchBoost();
 
   // 콘솔 검증용
   window.__army = {

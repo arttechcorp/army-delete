@@ -24,6 +24,16 @@
     },
 
     {
+      "id": "share-link",
+      "name": "소문내기",
+      "price": 0,
+      "icon": "🔗",
+      "category": "공유",
+      "description": "링크를 퍼뜨리면 30분간 3배로 눌린다.",
+      "effect": { "type": "share", "value": 3, "durationMs": 1800000 }
+    },
+
+    {
       "id": "work-detail",
       "name": "작업 나가기",
       "price": 500,
