@@ -936,6 +936,15 @@
   }
   .anchor-close:hover{color:var(--ink)}
 
+  /* iOS Safari 는 글자 16px 미만인 입력창에 포커스가 가면 페이지를 강제로
+     확대하고, 그 배율을 되돌리지 않는다. 그래서 상점을 열었다 닫으면 본문이
+     확대된 채로 남아 두 화면의 배율이 어긋난다.
+     터치 기기에서만 16px 로 올린다 — 마우스 쓰는 화면은 촘촘한 편이 낫다. */
+  @media (pointer: coarse){
+    input[type="date"],
+    .shop-search{ font-size:16px }
+  }
+
   @media (prefers-reduced-motion:reduce){
     *{animation-duration:.001ms !important;transition-duration:.001ms !important}
   }
@@ -1840,7 +1849,11 @@
     } else {
       renderShop();
     }
-    shopSearch.focus();
+    // 터치 기기에서 검색창에 바로 포커스를 주면 키보드가 튀어 올라오고
+    // 상점이 키보드에 가린다. 포커스는 대화상자 안에 두되(Esc·스크린리더용)
+    // 검색은 사용자가 직접 누를 때만 열리게 한다.
+    if (window.matchMedia('(pointer: coarse)').matches) shopClose.focus();
+    else shopSearch.focus();
   }
 
   function closeShop() {
