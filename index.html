@@ -48,6 +48,7 @@
 <script async
   src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8694678185722423"
   crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
   :root{
@@ -870,85 +871,250 @@
   }
 
   /* ---------- 리더보드 ---------- */
-  /* 모달 껍데기(.shop-scrim / .shop / .shop-top / .shop-body)는 상점 것을 그대로 쓴다. */
-  .lb-tabs{
-    display:flex;
-    gap:.4rem;
-    padding:0 .9rem .75rem;
-    border-bottom:1px solid var(--line);
+  #lbScrim .shop {
+    max-width: 680px;
   }
-  .lb-tab{
-    flex:1;
-    font-family:var(--sans);
-    font-size:.82rem;
-    font-weight:600;
-    color:var(--muted);
-    background:transparent;
-    border:1px solid var(--line);
-    border-radius:8px;
-    padding:.45rem .6rem;
-    min-height:38px;
-    cursor:pointer;
-    transition:color .15s ease,border-color .15s ease,background-color .15s ease;
+  .lb-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--ground);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: .85rem 1.1rem;
+    margin-bottom: .85rem;
+    gap: .75rem;
   }
-  .lb-tab:hover{color:var(--ink);border-color:var(--muted)}
-  .lb-tab[aria-pressed="true"]{
-    color:var(--accent);
-    border-color:var(--accent);
-    background:var(--accent-soft);
+  .lb-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+  }
+  .lb-summary-label {
+    font-size: .75rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .lb-summary-val {
+    font-family: var(--mono);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .lb-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: .65rem;
+  }
+  .lb-row {
+    display: grid;
+    grid-template-columns: 2.2rem minmax(4.2rem, auto) minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: .8rem;
+    padding: .8rem 1rem;
+    background: var(--ground);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .lb-row.mine {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .lb-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    font-family: var(--mono);
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--muted);
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  .lb-row.rank-1 .lb-rank {
+    color: #b45309;
+    background: #fef3c7;
+    border-color: #f59e0b;
+  }
+  .lb-row.mine .lb-rank {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .lb-name {
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+  }
+  .lb-track {
+    height: 10px;
+    border-radius: 99px;
+    background: var(--line-soft);
+    overflow: hidden;
+  }
+  .lb-fill {
+    display: block;
+    height: 100%;
+    border-radius: 99px;
+    background: var(--accent);
+    transition: width .5s cubic-bezier(.22,1,.36,1);
+  }
+  .lb-count {
+    font-size: .8rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .lb-val {
+    font-family: var(--mono);
+    font-size: 1.12rem;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .lb-row.mine .lb-val {
+    color: var(--accent);
   }
 
-  .lb-list{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
-  .lb-row{
-    display:grid;
-    grid-template-columns:1.4rem minmax(3rem,auto) minmax(0,1fr) auto;
-    align-items:center;
-    gap:.6rem;
-    padding:.55rem .7rem;
-    background:var(--ground);
-    border:1px solid var(--line);
-    border-radius:10px;
+  /* 내 정보 및 로그아웃 바 */
+  .lb-my-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: .9rem;
+    padding: .75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: .82rem;
+    gap: .6rem;
   }
-  .lb-row.mine{border-color:var(--accent);background:var(--accent-soft)}
-  .lb-rank{
-    font-family:var(--mono);
-    font-size:.78rem;
-    color:var(--muted);
-    font-variant-numeric:tabular-nums;
+  .lb-my-details {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    flex-wrap: wrap;
+    color: var(--ink-2);
   }
-  .lb-row.mine .lb-rank{color:var(--accent)}
-  .lb-name{font-size:.88rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-  .lb-track{
-    height:8px;
-    border-radius:99px;
-    background:var(--line-soft);
-    overflow:hidden;
+  .lb-my-user {
+    font-weight: 600;
+    color: var(--ink);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .lb-fill{
-    display:block;
-    height:100%;
-    border-radius:99px;
-    background:var(--accent);
-    transition:width .5s cubic-bezier(.22,1,.36,1);
+  .lb-my-badge {
+    display: inline-block;
+    padding: .15rem .5rem;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: .75rem;
   }
-  .lb-val{
-    font-family:var(--mono);
-    font-size:.82rem;
-    font-weight:600;
-    color:var(--ink);
-    font-variant-numeric:tabular-nums;
-    white-space:nowrap;
+  .lb-my-days {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--ink);
   }
-  .lb-note{
-    margin:.5rem 0 0;
-    font-size:.72rem;
-    line-height:1.65;
-    color:var(--muted);
+  .lb-signout-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: .35rem .65rem;
+    font-size: .75rem;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .lb-signout-btn:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+
+  /* 비로그인 로그인 게이트 */
+  .lb-gate {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2.2rem 1.2rem;
+    gap: 1rem;
+  }
+  .lb-gate-icon {
+    font-size: 3rem;
+    line-height: 1;
+  }
+  .lb-gate-title {
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .lb-gate-desc {
+    font-size: .88rem;
+    color: var(--muted);
+    max-width: 380px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .google-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: .75rem 1.5rem;
+    font-family: var(--sans);
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: background-color .15s, box-shadow .15s, border-color .15s;
+    margin-top: .5rem;
+  }
+  .google-btn:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  .google-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  .lb-note {
+    margin: .5rem 0 0;
+    font-size: .74rem;
+    line-height: 1.65;
+    color: var(--muted);
   }
   @media (prefers-reduced-motion: reduce){ .lb-fill{transition:none} }
-  @media (max-width:400px){
-    .lb-row{grid-template-columns:1.2rem minmax(2.6rem,auto) minmax(0,1fr) auto;gap:.45rem}
-    .lb-name{font-size:.82rem}
+  @media (max-width: 520px){
+    .lb-row {
+      grid-template-columns: 1.8rem minmax(3.6rem, auto) minmax(0, 1fr) auto;
+      gap: .5rem;
+      padding: .65rem .75rem;
+    }
+    .lb-count { display: none; }
+    .lb-val { font-size: .98rem; }
+    .lb-summary { flex-direction: column; align-items: flex-start; gap: .5rem; }
+    .lb-my-bar { flex-direction: column; align-items: flex-start; gap: .5rem; }
   }
 
   /* ---------- 광고 ---------- */
@@ -1172,10 +1338,6 @@
       <h2 class="shop-title" id="lbTitle">군별 리더보드</h2>
       <button class="shop-close" id="lbClose" type="button" aria-label="리더보드 닫기">&times;</button>
     </div>
-    <div class="lb-tabs">
-      <button class="lb-tab" type="button" data-tab="total" aria-pressed="true">누적</button>
-      <button class="lb-tab" type="button" data-tab="today" aria-pressed="false">오늘</button>
-    </div>
     <div class="shop-body" id="lbBody" aria-live="polite"></div>
   </div>
 </div>
@@ -1223,6 +1385,18 @@
   ];
   var BRANCH_LABEL = {};
   BRANCHES.forEach(function (b) { BRANCH_LABEL[b.id] = b.label; });
+
+  var supabaseClient = null;
+  if (window.supabase && typeof window.supabase.createClient === 'function' && SB_URL && SB_KEY) {
+    supabaseClient = window.supabase.createClient(SB_URL, SB_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+  }
+  var currentUser = null;
 
   var $ = function (id) { return document.getElementById(id); };
   var startEl = $('startDate'), endEl = $('endDate'), errEl = $('err');
@@ -2019,16 +2193,11 @@
   });
 
   /* ══════════════════════════════════════════
-     리더보드 — 군별 익명 집계
+     리더보드 — 구글 로그인 및 사용자 누적 일수 집계
      ══════════════════════════════════════════ */
-  var LB_ON = !!(SB_URL && SB_KEY);
+  var LB_ON = !!(SB_URL && SB_KEY && supabaseClient);
   var branch = load(LS.branch) || '';
   if (!BRANCH_LABEL[branch]) branch = '';
-  var sent = readInt(LS.sent);
-  if (sent > total) sent = total;        // total 만 지워진 이상 상태 방어
-
-  // 아직 보고하지 않은 몫. 한 번에 보내는 양은 서버 clamp 와 같은 500 으로 맞춘다.
-  function pending(t, s2) { return Math.min(Math.max(t - s2, 0), 500); }
 
   function syncPresets() {
     Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (p) {
@@ -2037,100 +2206,259 @@
   }
 
   function setBranch(id) {
-    if (!BRANCH_LABEL[id] || id === branch) return;
-    // 첫 선택 — 도입 이전에 쌓인 누적은 리더보드에 넣지 않는다.
-    // 한 번에 밀어 넣으면 clamp 에 잘리고, 예외를 두면 그게 그대로 치팅 통로가 된다.
-    if (load(LS.sent) === null) {
-      sent = total;
-      store(LS.sent, String(sent));
-    }
+    if (!BRANCH_LABEL[id]) return;
     branch = id;
     store(LS.branch, id);
     syncPresets();
+    if (currentUser) {
+      syncUserRecord().then(function () {
+        if (lbScrim.classList.contains('on')) refreshBoard();
+      });
+    }
     if (lbScrim.classList.contains('on')) renderBoard();
   }
 
-  var flushing = false;
+  /* 구글 로그인 & 로그아웃 */
+  function signInWithGoogle() {
+    if (!supabaseClient) {
+      alert('Supabase 설정이 필요합니다.');
+      return;
+    }
+    var redirectUrl = window.location.origin + window.location.pathname;
+    supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: redirectUrl }
+    }).catch(function (err) {
+      console.error('Google sign in error:', err);
+      alert('구글 로그인에 실패했습니다: ' + (err.message || err));
+    });
+  }
 
-  function flush(unloading) {
-    var delta = pending(total, sent);
-    if (!LB_ON || !branch || flushing || delta <= 0) return Promise.resolve();
+  function signOutGoogle() {
+    if (!supabaseClient) return;
+    supabaseClient.auth.signOut().then(function () {
+      currentUser = null;
+      lbData = null;
+      renderBoard();
+    });
+  }
 
-    var opts = {
-      method: 'POST',
-      headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_branch: branch, p_delta: delta })
-    };
+  /* 사용자 누적 일수 동기화 */
+  var syncing = false;
+  var lastSyncedTotal = -1;
+  var lastSyncedBranch = '';
+
+  function syncUserRecord(unloading) {
+    if (!supabaseClient || !currentUser || !branch || syncing) return Promise.resolve();
+    if (total === lastSyncedTotal && branch === lastSyncedBranch) return Promise.resolve();
+
+    var targetTotal = total;
+    var targetBranch = branch;
 
     if (unloading) {
-      // 이탈 중엔 응답을 기다릴 수 없다. 낙관적으로 전진시킨다 — 최악이 한 묶음 유실.
-      opts.keepalive = true;
-      sent += delta;
-      store(LS.sent, String(sent));
-      try { fetch(SB_URL + '/rest/v1/rpc/tap', opts); } catch (e) {}
+      try {
+        supabaseClient.auth.getSession().then(function (res) {
+          var token = res && res.data && res.data.session && res.data.session.access_token;
+          if (!token) return;
+          fetch(SB_URL + '/rest/v1/rpc/sync_my_record', {
+            method: 'POST',
+            headers: {
+              apikey: SB_KEY,
+              Authorization: 'Bearer ' + token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ p_branch: targetBranch, p_total_days: targetTotal }),
+            keepalive: true
+          });
+        });
+      } catch (e) {}
       return Promise.resolve();
     }
 
-    flushing = true;
-    return fetch(SB_URL + '/rest/v1/rpc/tap', opts).then(function (r) {
-      // 실패하면 sent 를 전진시키지 않는다 — 다음 주기에 그대로 재시도된다.
-      if (r.ok) { sent += delta; store(LS.sent, String(sent)); }
-    }, function () {}).then(function () { flushing = false; });
+    syncing = true;
+    return supabaseClient.rpc('sync_my_record', {
+      p_branch: targetBranch,
+      p_total_days: targetTotal
+    }).then(function (res) {
+      syncing = false;
+      if (!res.error) {
+        lastSyncedTotal = targetTotal;
+        lastSyncedBranch = targetBranch;
+      } else {
+        console.warn('Sync failed:', res.error);
+      }
+    }, function (err) {
+      syncing = false;
+      console.warn('Sync error:', err);
+    });
   }
 
-  var lbTab = 'total';
-  var lbData;                            // undefined = 아직, null = 실패
+  /* 리더보드 데이터 조회 및 렌더링 */
+  var lbData = null;
+  var lbLoading = false;
+  var lbError = false;
   var lbTimer = null;
 
   function refreshBoard() {
     if (!LB_ON) { renderBoard(); return; }
-    fetch(SB_URL + '/rest/v1/rpc/leaderboard', {
-      headers: { apikey: SB_KEY }
-    }).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; })
-      .then(function (d) { lbData = d; renderBoard(); });
+    lbLoading = true;
+    lbError = false;
+
+    supabaseClient.rpc('leaderboard').then(function (res) {
+      lbLoading = false;
+      if (res.error) {
+        lbError = true;
+        console.error('Leaderboard error:', res.error);
+      } else {
+        lbData = res.data;
+      }
+      renderBoard();
+    }, function (err) {
+      lbLoading = false;
+      lbError = true;
+      console.error('Leaderboard fetch error:', err);
+      renderBoard();
+    });
+  }
+
+  function renderLoginGate() {
+    var html = '<div class="lb-gate">'
+             +   '<div class="lb-gate-icon">🎖️</div>'
+             +   '<h3 class="lb-gate-title">전우들과 함께하는 군별 리더보드</h3>'
+             +   '<p class="lb-gate-desc">'
+             +     '구글 계정으로 로그인하면 지금까지 삭제한 <b>' + total.toLocaleString('ko-KR') + '일</b>이 '
+             +     '소속 군의 전력으로 합산되며, 전우들의 실시간 랭킹을 확인할 수 있습니다.'
+             +   '</p>'
+             +   '<button type="button" class="google-btn" id="googleLoginBtn">'
+             +     '<svg width="20" height="20" viewBox="0 0 24 24">'
+             +       '<path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>'
+             +       '<path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.27 7.31 24 12 24z"/>'
+             +       '<path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z"/>'
+             +       '<path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.73 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>'
+             +     '</svg>'
+             +     '<span>Google 계정으로 계속하기</span>'
+             +   '</button>'
+             +   '<p class="lb-note">개인정보는 순위 집계 및 계정 식별 외의 용도로 사용되지 않습니다.</p>'
+             + '</div>';
+    lbBody.innerHTML = html;
+    var btn = $('googleLoginBtn');
+    if (btn) btn.addEventListener('click', signInWithGoogle);
   }
 
   function renderBoard() {
     if (!LB_ON) {
-      lbBody.innerHTML = '<p class="shop-msg">리더보드가 아직 열리지 않았습니다.</p>';
+      lbBody.innerHTML = '<p class="shop-msg">리더보드가 아직 연결되지 않았습니다.</p>';
       return;
     }
-    if (lbData === undefined) { lbBody.innerHTML = '<p class="shop-msg">불러오는 중…</p>'; return; }
-    if (lbData === null) {
-      lbBody.innerHTML = '<p class="shop-msg">순위를 불러오지 못했습니다.<br>잠시 뒤 다시 열어 주세요.</p>';
+    if (!currentUser) {
+      renderLoginGate();
+      return;
+    }
+    if (lbLoading && !lbData) {
+      lbBody.innerHTML = '<p class="shop-msg">전우들의 기록을 집계하는 중…</p>';
+      return;
+    }
+    if (lbError && !lbData) {
+      lbBody.innerHTML = '<p class="shop-msg">순위를 불러오지 못했습니다.<br>잠시 뒤 다시 시도해 주세요.</p>';
       return;
     }
 
-    var d = lbData[lbTab] || {};
+    var bData = (lbData && lbData.branches) || {};
+    var totalAll = (lbData && lbData.total_all) ? parseInt(lbData.total_all, 10) : 0;
+    var totalUsers = (lbData && lbData.total_users) ? parseInt(lbData.total_users, 10) : 0;
+
+    var BRANCH_ICONS = { army: '🪖', marine: '⚓', navy: '🚢', airforce: '✈️' };
+
     var rows = BRANCHES.map(function (b) {
-      var n = parseInt(d[b.id], 10);
-      return { id: b.id, label: b.label, n: (isFinite(n) && n > 0) ? n : 0 };
+      var item = bData[b.id] || {};
+      var n = parseInt(item.total_days, 10);
+      var cnt = parseInt(item.user_count, 10);
+      return {
+        id: b.id,
+        label: b.label,
+        icon: BRANCH_ICONS[b.id] || '🪖',
+        n: (isFinite(n) && n > 0) ? n : 0,
+        cnt: (isFinite(cnt) && cnt > 0) ? cnt : 0
+      };
     }).sort(function (a, b) { return b.n - a.n; });
 
     var max = rows[0].n || 1;
-    // 값을 색이 아니라 글자로도 읽을 수 있어야 한다 — 막대는 장식이라 aria-hidden.
-    var html = '<ol class="lb-list">';
+
+    var html = '<div class="lb-summary">'
+             +   '<div class="lb-summary-item">'
+             +     '<span class="lb-summary-label">전체 군 통합 삭제 일수</span>'
+             +     '<span class="lb-summary-val">' + totalAll.toLocaleString('ko-KR') + '일</span>'
+             +   '</div>'
+             +   '<div class="lb-summary-item" style="text-align:right">'
+             +     '<span class="lb-summary-label">참여 전우 수</span>'
+             +     '<span class="lb-summary-val" style="color:var(--ink)">' + totalUsers.toLocaleString('ko-KR') + '명</span>'
+             +   '</div>'
+             + '</div>';
+
+    html += '<ol class="lb-list">';
     rows.forEach(function (r, i) {
-      html += '<li class="lb-row' + (r.id === branch ? ' mine' : '') + '">'
+      var isMine = (r.id === branch);
+      html += '<li class="lb-row rank-' + (i + 1) + (isMine ? ' mine' : '') + '">'
             +   '<span class="lb-rank">' + (i + 1) + '</span>'
-            +   '<span class="lb-name">' + r.label + '</span>'
+            +   '<span class="lb-name">' + r.icon + ' ' + r.label + '</span>'
             +   '<span class="lb-track" aria-hidden="true"><span class="lb-fill" style="width:'
             +      Math.round(r.n / max * 100) + '%"></span></span>'
-            +   '<span class="lb-val">' + r.n.toLocaleString('ko-KR') + '</span>'
+            +   '<span class="lb-count">' + r.cnt.toLocaleString('ko-KR') + '명</span>'
+            +   '<span class="lb-val">' + r.n.toLocaleString('ko-KR') + '일</span>'
             + '</li>';
     });
     html += '</ol>';
-    html += branch
-      ? '<p class="lb-note">내 소속 <b>' + BRANCH_LABEL[branch] + '</b> · 소속과 삭제한 일수만 전송됩니다.</p>'
-      : '<p class="lb-note">위쪽 <b>군별 버튼</b>으로 소속을 고르면 내 기록도 함께 집계됩니다.</p>';
+
+    if (!branch) {
+      html += '<div class="lb-choose-branch" style="margin-top:.75rem;padding:.75rem;background:var(--ground);border:1px dashed var(--line);border-radius:10px;text-align:center">'
+            +   '<p style="margin:0 0 .5rem;font-size:.78rem;color:var(--muted)">소속 군을 선택하시면 내 기록(' + total.toLocaleString('ko-KR') + '일)이 합산됩니다</p>'
+            +   '<div style="display:flex;gap:.4rem;justify-content:center">'
+            +     '<button type="button" class="lb-sub-branch" data-branch="army" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">육군</button>'
+            +     '<button type="button" class="lb-sub-branch" data-branch="marine" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">해병</button>'
+            +     '<button type="button" class="lb-sub-branch" data-branch="navy" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">해군</button>'
+            +     '<button type="button" class="lb-sub-branch" data-branch="airforce" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">공군</button>'
+            +   '</div>'
+            + '</div>';
+    }
+
+    var userEmail = (currentUser && (currentUser.email || (currentUser.user_metadata && currentUser.user_metadata.name))) || '전우';
+    html += '<div class="lb-my-bar">'
+          +   '<div class="lb-my-details">'
+          +     '<span class="lb-my-user" title="' + userEmail + '">' + userEmail + '</span>'
+          +     '<span class="lb-my-badge">' + (branch ? BRANCH_LABEL[branch] : '소속 미선택') + '</span>'
+          +     '<span class="lb-my-days">내 기여: ' + total.toLocaleString('ko-KR') + '일</span>'
+          +   '</div>'
+          +   '<button type="button" class="lb-signout-btn" id="lbSignoutBtn">로그아웃</button>'
+          + '</div>';
+
     lbBody.innerHTML = html;
+
+    var signoutBtn = $('lbSignoutBtn');
+    if (signoutBtn) signoutBtn.addEventListener('click', signOutGoogle);
+
+    Array.prototype.forEach.call(lbBody.querySelectorAll('.lb-sub-branch'), function (bBtn) {
+      bBtn.addEventListener('click', function () {
+        setBranch(bBtn.getAttribute('data-branch'));
+      });
+    });
   }
 
   function openLb() {
-    openModal(lbScrim, lbScrim.querySelector('.lb-tab'));
-    renderBoard();                       // 이전 값이 있으면 바로 보여주고
-    flush(false).then(refreshBoard);     // 내 미보고분을 먼저 반영한 뒤 갱신
-    lbTimer = setInterval(refreshBoard, 15000);
+    openModal(lbScrim, lbClose);
+    renderBoard();
+    if (currentUser) {
+      syncUserRecord().then(refreshBoard);
+      lbTimer = setInterval(refreshBoard, 15000);
+    } else if (supabaseClient) {
+      supabaseClient.auth.getSession().then(function (res) {
+        if (res && res.data && res.data.session) {
+          currentUser = res.data.session.user;
+          renderBoard();
+          syncUserRecord().then(refreshBoard);
+          lbTimer = setInterval(refreshBoard, 15000);
+        }
+      });
+    }
   }
 
   function closeLb() {
@@ -2145,22 +2473,38 @@
     if (e.target === lbScrim) closeLb();
   });
 
-  Array.prototype.forEach.call(lbScrim.querySelectorAll('.lb-tab'), function (t) {
-    t.addEventListener('click', function () {
-      lbTab = t.getAttribute('data-tab');
-      Array.prototype.forEach.call(lbScrim.querySelectorAll('.lb-tab'), function (x) {
-        x.setAttribute('aria-pressed', x === t ? 'true' : 'false');
-      });
-      renderBoard();
+  if (supabaseClient) {
+    supabaseClient.auth.getSession().then(function (res) {
+      if (res && res.data && res.data.session) {
+        currentUser = res.data.session.user;
+        syncUserRecord();
+      }
     });
-  });
 
-  if (LB_ON) {
-    // 클릭마다 쏘지 않는다. 연타 1000번이 요청 한두 건으로 줄어든다.
-    setInterval(function () { flush(false); }, 10000);
-    window.addEventListener('pagehide', function () { flush(true); });
+    supabaseClient.auth.onAuthStateChange(function (evt, session) {
+      currentUser = (session && session.user) ? session.user : null;
+      if (currentUser) {
+        syncUserRecord().then(function () {
+          if (lbScrim.classList.contains('on')) refreshBoard();
+        });
+        if (window.location.hash && window.location.hash.indexOf('access_token') !== -1) {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+          openLb();
+        }
+      }
+      if (lbScrim.classList.contains('on')) renderBoard();
+    });
+
+    setInterval(function () {
+      if (currentUser && branch) syncUserRecord();
+    }, 10000);
+
+    window.addEventListener('pagehide', function () {
+      if (currentUser && branch) syncUserRecord(true);
+    });
+
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'hidden') flush(true);
+      if (document.visibilityState === 'hidden' && currentUser && branch) syncUserRecord(true);
     });
   }
 
