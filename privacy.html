@@ -57,9 +57,10 @@
 <main>
   <div class="mark">Privacy</div>
   <h1>개인정보처리방침</h1>
-  <p class="updated">최종 수정 2026-09-03 · 군생활 삭제 버튼 (army-delete.vercel.app)</p>
+  <p class="updated">최종 수정 2026-09-04 · 군생활 삭제 버튼 (army-delete.vercel.app)</p>
 
-  <p>이 사이트는 회원가입이 없고, 서버에 저장하는 데이터베이스도 없습니다. 여러분이 입력하거나 만든 값은 <strong>여러분의 브라우저 안에만</strong> 남습니다.</p>
+  <p>이 사이트는 회원가입이 없고 계정도 없습니다. 여러분이 입력하거나 만든 값은 원칙적으로 <strong>여러분의 브라우저 안에만</strong> 남습니다.</p>
+  <p>딱 하나 예외가 리더보드입니다. 군별 합계를 내기 위해 <strong>군 구분과 누른 횟수만</strong> 서버로 보냅니다. 누가 보냈는지는 담기지 않습니다 — 자세한 내용은 아래 <a href="#leaderboard">리더보드</a> 항목에 있습니다.</p>
 
   <h2>브라우저에 저장하는 것</h2>
   <p><code>localStorage</code>에 아래 값을 저장합니다. 저희 서버로 전송되지 않으며, 저희는 이 값을 볼 수 없습니다.</p>
@@ -71,9 +72,21 @@
     <tr><td>ad.muted</td><td>소리 켬/끔 설정</td></tr>
     <tr><td>ad.rewardAt</td><td>마지막 광고 보상 시각 (쿨다운용)</td></tr>
     <tr><td>ad.boostUntil</td><td>공유 배수가 끝나는 시각</td></tr>
+    <tr><td>ad.branch</td><td>리더보드에서 고른 군 (육군·해병·해군·공군)</td></tr>
+    <tr><td>ad.sent</td><td>리더보드에 이미 보고한 누적치 (중복 전송 방지용)</td></tr>
     <tr><td>ad.count</td><td>예전 버전의 클릭 수 (있으면 이어받음)</td></tr>
   </table>
   <p>브라우저의 사이트 데이터를 지우면 전부 사라집니다. 기기 사이에 동기화되지 않습니다.</p>
+
+  <h2 id="leaderboard">리더보드 — 서버로 보내는 유일한 것</h2>
+  <p>군을 고르면 그때부터 누른 횟수가 군별 합계에 반영됩니다. 서버(Supabase)로 나가는 값은 <strong>딱 두 가지</strong>입니다.</p>
+  <ul>
+    <li><strong>군 구분</strong> — <code>army</code> / <code>marine</code> / <code>navy</code> / <code>airforce</code> 중 하나</li>
+    <li><strong>마지막 전송 이후 늘어난 횟수</strong> — 숫자 하나</li>
+  </ul>
+  <p>이게 전부입니다. <strong>이름·계정·기기 식별자·쿠키 같은 것은 함께 보내지 않고, 저장되지도 않습니다.</strong> 서버에는 <code>(군, 날짜, 합계)</code> 세 칸짜리 표 하나만 있어서, 저장된 기록만으로는 어떤 값이 누구 것인지 알아낼 방법이 없습니다. 여러분의 개인 기록(삭제 일수, 보유 아이템, 입력한 날짜)은 서버로 가지 않습니다.</p>
+  <p>전송은 약 10초마다, 그리고 페이지를 떠날 때 일어납니다. 다만 모든 인터넷 요청이 그렇듯 <strong>서버는 접속 과정에서 IP 주소를 보게 됩니다.</strong> 저희는 이를 표에 저장하지 않지만, 서버 제공자(Supabase)의 접속 기록에는 일시적으로 남을 수 있습니다.</p>
+  <p><strong>군을 고르지 않으면 아무것도 전송되지 않습니다.</strong> 리더보드를 쓰지 않으려면 군을 선택하지 않으면 됩니다.</p>
 
   <h2>광고 — Google AdSense</h2>
   <p>이 사이트는 Google AdSense로 광고를 게재합니다. 이 과정에서 <strong>Google과 그 파트너가 쿠키를 사용</strong>하며, 광고를 게재하고 성과를 측정하기 위해 다음과 같은 정보가 Google에 전달될 수 있습니다.</p>
@@ -95,6 +108,7 @@
   <ul>
     <li><strong>Google Fonts</strong> — 글꼴을 받아옵니다. 이 과정에서 IP 주소가 Google에 전달됩니다.</li>
     <li><strong>Google AdSense</strong> — 위 광고 항목 참고.</li>
+    <li><strong>Supabase</strong> — 리더보드 집계. 위 리더보드 항목 참고.</li>
   </ul>
   <p>그 밖에 분석 도구나 추적 스크립트는 사용하지 않습니다.</p>
 

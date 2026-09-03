@@ -23,7 +23,7 @@
 | `index.html` | 페이지 전체 (마크업·스타일·스크립트) |
 | `items.json` | 상점 아이템 정의 — 아이템을 늘릴 때 여기만 고치면 된다 |
 | `ads.txt` | AdSense 게시자 확인용. 도메인 루트에 그대로 서빙되어야 한다 |
-| `privacy.html` | 개인정보처리방침. AdSense 승인 필수 요건이다 |
+| `privacy.html` | 개인정보처리방침. AdSense 승인 필수 요건이다. **저장 키나 외부로 나가는 요청이 바뀌면 여기도 같이 고쳐야 한다** |
 | `supabase/board.sql` | 리더보드 스키마 — 테이블 · RLS · 함수 2개 |
 | `supabase/board_test.sql` | 위 SQL 자체 점검 (assert, 마지막에 rollback) |
 | `.github/workflows/keepalive.yml` | Supabase 무료 프로젝트 정지 방지용 주간 핑 |
