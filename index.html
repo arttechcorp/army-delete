@@ -1549,11 +1549,14 @@
   // 지갑 도입 전에는 클릭 수가 ad.count 하나에만 있었다. 그 값을 누적으로 넘긴다.
   var total = readInt(LS.total) || readInt(LS.legacy);
   var spent = readInt(LS.spent);
-  var owned = [];
-  try {
-    var raw = JSON.parse(load(LS.owned) || '[]');
-    if (Object.prototype.toString.call(raw) === '[object Array]') owned = raw;
-  } catch (e) {}
+  function readOwned() {
+    try {
+      var raw = JSON.parse(load(LS.owned) || '[]');
+      if (Object.prototype.toString.call(raw) === '[object Array]') return raw;
+    } catch (e) {}
+    return [];
+  }
+  var owned = readOwned();
 
   function balance() { return Math.max(0, total - spent); }
 
@@ -1567,8 +1570,12 @@
   }
 
   // 한 번 누를 때 올라가는 일수. 자동 클릭에도 똑같이 적용된다.
+  //
+  // 메모리에 들고 있던 값에 더해서 쓰면 안 된다. 같은 사이트를 탭 두 개로
+  // 열어두면 각 탭이 제 값을 들고 있어서, 한쪽이 누르는 순간 다른 탭이 번
+  // 일수가 통째로 사라진다. 늘릴 때는 항상 저장된 값을 다시 읽는다.
   function addDays(n) {
-    total += n;
+    total = readInt(LS.total) + n;
     store(LS.total, String(total));
     renderWallet();
     refreshShopSoon();
@@ -1942,6 +1949,12 @@
     var item = items && items.filter(function (it) { return it.id === id; })[0];
     if (!item) return;
     if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
+
+    // 다른 탭이 그새 벌었거나 사뒀을 수 있다 — 저장된 값으로 다시 판단한다
+    total = readInt(LS.total) || total;
+    spent = readInt(LS.spent);
+    owned = readOwned();
+
     if (owned.indexOf(id) > -1) return;      // 이미 보유
     if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
 
@@ -2091,7 +2104,7 @@
     if (unloading) {
       // 이탈 중엔 응답을 기다릴 수 없다. 낙관적으로 전진시킨다 — 최악이 한 묶음 유실.
       opts.keepalive = true;
-      sent += delta;
+      sent = readInt(LS.sent) + delta;
       store(LS.sent, String(sent));
       try { fetch(SB_URL + '/rest/v1/rpc/tap', opts); } catch (e) {}
       return Promise.resolve();
@@ -2100,7 +2113,7 @@
     flushing = true;
     return fetch(SB_URL + '/rest/v1/rpc/tap', opts).then(function (r) {
       // 실패하면 sent 를 전진시키지 않는다 — 다음 주기에 그대로 재시도된다.
-      if (r.ok) { sent += delta; store(LS.sent, String(sent)); }
+      if (r.ok) { sent = readInt(LS.sent) + delta; store(LS.sent, String(sent)); }
     }, function () {}).then(function () { flushing = false; });
   }
 
@@ -2209,6 +2222,18 @@
       store(LS.end, endEl.value);
       render();
     });
+  });
+
+  // 다른 탭이 값을 바꾸면 화면을 맞춘다. storage 이벤트는 "다른" 탭에서만 온다.
+  window.addEventListener('storage', function (e) {
+    if (!e.key) return;
+    if (e.key === LS.total) total = readInt(LS.total);
+    else if (e.key === LS.spent) spent = readInt(LS.spent);
+    else if (e.key === LS.sent) { sent = readInt(LS.sent); return; }
+    else if (e.key === LS.owned) { owned = readOwned(); applyEffects(); return; }
+    else return;
+    renderWallet();
+    if (shopScrim.classList.contains('on')) renderShop();
   });
 
   // 복원
