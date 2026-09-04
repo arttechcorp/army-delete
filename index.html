@@ -1798,6 +1798,7 @@
   anchorClose.addEventListener('click', function () {
     anchor.classList.add('closed');
     document.body.classList.add('ad-closed');   // 배너 자리로 비워둔 여백도 같이 회수
+    __analytics.track('anchor_ad_closed', { viewport_width: window.innerWidth });
   });
 
   /* ══════════════════════════════════════════
@@ -1816,6 +1817,8 @@
     var raw = JSON.parse(load(LS.owned) || '[]');
     if (Object.prototype.toString.call(raw) === '[object Array]') owned = raw;
   } catch (e) {}
+
+  function loadOwned() { return owned; }
 
   function balance() { return Math.max(0, total - spent); }
 
@@ -2062,6 +2065,7 @@
     if (!rewardCfg || rewardInFlight || cooldownLeft() > 0) return;
     rewardInFlight = true;
     renderReward('광고를 불러오는 중…');
+    __analytics.track('reward_ad_clicked', { current_balance: balance() });
 
     // 개발용 모달은 로컬에서만 쓴다. adBreak 별칭은 항상 정의되어 있어서
     // SDK 유무로 가를 수 없고, 배포본에서 이 경로를 타면 광고 없이 일수가
@@ -2071,8 +2075,17 @@
       showDevRewardAd(function (completed) {
         resumeAfterAd();
         rewardInFlight = false;
-        if (completed) grantReward();
-        else renderReward('끝까지 봐야 받을 수 있습니다.');
+        if (completed) {
+          var newBal = balance() + rewardCfg.days;
+          grantReward();
+          __analytics.track('reward_ad_completed', {
+            reward_days: rewardCfg.days,
+            new_balance: newBal
+          });
+        } else {
+          renderReward('끝까지 봐야 받을 수 있습니다.');
+          __analytics.track('reward_ad_failed', { reason: 'dismissed' });
+        }
       });
       return;
     }
@@ -2086,6 +2099,7 @@
       rewardInFlight = false;
       resumeAfterAd();
       renderReward('지금은 볼 수 있는 광고가 없습니다.');
+      __analytics.track('reward_ad_failed', { reason: 'adblock_timeout' });
     }, 12000);
 
     window.adBreak({
@@ -2094,16 +2108,30 @@
       beforeReward: function (showAdFn) { offered = true; showAdFn(); },
       beforeAd: pauseForAd,
       afterAd: resumeAfterAd,
-      adViewed: grantReward,                                   // 보상은 오직 여기서만
-      adDismissed: function () { renderReward('끝까지 봐야 받을 수 있습니다.'); },
+      adViewed: function () {
+        var newBal = balance() + rewardCfg.days;
+        grantReward();
+        __analytics.track('reward_ad_completed', {
+          reward_days: rewardCfg.days,
+          new_balance: newBal
+        });
+      },                                   // 보상은 오직 여기서만
+      adDismissed: function () {
+        renderReward('끝까지 봐야 받을 수 있습니다.');
+        __analytics.track('reward_ad_failed', { reason: 'dismissed' });
+      },
       adBreakDone: function (info) {
         // beforeReward 가 아예 안 불렸으면 지금 줄 광고가 없다는 뜻이다.
         clearTimeout(giveUp);
         if (settled) return;
         settled = true;
         rewardInFlight = false;
-        if (!offered) renderReward('지금은 볼 수 있는 광고가 없습니다.');
-        else renderReward();
+        if (!offered) {
+          renderReward('지금은 볼 수 있는 광고가 없습니다.');
+          __analytics.track('reward_ad_failed', { reason: 'no_ad' });
+        } else {
+          renderReward();
+        }
         if (window.console && console.debug) {
           console.debug('[ad] reward breakStatus =', info && info.breakStatus);
         }
@@ -2239,7 +2267,15 @@
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
     if (!item) return;
-    if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
+    if (item.effect && item.effect.type === 'share') {
+      __analytics.track('share_boost_activated', {
+        method: (navigator.share && window.isSecureContext) ? 'navigator.share' : 'clipboard',
+        boost_multiplier: item.effect ? item.effect.value : 1,
+        boost_duration_ms: item.effect ? item.effect.durationMs : 0
+      });
+      shareLink(item);
+      return;
+    }
     if (owned.indexOf(id) > -1) return;      // 이미 보유
     if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
 
@@ -2247,6 +2283,13 @@
     owned.push(id);
     store(LS.spent, String(spent));
     store(LS.owned, JSON.stringify(owned));
+    __analytics.track('item_purchased', {
+      item_id: item.id,
+      item_name: item.name,
+      price: item.price,
+      item_type: item.effect ? item.effect.type : 'collectible',
+      remaining_balance: balance()
+    });
     applyEffects();          // 산 즉시 배수·자동 대원이 붙는다
     renderShop();
   }
@@ -2306,6 +2349,10 @@
   }
 
   function openShop() {
+    __analytics.track('shop_opened', {
+      current_balance: balance(),
+      owned_items_count: loadOwned().length
+    });
     // 터치 기기에서 검색창에 바로 포커스를 주면 키보드가 튀어 올라오고
     // 상점이 키보드에 가린다. 포커스는 대화상자 안에 두되(Esc·스크린리더용)
     // 검색은 사용자가 직접 누를 때만 열리게 한다.

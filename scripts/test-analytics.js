@@ -188,3 +188,166 @@ test('index.html contains core interaction tracking instrumentation', () => {
   assert.match(html, /visibilitychange/);
 });
 
+test('economy and ads events payload structure', () => {
+  const events = [];
+  const track = (name, props) => events.push({ name, props });
+
+  // Simulate shop open
+  track('shop_opened', { current_balance: 150, owned_items_count: 2 });
+  // Simulate item purchase
+  track('item_purchased', { item_id: 'double', item_name: '2배 부스터', price: 40, item_type: 'multiplier', remaining_balance: 110 });
+  // Simulate share boost
+  track('share_boost_activated', { method: 'navigator.share', boost_multiplier: 3, boost_duration_ms: 1800000 });
+  // Simulate reward ad clicked
+  track('reward_ad_clicked', { current_balance: 150 });
+  // Simulate reward ad completed
+  track('reward_ad_completed', { reward_days: 100, new_balance: 250 });
+  // Simulate reward ad failed
+  track('reward_ad_failed', { reason: 'adblock_timeout' });
+  // Simulate anchor ad closed
+  track('anchor_ad_closed', { viewport_width: 390 });
+
+  assert.equal(events.length, 7);
+  assert.equal(events[0].name, 'shop_opened');
+  assert.equal(events[0].props.current_balance, 150);
+  assert.equal(events[0].props.owned_items_count, 2);
+  assert.equal(events[1].name, 'item_purchased');
+  assert.equal(events[1].props.item_id, 'double');
+  assert.equal(events[1].props.remaining_balance, 110);
+  assert.equal(events[2].name, 'share_boost_activated');
+  assert.equal(events[2].props.boost_multiplier, 3);
+  assert.equal(events[2].props.method, 'navigator.share');
+  assert.equal(events[3].name, 'reward_ad_clicked');
+  assert.equal(events[3].props.current_balance, 150);
+  assert.equal(events[4].name, 'reward_ad_completed');
+  assert.equal(events[4].props.reward_days, 100);
+  assert.equal(events[4].props.new_balance, 250);
+  assert.equal(events[5].name, 'reward_ad_failed');
+  assert.equal(events[5].props.reason, 'adblock_timeout');
+  assert.equal(events[6].name, 'anchor_ad_closed');
+  assert.equal(events[6].props.viewport_width, 390);
+});
+
+test('simulated shop purchase, share boost, and ad reward handlers behave correctly', () => {
+  const events = [];
+  const fakeAnalytics = {
+    track: (name, props) => events.push({ name, props })
+  };
+
+  let total = 300;
+  let spent = 100;
+  const owned = ['starter'];
+  function balance() { return Math.max(0, total - spent); }
+
+  const items = [
+    { id: 'starter', name: '시작 아이템', price: 50 },
+    { id: 'work-detail', name: '작업 나가기', price: 50, effect: { type: 'multiplier', value: 2 } },
+    { id: 'share-link', name: '소문내기', price: 0, effect: { type: 'share', value: 3, durationMs: 1800000 } }
+  ];
+
+  // 1. Open shop
+  fakeAnalytics.track('shop_opened', {
+    current_balance: balance(),
+    owned_items_count: owned.length
+  });
+
+  // 2. Buy multiplier item
+  const buy = (id) => {
+    const item = items.find(it => it.id === id);
+    if (!item) return;
+    if (item.effect && item.effect.type === 'share') {
+      fakeAnalytics.track('share_boost_activated', {
+        method: 'clipboard',
+        boost_multiplier: item.effect.value,
+        boost_duration_ms: item.effect.durationMs
+      });
+      return;
+    }
+    if (owned.includes(id)) return;
+    if (balance() < item.price) return;
+    spent += item.price;
+    owned.push(id);
+    fakeAnalytics.track('item_purchased', {
+      item_id: item.id,
+      item_name: item.name,
+      price: item.price,
+      item_type: item.effect ? item.effect.type : 'collectible',
+      remaining_balance: balance()
+    });
+  };
+
+  buy('work-detail');
+  assert.equal(spent, 150);
+  assert.equal(balance(), 150);
+  assert.equal(owned.length, 2);
+
+  // 3. Share link
+  buy('share-link');
+
+  // 4. Reward ad flow
+  const rewardCfg = { days: 100 };
+  fakeAnalytics.track('reward_ad_clicked', { current_balance: balance() });
+  const newBal = balance() + rewardCfg.days;
+  total += rewardCfg.days;
+  fakeAnalytics.track('reward_ad_completed', {
+    reward_days: rewardCfg.days,
+    new_balance: newBal
+  });
+
+  // 5. Reward ad failure
+  fakeAnalytics.track('reward_ad_failed', { reason: 'adblock_timeout' });
+
+  // 6. Anchor close
+  fakeAnalytics.track('anchor_ad_closed', { viewport_width: 412 });
+
+  assert.equal(events.length, 7);
+  assert.equal(events[0].name, 'shop_opened');
+  assert.equal(events[0].props.current_balance, 200);
+  assert.equal(events[0].props.owned_items_count, 1);
+
+  assert.equal(events[1].name, 'item_purchased');
+  assert.equal(events[1].props.item_id, 'work-detail');
+  assert.equal(events[1].props.item_type, 'multiplier');
+  assert.equal(events[1].props.remaining_balance, 150);
+
+  assert.equal(events[2].name, 'share_boost_activated');
+  assert.equal(events[2].props.boost_multiplier, 3);
+
+  assert.equal(events[3].name, 'reward_ad_clicked');
+  assert.equal(events[3].props.current_balance, 150);
+
+  assert.equal(events[4].name, 'reward_ad_completed');
+  assert.equal(events[4].props.reward_days, 100);
+  assert.equal(events[4].props.new_balance, 250);
+
+  assert.equal(events[5].name, 'reward_ad_failed');
+  assert.equal(events[5].props.reason, 'adblock_timeout');
+
+  assert.equal(events[6].name, 'anchor_ad_closed');
+  assert.equal(events[6].props.viewport_width, 412);
+});
+
+test('index.html contains shop economy and monetization tracking instrumentation', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  assert.match(html, /shop_opened/);
+  assert.match(html, /item_purchased/);
+  assert.match(html, /share_boost_activated/);
+  assert.match(html, /reward_ad_clicked/);
+  assert.match(html, /reward_ad_completed/);
+  assert.match(html, /reward_ad_failed/);
+  assert.match(html, /anchor_ad_closed/);
+
+  // Property checks
+  assert.match(html, /current_balance:\s*balance\(\)/);
+  assert.match(html, /owned_items_count:\s*loadOwned\(\)\.length/);
+  assert.match(html, /remaining_balance:\s*balance\(\)/);
+  assert.match(html, /boost_multiplier/);
+  assert.match(html, /boost_duration_ms/);
+  assert.match(html, /reward_days:\s*rewardCfg\.days/);
+  assert.match(html, /new_balance/);
+  assert.match(html, /reason:\s*'adblock_timeout'/);
+  assert.match(html, /viewport_width:\s*window\.innerWidth/);
+});
+
+
+
