@@ -510,4 +510,11 @@ test('index.html contains leaderboard and identity tracking instrumentation', ()
   assert.match(html, /function signOutGoogle[\s\S]*?__analytics\.reset\(\)/);
 });
 
+test('privacy.html includes PostHog disclosures', () => {
+  const privacyHtml = fs.readFileSync('privacy.html', 'utf8');
+  assert.match(privacyHtml, /PostHog/);
+  assert.match(privacyHtml, /세션 리플레이|행동 분석/);
+});
+
+
 
