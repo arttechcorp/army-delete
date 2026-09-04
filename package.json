@@ -1,0 +1,12 @@
+{
+  "name": "army-delete",
+  "version": "1.0.0",
+  "private": true,
+  "description": "군생활 삭제 버튼",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve .",
+    "db:push": "node scripts/db-push.js"
+  }
+}
+

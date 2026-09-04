@@ -1,39 +1,43 @@
--- board.sql 자체 점검. SQL Editor 에 붙여 넣고 실행한다.
--- 통과하면 조용히 끝나고, 깨지면 assert 메시지와 함께 에러가 난다.
--- 마지막에 rollback 하므로 실제 집계는 건드리지 않는다.
+-- board.sql 자체 점검 스크립트.
+-- Supabase SQL Editor 에 붙여 넣고 실행합니다.
+-- 통과하면 정상 완료되고, 실패 시 assert 에러가 발생합니다.
+-- 마지막에 rollback 되므로 실제 운영 데이터에는 영향을 주지 않습니다.
+
 begin;
 
 do $$
 declare
-  d    date   := (now() at time zone 'Asia/Seoul')::date;
-  base bigint;
-  cur  bigint;
+  test_uid uuid := '00000000-0000-0000-0000-000000000001'::uuid;
+  lb json;
+  army_days bigint;
 begin
-  select coalesce(n, 0) into base from public.board where branch = 'army' and day = d;
-  base := coalesce(base, 0);
+  -- 1. 임의 테스트 데이터 삽입
+  insert into public.user_records (user_id, email, branch, total_days, updated_at)
+  values 
+    (test_uid, 'test1@example.com', 'army', 1500, now()),
+    ('00000000-0000-0000-0000-000000000002'::uuid, 'test2@example.com', 'army', 3500, now()),
+    ('00000000-0000-0000-0000-000000000003'::uuid, 'test3@example.com', 'navy', 2000, now());
 
-  perform public.tap('army', 5);
-  perform public.tap('army', 3);
-  select n into cur from public.board where branch = 'army' and day = d;
-  assert cur - base = 8, '같은 날 두 번 호출하면 합산되어야 한다';
+  -- 2. leaderboard() 함수 호출 및 결과 검증
+  lb := public.leaderboard();
 
-  perform public.tap('army', 99999);
-  select n into cur from public.board where branch = 'army' and day = d;
-  assert cur - base = 508, 'delta 는 상한 500 으로 잘려야 한다';
+  assert (lb ->> 'total_all')::bigint >= 7000, '전체 총합은 7000 이상이어야 한다';
+  assert (lb ->> 'total_users')::int >= 3, '전체 유저 수는 3 이상이어야 한다';
 
-  perform public.tap('army', -7);
-  select n into cur from public.board where branch = 'army' and day = d;
-  assert cur - base = 509, 'delta 는 하한 1 로 올라가야 한다';
+  army_days := (lb -> 'branches' -> 'army' ->> 'total_days')::bigint;
+  assert army_days >= 5000, '육군 총합은 5000 이상이어야 한다';
 
+  assert (lb -> 'branches' -> 'army' ->> 'user_count')::int >= 2, '육군 참여자 수는 2 이상이어야 한다';
+  assert (lb -> 'branches' -> 'navy' ->> 'total_days')::bigint >= 2000, '해군 총합은 2000 이상이어야 한다';
+
+  -- 3. 유효하지 않은 branch 체크 제약 검증
   begin
-    perform public.tap('공군', 1);
-    assert false, '화이트리스트 밖 branch 는 거부되어야 한다';
+    insert into public.user_records (user_id, email, branch, total_days)
+    values ('00000000-0000-0000-0000-000000000004'::uuid, 'test4@example.com', 'spaceforce', 100);
+    assert false, '체크 제약 외의 branch 는 거부되어야 한다';
   exception when check_violation then
-    null;   -- 기대한 거부
+    null; -- 기대한 거부
   end;
-
-  assert (public.leaderboard() -> 'today' ->> 'army') is not null,
-         'leaderboard() 의 today 에 army 가 있어야 한다';
 end $$;
 
 rollback;

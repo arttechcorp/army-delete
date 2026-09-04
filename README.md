@@ -42,7 +42,7 @@
 
 `localStorage`에는 `ad.total`(누적)과 `ad.spent`(사용액)만 저장하고, 잔액은 둘의 차로 계산합니다. 기록이 구매 때문에 뒤로 가는 일이 없습니다.
 
-**값을 늘릴 때는 반드시 저장된 값을 다시 읽습니다.** 메모리에 들고 있던 값에 더해서 쓰면, 같은 사이트를 탭 두 개로 열었을 때 한쪽이 누르는 순간 다른 탭이 번 일수가 통째로 사라집니다. `addDays()` · `buy()` · 리더보드 `flush()` 가 모두 읽고-더하고-쓰는 순서를 지킵니다. 다른 탭의 변경은 `storage` 이벤트로 화면에 반영됩니다.
+**값을 늘릴 때는 반드시 저장된 값을 다시 읽습니다.** 메모리에 들고 있던 값에 더해서 쓰면, 같은 사이트를 탭 두 개로 열었을 때 한쪽이 누르는 순간 다른 탭이 번 일수가 통째로 사라집니다. `addDays()` 와 `buy()` 가 읽고-더하고-쓰는 순서를 지킵니다. 다른 탭의 변경은 `storage` 이벤트로 화면에 반영됩니다.
 
 탭을 여러 개 열면 자동 대원이 탭마다 돌아 그만큼 빨리 벌립니다. 혼자 하는 장난감이라 막지 않았습니다.
 
@@ -206,50 +206,43 @@ __army.calcService('2026-03-02', '2027-09-01', new Date(2026, 8, 1))
 
 ## 리더보드
 
-군별 익명 집계입니다. **개인 순위·닉네임·계정이 없고**, 나가는 데이터는 `{소속, 정수}` 뿐입니다.
-입대일·전역일·상점 구매 내역은 전송하지 않습니다.
+구글 로그인 기반 군별 누적 총합 집계입니다.
+사용자가 로그인하면 브라우저에 기록된 "누적 삭제된 일수(`ad.total`)" 전체가 소속 군의 전력으로 합산(`SUM(total_days)`)됩니다.
 
 ### 켜는 법
 
-1. Supabase 프로젝트를 만든다.
-2. SQL Editor 에 `supabase/board.sql` 을 붙여 넣고 실행한다. (검증하려면 이어서 `supabase/board_test.sql`)
-3. `index.html` 안의 두 줄을 채운다.
+1. Supabase 프로젝트를 생성합니다.
+2. **Supabase 대시보드 → Authentication → Providers → Google** 에서 Google OAuth Client ID 및 Secret을 설정하고 활성화합니다.
+   - Redirect URL: `https://<프로젝트>.supabase.co/auth/v1/callback`
+   - 사이트 URL (또는 Additional Redirect URLs): `https://<배포도메인>/` 및 로컬 개발용 `http://localhost:3000/`
+3. SQL Editor 에 `supabase/board.sql` 을 붙여 넣고 실행합니다. (검증하려면 이어서 `supabase/board_test.sql`)
+4. `index.html` 안의 프로젝트 연결 정보를 확인합니다.
 
 ```js
 var SB_URL = 'https://<프로젝트>.supabase.co';
 var SB_KEY = 'sb_publishable_...';
 ```
 
-publishable key 는 공개되도록 설계된 값입니다. 테이블은 RLS 로 잠겨 있고 노출면은 함수 두 개뿐이라,
-이 키로 할 수 있는 일은 **1~500 범위로 잘린 증가**와 조회가 전부입니다.
-`sb_secret_…` 키는 절대 넣지 마세요.
-
-인증은 `apikey` 헤더 하나로 합니다. 새 키 포맷에서 `Authorization` 은 로그인한 사용자의 JWT
-자리라, publishable key 를 거기 넣지 않습니다.
-
-비워두면 리더보드 버튼은 안내 문구만 띄우고, 나머지 기능은 그대로 동작합니다.
+`publishable key` (`anon key`)는 클라이언트에 공개되도록 설계된 값입니다.
+보안은 PostgreSQL RLS(Row Level Security) 및 `security definer` RPC 함수가 담당합니다.
+`secret key` (`service_role key`)는 절대 클라이언트에 넣지 마세요.
 
 ### 동작
 
-| 항목 | 값 |
+| 항목 | 내용 |
 | --- | --- |
-| 팀 | `army` · `marine` · `navy` · `airforce` (군별 프리셋 버튼으로 선택, `localStorage`에 저장) |
-| 전송 | 클릭마다 보내지 않고 10초마다 · 이탈 시 한 번. 연타 1000번이 요청 한두 건 |
-| 회계 | `ad.total - ad.sent` 만큼만 보내고, **성공했을 때만** `ad.sent`를 전진 |
-| 일간 경계 | KST 자정 (`day` 컬럼) |
-| 상한 | 한 요청당 500. SQL 함수 안에서 자른다 |
-
-**소속을 처음 고른 시점의 누적치는 리더보드에 반영되지 않습니다.** 한 번에 밀어 넣으면 상한에
-잘리고, 잘리지 않도록 예외를 두면 그 경로가 그대로 치팅 통로가 되기 때문입니다.
+| 접근 제한 | 리더보드를 확인하려면 **Google 계정 로그인**이 필요합니다 (비로그인 상태에서는 플레이만 가능). |
+| 집계 기준 | 각 사용자의 로컬 "누적 삭제된 일수(`ad.total`)"가 사용자 계정 레코드(`user_records`)로 업서트되며, 소속 군별로 전체 합산(`SUM`)됩니다. |
+| 군 소속 지연 선택 | 군 소속을 나중에 선택하더라도, 그동안 로컬에서 달성한 누적 삭제 일수 전체가 누락 없이 소속 군에 합산됩니다. |
+| 순위 표시 | 육군 / 해병 / 해군 / 공군 4개 군의 총합 삭제 일수, 1위 대비 비율 막대 게이지, 참여 군인 수, 내 기여도 표시. |
 
 ### 운영
 
 Supabase 무료 프로젝트는 **7일간 요청이 없으면 정지되고 클라이언트에 오류를 반환합니다.**
-`.github/workflows/keepalive.yml` 이 주 1회 찔러 타이머를 리셋합니다. 그 파일의 `env` 에
-`index.html` 과 같은 두 값을 적어 두세요 — 어차피 공개되는 값이라 시크릿으로 숨길 실익이 없고,
-리포지토리 시크릿 등록에는 admin 권한이 필요합니다. 비워 두면 워크플로는 조용히 건너뜁니다.
+`.github/workflows/keepalive.yml` 이 주 1회 찔러 타이머를 리셋합니다.
 
 ### 검증
 
-- SQL: `supabase/board_test.sql` 실행 (clamp 상·하한, 합산, 화이트리스트 거부)
-- 클라이언트: 브라우저 콘솔에서 `__army.selfCheck()` → `"ok"`
+- SQL: `supabase/board_test.sql` 실행 (테이블 제약 조건, RLS 및 `leaderboard()` 합산 검증)
+- 클라이언트: 리더보드 모달 열람 시 비로그인 구글 로그인 버튼 노출 및 로그인 후 동기화 동작 확인
+
