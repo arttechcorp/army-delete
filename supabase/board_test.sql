@@ -38,6 +38,35 @@ begin
   exception when check_violation then
     null; -- 기대한 거부
   end;
+
+  -- 4. 누적 일수는 뒤로 가지 않는다 (sync_my_record 의 upsert 규칙)
+  --    여러 기기를 쓰면 낮은 값이 뒤늦게 올라올 수 있다.
+  insert into public.user_records (user_id, email, branch, total_days, updated_at)
+  values (test_uid, 'test1@example.com', 'army', 10, now())
+  on conflict (user_id) do update set
+    branch = excluded.branch,
+    total_days = greatest(user_records.total_days, excluded.total_days),
+    updated_at = now();
+
+  assert (select total_days from public.user_records where user_id = test_uid) = 1500,
+    '낮은 값이 올라와도 누적 일수는 줄지 않아야 한다';
+
+  -- 5. 테이블 직접 쓰기 권한이 없어야 한다.
+  --    열려 있으면 PATCH 한 방으로 위 greatest() 가드가 우회된다.
+  assert not has_table_privilege('authenticated', 'public.user_records', 'INSERT'),
+    'authenticated 에게 INSERT 권한이 없어야 한다';
+  assert not has_table_privilege('authenticated', 'public.user_records', 'UPDATE'),
+    'authenticated 에게 UPDATE 권한이 없어야 한다';
+  assert not has_table_privilege('authenticated', 'public.user_records', 'DELETE'),
+    'authenticated 에게 DELETE 권한이 없어야 한다';
+  assert has_table_privilege('authenticated', 'public.user_records', 'SELECT'),
+    '본인 레코드 조회용 SELECT 는 남아 있어야 한다';
+
+  -- 6. 쓰기 경로인 RPC 는 여전히 실행 가능해야 한다
+  assert has_function_privilege('authenticated', 'public.sync_my_record(text, bigint)', 'EXECUTE'),
+    'sync_my_record 는 authenticated 가 실행할 수 있어야 한다';
+  assert has_function_privilege('anon', 'public.leaderboard()', 'EXECUTE'),
+    'leaderboard 는 비로그인도 볼 수 있어야 한다';
 end $$;
 
 rollback;

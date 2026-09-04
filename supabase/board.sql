@@ -10,7 +10,10 @@ create table if not exists public.user_records (
   updated_at  timestamptz not null default now()
 );
 
--- RLS 활성화: 본인 레코드만 직접 읽기/쓰기 가능
+-- RLS 활성화: 본인 레코드만 접근 가능.
+-- 쓰기 정책은 남겨두되 아래에서 테이블 DML 권한을 회수하므로 실제 쓰기는
+-- sync_my_record() 로만 들어온다. 권한을 되살릴 일이 생겨도 이 정책이
+-- 남의 레코드를 건드리는 것만은 계속 막는다.
 alter table public.user_records enable row level security;
 
 drop policy if exists "user_records_select_own" on public.user_records;
@@ -99,7 +102,14 @@ $$;
 
 -- 권한 부여
 revoke all on table public.user_records from public, anon;
-grant select, insert, update on table public.user_records to authenticated;
+
+-- 테이블 직접 쓰기는 주지 않는다. insert/update 를 열어두면 클라이언트가
+-- PATCH /rest/v1/user_records 로 total_days 를 직접 써서 위 upsert 의
+-- greatest() 가드를 그냥 우회한다 (낮은 값으로 되돌리거나 임의값 주입).
+-- 쓰기는 security definer 인 sync_my_record() 로만 들어온다.
+-- 읽기는 본인 레코드 조회용으로 남겨둔다 — RLS 가 남의 행을 막는다.
+grant select on table public.user_records to authenticated;
+revoke insert, update, delete on table public.user_records from authenticated;
 
 revoke all on function public.sync_my_record(text, bigint) from public;
 revoke all on function public.leaderboard() from public;
