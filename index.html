@@ -2399,6 +2399,22 @@
   var LB_ON = !!(SB_URL && SB_KEY && supabaseClient);
   var branch = load(LS.branch) || '';
   if (!BRANCH_LABEL[branch]) branch = '';
+  var lastLoginUserId = null;
+
+  function identifyUserSession(evt) {
+    if (!currentUser) return;
+    var currentCalc = calcService(startEl.value, endEl.value, midnightToday());
+    __analytics.identify(currentUser.id, {
+      branch: load(LS.branch) || null,
+      service_status: currentCalc.state,
+      d_day: currentCalc.dday || null,
+      is_leaderboard_user: true
+    });
+    if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
+      lastLoginUserId = currentUser.id;
+      __analytics.track('login_completed', { has_branch: !!load(LS.branch) });
+    }
+  }
 
   function syncPresets() {
     Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (p) {
@@ -2408,10 +2424,16 @@
 
   function setBranch(id) {
     if (!BRANCH_LABEL[id]) return;
+    var b = { id: id };
     branch = id;
     store(LS.branch, id);
     syncPresets();
+    __analytics.track('branch_selected', {
+      branch: b.id,
+      contributed_days: parseInt(load(LS.total) || '0', 10)
+    });
     if (currentUser) {
+      __analytics.identify(currentUser.id, { branch: b.id });
       syncUserRecord().then(function () {
         if (lbScrim.classList.contains('on')) refreshBoard();
       });
@@ -2437,6 +2459,8 @@
 
   function signOutGoogle() {
     if (!supabaseClient) return;
+    lastLoginUserId = null;
+    __analytics.reset();
     supabaseClient.auth.signOut().then(function () {
       currentUser = null;
       lbData = null;
@@ -2645,6 +2669,7 @@
   }
 
   function openLb() {
+    __analytics.track('leaderboard_opened', { is_authenticated: !!currentUser });
     openModal(lbScrim, lbClose);
     renderBoard();
     if (currentUser) {
@@ -2654,6 +2679,7 @@
       supabaseClient.auth.getSession().then(function (res) {
         if (res && res.data && res.data.session) {
           currentUser = res.data.session.user;
+          identifyUserSession();
           renderBoard();
           syncUserRecord().then(refreshBoard);
           lbTimer = setInterval(refreshBoard, 15000);
@@ -2678,6 +2704,7 @@
     supabaseClient.auth.getSession().then(function (res) {
       if (res && res.data && res.data.session) {
         currentUser = res.data.session.user;
+        identifyUserSession();
         syncUserRecord();
       }
     });
@@ -2685,6 +2712,7 @@
     supabaseClient.auth.onAuthStateChange(function (evt, session) {
       currentUser = (session && session.user) ? session.user : null;
       if (currentUser) {
+        identifyUserSession(evt);
         syncUserRecord().then(function () {
           if (lbScrim.classList.contains('on')) refreshBoard();
         });
@@ -2692,6 +2720,8 @@
           history.replaceState(null, '', window.location.pathname + window.location.search);
           openLb();
         }
+      } else {
+        lastLoginUserId = null;
       }
       if (lbScrim.classList.contains('on')) renderBoard();
     });

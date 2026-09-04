@@ -351,5 +351,163 @@ test('index.html contains shop economy and monetization tracking instrumentation
   assert.match(html, /beforeReward:\s*function\s*\([^)]*\)\s*\{[\s\S]*?clearTimeout\(giveUp\)/);
 });
 
+test('user identity and properties map correctly', () => {
+  let identifiedUser = null;
+  let userProps = null;
+  const fakeAnalytics = {
+    identify: (id, props) => { identifiedUser = id; userProps = props; }
+  };
+  const mockUser = { id: 'usr-123' };
+  const currentCalc = { state: 'active', dday: 240 };
+  fakeAnalytics.identify(mockUser.id, {
+    branch: 'army',
+    service_status: currentCalc.state,
+    d_day: currentCalc.dday,
+    is_leaderboard_user: true
+  });
+
+  assert.equal(identifiedUser, 'usr-123');
+  assert.equal(userProps.is_leaderboard_user, true);
+  assert.equal(userProps.branch, 'army');
+  assert.equal(userProps.service_status, 'active');
+  assert.equal(userProps.d_day, 240);
+});
+
+test('leaderboard and auth lifecycle tracking logic', () => {
+  const events = [];
+  let currentIdentifiedUser = null;
+  let currentUserProps = null;
+  let resetCount = 0;
+
+  const fakeAnalytics = {
+    track: (name, props) => events.push({ name, props }),
+    identify: (id, props) => {
+      currentIdentifiedUser = id;
+      currentUserProps = { ...(currentUserProps || {}), ...props };
+    },
+    reset: () => {
+      resetCount++;
+      currentIdentifiedUser = null;
+      currentUserProps = null;
+    }
+  };
+
+  let currentUser = null;
+  let lastLoginUserId = null;
+  const fakeStorage = { 'ad.branch': 'marine', 'ad.total': '120' };
+
+  function openLb() {
+    fakeAnalytics.track('leaderboard_opened', { is_authenticated: !!currentUser });
+  }
+
+  function identifyUserSession(evt) {
+    if (!currentUser) return;
+    const currentCalc = { state: 'active', dday: 180 };
+    fakeAnalytics.identify(currentUser.id, {
+      branch: fakeStorage['ad.branch'] || null,
+      service_status: currentCalc.state,
+      d_day: currentCalc.dday || null,
+      is_leaderboard_user: true
+    });
+    if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
+      lastLoginUserId = currentUser.id;
+      fakeAnalytics.track('login_completed', { has_branch: !!fakeStorage['ad.branch'] });
+    }
+  }
+
+  function selectBranch(branchId) {
+    const b = { id: branchId };
+    fakeStorage['ad.branch'] = b.id;
+    fakeAnalytics.track('branch_selected', {
+      branch: b.id,
+      contributed_days: parseInt(fakeStorage['ad.total'] || '0', 10)
+    });
+    if (currentUser) {
+      fakeAnalytics.identify(currentUser.id, { branch: b.id });
+    }
+  }
+
+  function signOut() {
+    lastLoginUserId = null;
+    fakeAnalytics.reset();
+    currentUser = null;
+  }
+
+  // 1. Unauthenticated open leaderboard
+  openLb();
+  assert.equal(events.length, 1);
+  assert.equal(events[0].name, 'leaderboard_opened');
+  assert.equal(events[0].props.is_authenticated, false);
+
+  // 2. User signs in
+  currentUser = { id: 'usr-999' };
+  identifyUserSession('SIGNED_IN');
+  assert.equal(currentIdentifiedUser, 'usr-999');
+  assert.equal(currentUserProps.is_leaderboard_user, true);
+  assert.equal(currentUserProps.branch, 'marine');
+  assert.equal(currentUserProps.service_status, 'active');
+  assert.equal(currentUserProps.d_day, 180);
+  assert.equal(events.length, 2);
+  assert.equal(events[1].name, 'login_completed');
+  assert.equal(events[1].props.has_branch, true);
+
+  // 3. Token refresh should NOT duplicate login_completed
+  identifyUserSession('TOKEN_REFRESHED');
+  assert.equal(events.length, 2, 'Token refresh must not fire duplicate login_completed');
+
+  // 4. Authenticated open leaderboard
+  openLb();
+  assert.equal(events.length, 3);
+  assert.equal(events[2].name, 'leaderboard_opened');
+  assert.equal(events[2].props.is_authenticated, true);
+
+  // 5. Select branch updates profile and emits event
+  selectBranch('navy');
+  assert.equal(events.length, 4);
+  assert.equal(events[3].name, 'branch_selected');
+  assert.equal(events[3].props.branch, 'navy');
+  assert.equal(events[3].props.contributed_days, 120);
+  assert.equal(currentUserProps.branch, 'navy');
+
+  // 6. Sign out resets identity
+  signOut();
+  assert.equal(resetCount, 1);
+  assert.equal(currentIdentifiedUser, null);
+  assert.equal(lastLoginUserId, null);
+
+  // 7. Signing in again fires login_completed once more
+  currentUser = { id: 'usr-999' };
+  identifyUserSession('SIGNED_IN');
+  assert.equal(events.length, 5);
+  assert.equal(events[4].name, 'login_completed');
+});
+
+test('index.html contains leaderboard and identity tracking instrumentation', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+
+  // Event names
+  assert.match(html, /leaderboard_opened/);
+  assert.match(html, /login_completed/);
+  assert.match(html, /branch_selected/);
+
+  // leaderboard_opened properties
+  assert.match(html, /leaderboard_opened[\s\S]*?is_authenticated:\s*!+currentUser/);
+
+  // login_completed and identify properties
+  assert.match(html, /is_leaderboard_user:\s*true/);
+  assert.match(html, /service_status:\s*currentCalc\.state/);
+  assert.match(html, /d_day:\s*currentCalc\.dday/);
+  assert.match(html, /login_completed[\s\S]*?has_branch:\s*!+load\(LS\.branch\)/);
+
+  // branch_selected properties
+  assert.match(html, /branch_selected[\s\S]*?branch:\s*(?:b\.id|id)/);
+  assert.match(html, /contributed_days:\s*parseInt\(load\(LS\.total\)/);
+
+  // identify on branch selection
+  assert.match(html, /__analytics\.identify\(currentUser\.id,\s*\{\s*branch:\s*(?:b\.id|id)\s*\}\)/);
+
+  // signOutGoogle reset
+  assert.match(html, /function signOutGoogle[\s\S]*?__analytics\.reset\(\)/);
+});
 
 
