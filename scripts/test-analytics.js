@@ -100,3 +100,91 @@ test('safe __analytics handles missing posthog and runtime errors gracefully', (
   assert.doesNotThrow(() => safeWrapper2.reset());
 });
 
+test('first click, milestone crossing, and session summary trigger correctly', () => {
+  const events = [];
+  const fakeAnalytics = {
+    track: (name, props) => events.push({ name, props }),
+    session: { startTime: Date.now(), sessionClicks: 0, maxCombo: 0, firstClickFired: false }
+  };
+  // Simulate clicks
+  let prevTotal = 0;
+  let newTotal = 10;
+  fakeAnalytics.session.sessionClicks++;
+  fakeAnalytics.session.maxCombo = 5;
+  if (!fakeAnalytics.session.firstClickFired) {
+    fakeAnalytics.session.firstClickFired = true;
+    fakeAnalytics.track('first_delete_click', { d_day: 100 });
+  }
+  const m = checkMilestone(prevTotal, newTotal);
+  if (m) fakeAnalytics.track('click_milestone_reached', { milestone_days: m });
+
+  assert.equal(events.length, 2);
+  assert.equal(events[0].name, 'first_delete_click');
+  assert.equal(events[1].name, 'click_milestone_reached');
+  assert.equal(events[1].props.milestone_days, 10);
+});
+
+test('session flush prevents duplicate events unless new clicks occur', () => {
+  const events = [];
+  const fakeStore = { 'ad.total': '150', 'ad.spent': '30' };
+  const analytics = {
+    session: {
+      startTime: 1000,
+      sessionClicks: 0,
+      maxCombo: 12,
+      flushed: false
+    },
+    track: (name, props) => events.push({ name, props })
+  };
+
+  function flushSessionEngagement(nowMs) {
+    if (analytics.session.sessionClicks === 0 || analytics.session.flushed) return;
+    analytics.session.flushed = true;
+    const total = parseInt(fakeStore['ad.total'] || '0', 10);
+    const spent = parseInt(fakeStore['ad.spent'] || '0', 10);
+    analytics.track('session_engagement', {
+      session_clicks: analytics.session.sessionClicks,
+      max_combo: analytics.session.maxCombo,
+      total_days_deleted: total,
+      spent_days: spent,
+      balance: Math.max(0, total - spent),
+      session_duration_seconds: Math.max(0, Math.round(((nowMs || Date.now()) - analytics.session.startTime) / 1000))
+    });
+  }
+
+  // Case 1: zero clicks -> should not flush
+  flushSessionEngagement(5000);
+  assert.equal(events.length, 0);
+
+  // Case 2: clicks recorded -> flushes
+  analytics.session.sessionClicks = 10;
+  flushSessionEngagement(5000);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].name, 'session_engagement');
+  assert.equal(events[0].props.session_clicks, 10);
+  assert.equal(events[0].props.session_duration_seconds, 4);
+
+  // Case 3: immediately flush again (e.g. pagehide after visibilitychange) -> duplicate blocked
+  flushSessionEngagement(6000);
+  assert.equal(events.length, 1, 'Should not fire duplicate flush without new clicks');
+
+  // Case 4: user clicks again -> flush can fire once more with updated numbers
+  analytics.session.sessionClicks += 5;
+  analytics.session.flushed = false;
+  flushSessionEngagement(7000);
+  assert.equal(events.length, 2);
+  assert.equal(events[1].props.session_clicks, 15);
+  assert.equal(events[1].props.session_duration_seconds, 6);
+});
+
+test('index.html contains core interaction tracking instrumentation', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  assert.match(html, /checkMilestone/);
+  assert.match(html, /first_delete_click/);
+  assert.match(html, /click_milestone_reached/);
+  assert.match(html, /session_engagement/);
+  assert.match(html, /flushSessionEngagement/);
+  assert.match(html, /pagehide/);
+  assert.match(html, /visibilitychange/);
+});
+

@@ -1379,13 +1379,28 @@
   /* ══════════════════════════════════════════
      PostHog 분석 래퍼 (광고차단기/오프라인 완전 방어)
      ══════════════════════════════════════════ */
+  var MILESTONES = [10, 50, 100, 500, 1000, 5000, 10000];
+
+  function checkMilestone(prevTotal, newTotal) {
+    for (var i = 0; i < MILESTONES.length; i++) {
+      var m = MILESTONES[i];
+      if (prevTotal < m && newTotal >= m) {
+        return m;
+      }
+    }
+    return null;
+  }
+
   var __analytics = {
     session: {
       startTime: Date.now(),
       sessionClicks: 0,
       maxCombo: 0,
-      firstClickFired: false
+      firstClickFired: false,
+      flushed: false
     },
+    MILESTONES: MILESTONES,
+    checkMilestone: checkMilestone,
     track: function (eventName, properties) {
       try {
         if (window.posthog && typeof window.posthog.capture === 'function') {
@@ -1409,6 +1424,7 @@
     }
   };
   window.__analytics = __analytics;
+
 
   /* ══════════════════════════════════════════
      설정
@@ -1472,6 +1488,29 @@
 
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function flushSessionEngagement() {
+    if (__analytics.session.sessionClicks === 0 || __analytics.session.flushed) return;
+    __analytics.session.flushed = true;
+    var total = parseInt(load(LS.total) || '0', 10);
+    var spent = parseInt(load(LS.spent) || '0', 10);
+    __analytics.track('session_engagement', {
+      session_clicks: __analytics.session.sessionClicks,
+      max_combo: __analytics.session.maxCombo,
+      total_days_deleted: total,
+      spent_days: spent,
+      balance: Math.max(0, total - spent),
+      session_duration_seconds: Math.max(0, Math.round((Date.now() - __analytics.session.startTime) / 1000))
+    });
+  }
+  __analytics.flushSessionEngagement = flushSessionEngagement;
+
+  window.addEventListener('pagehide', flushSessionEngagement);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      flushSessionEngagement();
+    }
+  });
 
   /* ══════════════════════════════════════════
      날짜 계산 (순수 함수)
@@ -1832,9 +1871,45 @@
   }
 
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var currentCombo = 0;
+  var lastClickTime = 0;
 
   btn.addEventListener('click', function () {
+    if (!__analytics.session.firstClickFired) {
+      __analytics.session.firstClickFired = true;
+      var currentCalc = calcService(startEl.value, endEl.value, midnightToday());
+      __analytics.track('first_delete_click', {
+        start_date: startEl.value || null,
+        end_date: endEl.value || null,
+        service_status: currentCalc.state,
+        d_day: currentCalc.dday || null
+      });
+    }
+
+    var now = Date.now();
+    if (now - lastClickTime <= COMBO_RESET_MS) {
+      currentCombo++;
+    } else {
+      currentCombo = 1;
+    }
+    lastClickTime = now;
+    var combo = currentCombo;
+
+    __analytics.session.sessionClicks++;
+    __analytics.session.flushed = false;
+    if (combo > __analytics.session.maxCombo) __analytics.session.maxCombo = combo;
+
+    var prevTotal = total;
     addDays(multiplier());
+    var newTotal = total;
+
+    var milestone = checkMilestone(prevTotal, newTotal);
+    if (milestone) {
+      __analytics.track('click_milestone_reached', {
+        milestone_days: milestone,
+        current_combo: combo
+      });
+    }
 
     playClick(total);
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
