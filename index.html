@@ -2105,7 +2105,11 @@
     window.adBreak({
       type: 'reward',
       name: 'shop-reward',
-      beforeReward: function (showAdFn) { offered = true; showAdFn(); },
+      beforeReward: function (showAdFn) {
+        clearTimeout(giveUp);
+        offered = true;
+        showAdFn();
+      },
       beforeAd: pauseForAd,
       afterAd: resumeAfterAd,
       adViewed: function () {
@@ -2270,8 +2274,8 @@
     if (item.effect && item.effect.type === 'share') {
       __analytics.track('share_boost_activated', {
         method: (navigator.share && window.isSecureContext) ? 'navigator.share' : 'clipboard',
-        boost_multiplier: item.effect ? item.effect.value : 1,
-        boost_duration_ms: item.effect ? item.effect.durationMs : 0
+        boost_multiplier: item.effect.value,
+        boost_duration_ms: item.effect.durationMs
       });
       shareLink(item);
       return;

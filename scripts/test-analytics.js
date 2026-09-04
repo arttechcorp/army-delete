@@ -347,6 +347,8 @@ test('index.html contains shop economy and monetization tracking instrumentation
   assert.match(html, /new_balance/);
   assert.match(html, /reason:\s*'adblock_timeout'/);
   assert.match(html, /viewport_width:\s*window\.innerWidth/);
+  // Timeout safety checks
+  assert.match(html, /beforeReward:\s*function\s*\([^)]*\)\s*\{[\s\S]*?clearTimeout\(giveUp\)/);
 });
 
 
