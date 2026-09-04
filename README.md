@@ -24,7 +24,7 @@
 | `items.json` | 상점 아이템 정의 — 아이템을 늘릴 때 여기만 고치면 된다 |
 | `ads.txt` | AdSense 게시자 확인용. 도메인 루트에 그대로 서빙되어야 한다 |
 | `privacy.html` | 개인정보처리방침. AdSense 승인 필수 요건이다. **저장 키나 외부로 나가는 요청이 바뀌면 여기도 같이 고쳐야 한다** |
-| `supabase/board.sql` | 리더보드 스키마 — 테이블 · RLS · 함수 2개 |
+| `supabase/board.sql` | 계정 저장 + 리더보드 스키마 — 테이블 · RLS · 함수 2개 |
 | `supabase/board_test.sql` | 위 SQL 자체 점검 (assert, 마지막에 rollback) |
 | `.github/workflows/keepalive.yml` | Supabase 무료 프로젝트 정지 방지용 주간 핑 |
 
@@ -238,6 +238,19 @@ var SB_KEY = 'sb_publishable_...';
 | 누적 일수는 줄지 않음 | `sync_my_record()` 가 `greatest(기존, 새값)` 으로 업서트합니다. 기기를 여러 대 쓰다 낮은 값이 뒤늦게 올라와도 서버 기록이 뒤로 가지 않습니다. |
 | 쓰기 경로 | **테이블 직접 쓰기는 막혀 있습니다.** `authenticated` 에게 `select` 만 주고 `insert/update/delete` 는 회수합니다. 열어두면 `PATCH /rest/v1/user_records` 한 번으로 위 `greatest()` 가드가 우회됩니다. 쓰기는 `security definer` 인 `sync_my_record()` 로만 들어옵니다. |
 
+### 계정 저장
+
+로그인하면 일수·사용액·보유 아이템(`ad.total` / `ad.spent` / `ad.owned`)이 계정에 남습니다. 기기를 바꿔도 이어집니다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 병합이 단순한 이유 | 세 값 모두 **단조 증가**합니다 — 일수는 클릭·광고 보상으로만 늘고, 사용액은 구매로만 늘고, 아이템은 되팔 수 없습니다. 그래서 병합이 `max` / `max` / 합집합으로 끝납니다. 충돌 해소도, 타임스탬프 비교도, last-write-wins 도 필요 없고, 어느 기기가 먼저 도착하든 결과가 같습니다. |
+| 첫 연결만 합산 | `max` 만 쓰면 그 기기가 **로그인 전에 익명으로 모아둔 일수가 통째로 사라집니다.** 연결한 계정 id 를 `ad.acct` 에 적어두고, 없거나 다를 때만 로컬과 서버를 한 번 더합니다. 재로그인에는 다시 더해지지 않습니다. 잔액이 부풀지 않도록 `total` 과 `spent` 를 **반드시 같이** 더합니다. |
+| 불러오기가 먼저 | 로그인 직후 `pullAccount()` → `syncUserRecord()` 순서입니다. 뒤집히면 빈 로컬 상태를 서버에 밀어 넣고 그 다음에 읽어옵니다. 불러온 뒤 `applyEffects()` 를 불러야 아이템 효과가 켜집니다. |
+| 함수 교체 주의 | `sync_my_record` 는 인자가 늘었으므로 `create or replace` 로 못 고칩니다 — 시그니처가 다르면 교체가 아니라 **오버로드**가 생겨서, 아이템을 모르는 옛 2인자 함수가 살아남아 그 경로로 들어온 동기화가 `owned` 를 날립니다. `drop function` 이 먼저입니다. |
+| 소속은 선택 사항 | 계정 저장은 소속과 무관하므로 `branch` 가 nullable 입니다. 대신 `leaderboard()` 가 `where branch is not null` 로 미선택자를 집계에서 뺍니다 — `null` 을 `group by` 에 넣으면 `json_object_agg` 가 null 키로 에러를 냅니다. |
+| 소속 미선택 동기화 | `branch = coalesce(excluded.branch, user_records.branch)` — 소속을 안 고른 기기에서 동기화가 와도 이미 고른 소속을 지우지 않습니다. |
+
 ### 운영
 
 Supabase 무료 프로젝트는 **7일간 요청이 없으면 정지되고 클라이언트에 오류를 반환합니다.**
@@ -245,6 +258,6 @@ Supabase 무료 프로젝트는 **7일간 요청이 없으면 정지되고 클�
 
 ### 검증
 
-- SQL: `supabase/board_test.sql` 실행 (테이블 제약 조건, RLS 및 `leaderboard()` 합산 검증)
-- 클라이언트: 리더보드 모달 열람 시 비로그인 구글 로그인 버튼 노출 및 로그인 후 동기화 동작 확인
+- SQL: `supabase/board_test.sql` 실행 (제약 조건, 권한, `leaderboard()` 합산, 계정 병합 검증). `request.jwt.claims` 를 트랜잭션 로컬로 심어 **실제 `sync_my_record()` 를 호출**하므로 규칙을 베껴 적지 않습니다. 단, `user_id` 가 `auth.users` 를 참조하므로 테스트 uuid 가 없는 프로젝트에서는 실재하는 값으로 바꿔야 합니다.
+- 클라이언트: `window.__army.selfCheck()` (병합 규칙 포함), 리더보드 모달 열람 시 비로그인 구글 로그인 버튼 노출 및 로그인 후 동기화 동작 확인
 

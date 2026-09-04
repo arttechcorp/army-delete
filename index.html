@@ -1372,6 +1372,7 @@
     spent: 'ad.spent',        // 상점에서 쓴 누적 일수
     owned: 'ad.owned',        // 보유 아이템 id 목록
     branch: 'ad.branch',      // 리더보드 소속
+    acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
     rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
     boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
@@ -2276,24 +2277,101 @@
     if (!supabaseClient) return;
     supabaseClient.auth.signOut().then(function () {
       currentUser = null;
+      pulledFor = '';          // 다시 로그인하면 계정을 다시 불러온다
       lbData = null;
       renderBoard();
     });
   }
 
-  /* 사용자 누적 일수 동기화 */
+  /* ── 계정 저장 ────────────────────────────
+     로그인하면 일수·사용액·보유 아이템이 계정에 남는다. 세 값 모두 단조
+     증가한다 — 일수는 클릭과 광고 보상으로만 늘고, 사용액은 구매로만 늘고,
+     아이템은 되팔 수 없다. 그래서 병합이 max/max/합집합으로 끝난다.
+     기기 두 대에서 무엇이 먼저 도착하든 결과가 같다. */
+
+  function payload() {
+    return {
+      p_branch: branch || null,          // 소속 미선택도 저장한다 (서버가 기존 값을 지우지 않는다)
+      p_total_days: total,
+      p_spent: spent,
+      p_owned: owned
+    };
+  }
+
+  /* 계정 불러오기 — 로그인 직후 내보내기보다 먼저 돌아야 한다.
+     순서가 뒤집히면 빈 로컬 상태를 서버에 밀어 넣고 그 다음에 읽어온다. */
+  var pulledFor = '';
+
+  function pullAccount() {
+    if (!supabaseClient || !currentUser) return Promise.resolve();
+    if (pulledFor === currentUser.id) return Promise.resolve();   // 토큰 갱신마다 다시 읽지 않는다
+    pulledFor = currentUser.id;
+
+    return supabaseClient.from('user_records')
+      .select('branch,total_days,spent,owned')
+      .eq('user_id', currentUser.id)
+      .maybeSingle()
+      .then(function (res) {
+        if (res.error) { pulledFor = ''; console.warn('Account load failed:', res.error); return; }
+        mergeAccount(res.data);
+      }, function (err) {
+        pulledFor = '';
+        console.warn('Account load error:', err);
+      });
+  }
+
+  // 이미 연결된 계정이면 큰 쪽을 취하고, 처음 연결하는 기기면 한 번만 합친다.
+  function mergeNum(loc, srv, linked) { return linked ? Math.max(loc, srv) : loc + srv; }
+
+  function mergeAccount(row) {
+    row = row || {};
+    var srvTotal = Math.max(0, row.total_days || 0);
+    var srvSpent = Math.max(0, row.spent || 0);
+    var srvOwned = Object.prototype.toString.call(row.owned) === '[object Array]' ? row.owned : [];
+
+    // 이 계정에 처음 연결하는 기기라면 로그인 전에 모아둔 값을 한 번만 합친다.
+    // max 만 쓰면 익명으로 쌓아둔 일수가 통째로 사라진다 — 폰에서 5000일을
+    // 쌓아 로그인해 두고 데스크톱에서 3000일을 쌓다가 로그인하면 3000일이
+    // 증발한다. 잔액이 부풀지 않도록 total 과 spent 를 반드시 같이 더한다.
+    var linked = load(LS.acct) === currentUser.id;
+    total = mergeNum(readInt(LS.total), srvTotal, linked);
+    spent = mergeNum(readInt(LS.spent), srvSpent, linked);
+
+    owned = readOwned();
+    srvOwned.forEach(function (id) {
+      if (typeof id === 'string' && owned.indexOf(id) === -1) owned.push(id);
+    });
+
+    if (!branch && BRANCH_LABEL[row.branch]) {
+      branch = row.branch;
+      store(LS.branch, branch);
+      syncPresets();
+    }
+
+    store(LS.acct, currentUser.id);      // 합산은 한 번뿐 — 재로그인에 다시 더해지지 않게
+    store(LS.total, String(total));
+    store(LS.spent, String(spent));
+    store(LS.owned, JSON.stringify(owned));
+
+    lastSynced = '';                     // 병합 결과를 서버에도 올려야 한다
+    applyEffects();                      // 불러온 아이템의 효과를 켠다 (renderWallet 포함)
+    if (shopScrim.classList.contains('on')) renderShop();
+  }
+
+  /* 계정 내보내기 */
   var syncing = false;
-  var lastSyncedTotal = -1;
-  var lastSyncedBranch = '';
+  var lastSynced = '';
+
+  function syncSig() { return [total, spent, branch, owned.join(',')].join('|'); }
 
   function syncUserRecord(unloading) {
-    if (!supabaseClient || !currentUser || !branch || syncing) return Promise.resolve();
-    if (total === lastSyncedTotal && branch === lastSyncedBranch) return Promise.resolve();
+    if (!supabaseClient || !currentUser || syncing) return Promise.resolve();
 
-    var targetTotal = total;
-    var targetBranch = branch;
+    var sig = syncSig();
+    if (sig === lastSynced) return Promise.resolve();
 
     if (unloading) {
+      var body = JSON.stringify(payload());
       try {
         supabaseClient.auth.getSession().then(function (res) {
           var token = res && res.data && res.data.session && res.data.session.access_token;
@@ -2305,7 +2383,7 @@
               Authorization: 'Bearer ' + token,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ p_branch: targetBranch, p_total_days: targetTotal }),
+            body: body,
             keepalive: true
           });
         });
@@ -2314,17 +2392,10 @@
     }
 
     syncing = true;
-    return supabaseClient.rpc('sync_my_record', {
-      p_branch: targetBranch,
-      p_total_days: targetTotal
-    }).then(function (res) {
+    return supabaseClient.rpc('sync_my_record', payload()).then(function (res) {
       syncing = false;
-      if (!res.error) {
-        lastSyncedTotal = targetTotal;
-        lastSyncedBranch = targetBranch;
-      } else {
-        console.warn('Sync failed:', res.error);
-      }
+      if (!res.error) lastSynced = sig;
+      else console.warn('Sync failed:', res.error);
     }, function (err) {
       syncing = false;
       console.warn('Sync error:', err);
@@ -2515,14 +2586,15 @@
     supabaseClient.auth.getSession().then(function (res) {
       if (res && res.data && res.data.session) {
         currentUser = res.data.session.user;
-        syncUserRecord();
+        pullAccount().then(function () { syncUserRecord(); });
       }
     });
 
     supabaseClient.auth.onAuthStateChange(function (evt, session) {
       currentUser = (session && session.user) ? session.user : null;
       if (currentUser) {
-        syncUserRecord().then(function () {
+        // 불러오기가 먼저다 — 순서가 뒤집히면 빈 로컬 상태를 서버에 밀어 넣는다
+        pullAccount().then(syncUserRecord).then(function () {
           if (lbScrim.classList.contains('on')) refreshBoard();
         });
         if (window.location.hash && window.location.hash.indexOf('access_token') !== -1) {
@@ -2534,15 +2606,15 @@
     });
 
     setInterval(function () {
-      if (currentUser && branch) syncUserRecord();
+      if (currentUser) syncUserRecord();
     }, 10000);
 
     window.addEventListener('pagehide', function () {
-      if (currentUser && branch) syncUserRecord(true);
+      if (currentUser) syncUserRecord(true);
     });
 
     document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'hidden' && currentUser && branch) syncUserRecord(true);
+      if (document.visibilityState === 'hidden' && currentUser) syncUserRecord(true);
     });
   }
 
@@ -2613,6 +2685,11 @@
       else store(LS.total, keep);
       total = readInt(LS.total);
       renderWallet();
+
+      // 계정 병합: 처음 연결하는 기기에서만 더하고, 그 뒤로는 큰 쪽을 쓴다
+      ok(mergeNum(3000, 5000, false) === 8000, '처음 연결하면 로컬과 서버를 합친다');
+      ok(mergeNum(3000, 5000, true) === 5000, '연결된 뒤에는 큰 쪽을 쓴다');
+      ok(mergeNum(5000, 3000, true) === 5000, '연결된 뒤에는 값이 줄지 않는다');
 
       return 'ok';
     }
