@@ -67,11 +67,7 @@
       api_host: POSTHOG_HOST,
       autocapture: false,
       capture_pageview: true,
-      persistence: 'localStorage+cookie',
-      disable_session_recording: false,
-      // maskAllInputs 는 <input> 값만 가린다. 이메일은 DOM 텍스트로 렌더되므로
-      // 선택자를 따로 지정하지 않으면 리플레이에 그대로 남는다.
-      session_recording: { maskAllInputs: true, maskTextSelector: '.lb-my-user' }
+      persistence: 'localStorage+cookie'
     });
   }
 </script>
@@ -1442,6 +1438,7 @@
     owned: 'ad.owned',        // 보유 아이템 id 목록
     branch: 'ad.branch',      // 리더보드 소속
     acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
+    sent: 'ad.sent',          // 리더보드에 이미 보고한 누적치
     rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
     boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
@@ -1824,6 +1821,11 @@
     return [];
   }
   var owned = readOwned();
+  var owned = [];
+  try {
+    var raw = JSON.parse(load(LS.owned) || '[]');
+    if (Object.prototype.toString.call(raw) === '[object Array]') owned = raw;
+  } catch (e) {}
 
   function loadOwned() { return owned; }
 
@@ -1845,6 +1847,7 @@
   // 일수가 통째로 사라진다. 늘릴 때는 항상 저장된 값을 다시 읽는다.
   function addDays(n) {
     total = readInt(LS.total) + n;
+    total += n;
     store(LS.total, String(total));
     renderWallet();
     refreshShopSoon();
@@ -1921,8 +1924,7 @@
     if (milestone) {
       __analytics.track('click_milestone_reached', {
         milestone_days: milestone,
-        current_combo: combo,
-        time_to_reach_seconds: Math.max(0, Math.round((now - __analytics.session.startTime) / 1000))
+        current_combo: combo
       });
     }
 
@@ -2282,6 +2284,16 @@
 
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
+    if (!item) return;
+<<<<<<< HEAD
+    if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
+
+    // 다른 탭이 그새 벌었거나 사뒀을 수 있다 — 저장된 값으로 다시 판단한다
+    total = readInt(LS.total) || total;
+    spent = readInt(LS.spent);
+    owned = readOwned();
+
+=======
     if (item.effect && item.effect.type === 'share') {
       __analytics.track('share_boost_activated', {
         method: (navigator.share && window.isSecureContext) ? 'navigator.share' : 'clipboard',
@@ -2291,12 +2303,7 @@
       shareLink(item);
       return;
     }
-
-    // 다른 탭이 그새 벌었거나 사뒀을 수 있다 — 저장된 값으로 다시 판단한다
-    total = readInt(LS.total) || total;
-    spent = readInt(LS.spent);
-    owned = readOwned();
-
+>>>>>>> dev
     if (owned.indexOf(id) > -1) return;      // 이미 보유
     if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
 
@@ -2425,8 +2432,7 @@
       branch: load(LS.branch) || null,
       service_status: currentCalc.state,
       d_day: currentCalc.dday || null,
-      is_leaderboard_user: true,
-      total_days_deleted: parseInt(load(LS.total) || '0', 10)
+      is_leaderboard_user: true
     });
     if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
       lastLoginUserId = currentUser.id;
@@ -2563,16 +2569,23 @@
   }
 
   /* 계정 내보내기 */
+  /* 사용자 누적 일수 동기화 */
   var syncing = false;
   var lastSynced = '';
+  var lastSyncedTotal = -1;
+  var lastSyncedBranch = '';
 
   function syncSig() { return [total, spent, branch, owned.join(',')].join('|'); }
 
   function syncUserRecord(unloading) {
     if (!supabaseClient || !currentUser || syncing) return Promise.resolve();
+    if (!supabaseClient || !currentUser || !branch || syncing) return Promise.resolve();
+    if (total === lastSyncedTotal && branch === lastSyncedBranch) return Promise.resolve();
 
     var sig = syncSig();
     if (sig === lastSynced) return Promise.resolve();
+    var targetTotal = total;
+    var targetBranch = branch;
 
     if (unloading) {
       var body = JSON.stringify(payload());
@@ -2588,6 +2601,7 @@
               'Content-Type': 'application/json'
             },
             body: body,
+            body: JSON.stringify({ p_branch: targetBranch, p_total_days: targetTotal }),
             keepalive: true
           });
         });
@@ -2597,9 +2611,19 @@
 
     syncing = true;
     return supabaseClient.rpc('sync_my_record', payload()).then(function (res) {
+    return supabaseClient.rpc('sync_my_record', {
+      p_branch: targetBranch,
+      p_total_days: targetTotal
+    }).then(function (res) {
       syncing = false;
       if (!res.error) lastSynced = sig;
       else console.warn('Sync failed:', res.error);
+      if (!res.error) {
+        lastSyncedTotal = targetTotal;
+        lastSyncedBranch = targetBranch;
+      } else {
+        console.warn('Sync failed:', res.error);
+      }
     }, function (err) {
       syncing = false;
       console.warn('Sync error:', err);
@@ -2737,7 +2761,7 @@
     var userEmail = (currentUser && (currentUser.email || (currentUser.user_metadata && currentUser.user_metadata.name))) || '전우';
     html += '<div class="lb-my-bar">'
           +   '<div class="lb-my-details">'
-          +     '<span class="lb-my-user" title="' + esc(userEmail) + '">' + esc(userEmail) + '</span>'
+          +     '<span class="lb-my-user" title="' + userEmail + '">' + userEmail + '</span>'
           +     '<span class="lb-my-badge">' + (branch ? BRANCH_LABEL[branch] : '소속 미선택') + '</span>'
           +     '<span class="lb-my-days">내 기여: ' + total.toLocaleString('ko-KR') + '일</span>'
           +   '</div>'
@@ -2792,18 +2816,25 @@
     supabaseClient.auth.getSession().then(function (res) {
       if (res && res.data && res.data.session) {
         currentUser = res.data.session.user;
-        identifyUserSession();
+<<<<<<< HEAD
         pullAccount().then(function () { syncUserRecord(); });
+=======
+        identifyUserSession();
+        syncUserRecord();
+>>>>>>> dev
       }
     });
 
     supabaseClient.auth.onAuthStateChange(function (evt, session) {
       currentUser = (session && session.user) ? session.user : null;
       if (currentUser) {
-        identifyUserSession(evt);
+<<<<<<< HEAD
         // 불러오기가 먼저다 — 순서가 뒤집히면 빈 로컬 상태를 서버에 밀어 넣는다
         pullAccount().then(syncUserRecord).then(function () {
-
+=======
+        identifyUserSession(evt);
+        syncUserRecord().then(function () {
+>>>>>>> dev
           if (lbScrim.classList.contains('on')) refreshBoard();
         });
         if (window.location.hash && window.location.hash.indexOf('access_token') !== -1) {
@@ -2818,14 +2849,17 @@
 
     setInterval(function () {
       if (currentUser) syncUserRecord();
+      if (currentUser && branch) syncUserRecord();
     }, 10000);
 
     window.addEventListener('pagehide', function () {
       if (currentUser) syncUserRecord(true);
+      if (currentUser && branch) syncUserRecord(true);
     });
 
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden' && currentUser) syncUserRecord(true);
+      if (document.visibilityState === 'hidden' && currentUser && branch) syncUserRecord(true);
     });
   }
 
@@ -2878,6 +2912,7 @@
   window.__army = {
     calcService: calcService, parseISO: parseISO,
     addMonths: addMonths, splitMonths: splitMonths,
+    pending: pending,
     selfCheck: function () {
       function ok(c, m) { if (!c) throw new Error(m); }
 
@@ -2902,6 +2937,11 @@
       ok(mergeNum(3000, 5000, true) === 5000, '연결된 뒤에는 큰 쪽을 쓴다');
       ok(mergeNum(5000, 3000, true) === 5000, '연결된 뒤에는 값이 줄지 않는다');
 
+      ok(pending(10, 0) === 10, '보낸 적 없으면 전부 보낸다');
+      ok(pending(10, 10) === 0, '이미 다 보냈으면 보내지 않는다');
+      ok(pending(3, 10) === 0, 'sent 가 앞서도 음수를 보내지 않는다');
+      ok(pending(9999, 0) === 500, '한 번에 500 을 넘기지 않는다');
+      ok(pending(0, 0) === 0, '아무것도 없으면 0');
       return 'ok';
     }
   };
