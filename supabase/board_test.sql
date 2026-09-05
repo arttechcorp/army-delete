@@ -114,6 +114,31 @@ begin
   --     남아 있으면 그 경로로 들어온 동기화가 owned 를 통째로 날린다.
   assert to_regprocedure('public.sync_my_record(text, bigint)') is null,
     '옛 2인자 sync_my_record 는 drop 되어야 한다';
+
+  -- 11. 실제 플레이로 불가능한 일수는 거부한다.
+  --     greatest() 병합은 되돌릴 수 없어서 한 번 들어오면 영구히 남는다.
+  begin
+    perform public.sync_my_record('army', 9000000000000000000, 300, '{}');
+    assert false, '허용 범위를 벗어난 일수는 거부되어야 한다';
+  exception when raise_exception then
+    null; -- 기대한 거부
+  end;
+
+  begin
+    perform public.sync_my_record('army', 1600, 9000000000000000000, '{}');
+    assert false, '허용 범위를 벗어난 사용액은 거부되어야 한다';
+  exception when raise_exception then
+    null; -- 기대한 거부
+  end;
+
+  select * into rec from public.user_records where user_id = test_uid;
+  assert rec.total_days = 1600, '거부된 값이 반영되면 안 된다';
+  assert rec.spent = 300,       '거부된 사용액이 반영되면 안 된다';
+
+  -- 12. 정상 범위의 증가는 그대로 통과해야 한다 (가드가 게임을 막으면 안 된다)
+  perform public.sync_my_record('army', 1600 + 500000, 300, '{}');
+  select * into rec from public.user_records where user_id = test_uid;
+  assert rec.total_days = 1600 + 500000, '정상 범위의 증가는 반영돼야 한다';
 end $$;
 
 rollback;

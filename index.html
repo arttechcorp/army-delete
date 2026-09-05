@@ -69,7 +69,9 @@
       capture_pageview: true,
       persistence: 'localStorage+cookie',
       disable_session_recording: false,
-      session_recording: { maskAllInputs: true }
+      // maskAllInputs 는 <input> 값만 가린다. 이메일은 DOM 텍스트로 렌더되므로
+      // 선택자를 따로 지정하지 않으면 리플레이에 그대로 남는다.
+      session_recording: { maskAllInputs: true, maskTextSelector: '.lb-my-user' }
     });
   }
 </script>
@@ -2735,7 +2737,7 @@
     var userEmail = (currentUser && (currentUser.email || (currentUser.user_metadata && currentUser.user_metadata.name))) || '전우';
     html += '<div class="lb-my-bar">'
           +   '<div class="lb-my-details">'
-          +     '<span class="lb-my-user" title="' + userEmail + '">' + userEmail + '</span>'
+          +     '<span class="lb-my-user" title="' + esc(userEmail) + '">' + esc(userEmail) + '</span>'
           +     '<span class="lb-my-badge">' + (branch ? BRANCH_LABEL[branch] : '소속 미선택') + '</span>'
           +     '<span class="lb-my-days">내 기여: ' + total.toLocaleString('ko-KR') + '일</span>'
           +   '</div>'

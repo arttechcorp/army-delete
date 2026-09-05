@@ -72,7 +72,10 @@ security definer
 set search_path = public
 as $$
 declare
-  v_uid uuid := auth.uid();
+  v_uid       uuid := auth.uid();
+  v_prev_days bigint;
+  v_prev_at   timestamptz;
+  v_allow     bigint;
 begin
   if v_uid is null then
     raise exception '인증이 필요합니다.';
@@ -86,6 +89,25 @@ begin
   -- 아이템 개수 상한. 클라이언트가 보내는 배열이므로 크기를 여기서 자른다.
   if coalesce(array_length(p_owned, 1), 0) > 200 then
     raise exception '보유 아이템이 너무 많습니다.';
+  end if;
+
+  -- 일수·사용액 상한. 숫자도 클라이언트가 보내는 값이라 여기서 자른다.
+  -- 아래 greatest() 병합은 되돌릴 수 없어서, 한 번 들어온 헛값은 영구히 남고
+  -- 리더보드 집계를 통째로 망가뜨린다 (sum() 오버플로까지 간다).
+  --
+  -- 실제로 가능한 최대 속도: 자동 대원을 전부 사면 약 15.3회/초, 배수는 겹치지
+  -- 않고 가장 높은 것 하나만 붙어 3배 — 손클릭까지 더해도 초당 110일 언저리다.
+  -- 200일/초로 여유를 두고, 첫 동기화와 기기 병합(로컬+서버 합산) 몫으로
+  -- 2천만일을 얹는다. updated_at 은 쓰기가 성공해야 움직이므로, 혹시 정상
+  -- 사용자가 걸려도 시간이 지나면 허용치가 따라붙어 저절로 풀린다.
+  select total_days, updated_at into v_prev_days, v_prev_at
+    from public.user_records where user_id = v_uid;
+
+  v_allow := coalesce(v_prev_days, 0) + 20000000
+           + 200 * greatest(extract(epoch from (now() - coalesce(v_prev_at, now())))::bigint, 0);
+
+  if greatest(coalesce(p_total_days, 0), coalesce(p_spent, 0)) > v_allow then
+    raise exception '기록 값이 허용 범위를 벗어났습니다.';
   end if;
 
   insert into public.user_records (user_id, email, branch, total_days, spent, owned, updated_at)
