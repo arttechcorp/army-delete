@@ -27,8 +27,10 @@
 | `supabase/board.sql` | 계정 저장 + 리더보드 스키마 — 테이블 · RLS · 함수 2개 |
 | `supabase/board_test.sql` | 위 SQL 자체 점검 (assert, 마지막에 rollback) |
 | `.github/workflows/keepalive.yml` | Supabase 무료 프로젝트 정지 방지용 주간 핑 |
+| `scripts/analytics-helper.js` | 분석 도우미 모듈 (마일스톤 판별 및 세션 페이로드 계산) |
+| `scripts/test-analytics.js` | 분석 이벤트 및 개인정보처리방침 검증 테스트 |
 
-빌드 도구·의존성이 없습니다. 외부 요청은 Google Fonts, 광고 SDK, `items.json`,
+빌드 도구·의존성이 없습니다. 외부 요청은 Google Fonts, 광고 SDK, PostHog(분석), `items.json`,
 그리고 리더보드를 켰을 때의 Supabase 뿐입니다.
 
 ## 재화 모델
@@ -260,4 +262,72 @@ Supabase 무료 프로젝트는 **7일간 요청이 없으면 정지되고 클�
 
 - SQL: `supabase/board_test.sql` 실행 (제약 조건, 권한, `leaderboard()` 합산, 계정 병합 검증). `request.jwt.claims` 를 트랜잭션 로컬로 심어 **실제 `sync_my_record()` 를 호출**하므로 규칙을 베껴 적지 않습니다. 단, `user_id` 가 `auth.users` 를 참조하므로 테스트 uuid 가 없는 프로젝트에서는 실재하는 값으로 바꿔야 합니다.
 - 클라이언트: `window.__army.selfCheck()` (병합 규칙 포함), 리더보드 모달 열람 시 비로그인 구글 로그인 버튼 노출 및 로그인 후 동기화 동작 확인
+
+## 분석 (PostHog Analytics)
+
+사용자 인터랙션 분석, 리텐션 코호트 분석, 광고/상점 경제 흐름 파악 및 세션 리플레이를 위해 PostHog가 연동되어 있습니다. AdBlock 차단 환경이나 네트워크 오류 시에도 메인 서비스는 전혀 중단되지 않도록 안전 래퍼(`__analytics`)로 격리되어 있습니다.
+
+### API Key 설정 방법
+
+PostHog 프로젝트 생성 후 발급받은 Project API Key를 다음 두 가지 방법 중 하나로 설정할 수 있습니다.
+
+1. **전역 변수 주입 방식 (권장 - 환경별 분기 시)**:
+   HTML 로더 앞단이나 배포 환경 스크립트에서 `window.ENV_POSTHOG_KEY`와 `window.ENV_POSTHOG_HOST`(선택, 기본: `https://us.i.posthog.com`)를 선언합니다.
+   ```html
+   <script>
+     window.ENV_POSTHOG_KEY = 'phc_실제_프로젝트_키';
+     window.ENV_POSTHOG_HOST = 'https://us.i.posthog.com'; // 또는 EU 호스트
+   </script>
+   ```
+
+2. **`index.html` 직접 수정 방식**:
+   `index.html` 상단의 `POSTHOG_KEY` 기본값을 수정합니다.
+   ```js
+   var POSTHOG_KEY = window.ENV_POSTHOG_KEY || 'phc_실제_프로젝트_키';
+   ```
+
+*참고: 키가 플레이스홀더(`phc_PLACEHOLDER_KEY`) 상태이거나 설정되지 않으면 PostHog SDK는 초기화되지 않으며, `__analytics` 래퍼가 모든 호출을 no-op으로 안전하게 무시합니다.*
+
+### 수집 이벤트 목록
+
+| 이벤트명 | 트리거 조건 | 주요 속성 (Properties) |
+| --- | --- | --- |
+| `first_delete_click` | 해당 세션에서 삭제 버튼 첫 클릭 | `d_day` |
+| `click_milestone_reached` | 누적 클릭 마일스톤 달성 (10, 50, 100, 500, 1000 ...) | `milestone_days` |
+| `session_engagement` | 탭 전환(`visibilitychange`) 또는 창 종료(`pagehide`) | `session_clicks`, `max_combo`, `total_days_deleted`, `spent_days`, `balance`, `session_duration_seconds` |
+| `shop_opened` | 상점 모달 오픈 | `current_balance`, `owned_items_count` |
+| `item_purchased` | 상점 아이템 구매 | `item_id`, `item_name`, `price`, `item_type`, `remaining_balance` |
+| `share_boost_activated` | 링크 공유 배수 부스트 발동 | `method`, `boost_multiplier`, `boost_duration_ms` |
+| `reward_ad_clicked` | 보상형 광고 시청 버튼 클릭 | `current_balance` |
+| `reward_ad_completed` | 보상형 광고 시청 완료 및 보상 수령 | `reward_days`, `new_balance` |
+| `reward_ad_failed` | 보상형 광고 오류 또는 애드블록 타임아웃 | `reason` |
+| `anchor_ad_closed` | 하단 앵커 광고 닫기(×) 클릭 | `viewport_width` |
+| `leaderboard_opened` | 리더보드 모달 오픈 | `is_authenticated` |
+| `login_completed` | Google 계정 로그인 완료 | `has_branch` |
+| `branch_selected` | 군 소속 선택 (육군/해병/해군/공군) | `branch`, `contributed_days` |
+
+### 사용자 식별 (Identity & Person Properties)
+
+리더보드 로그인 시 Supabase 사용자 ID(UUID)로 `posthog.identify()`가 호출되며, 로그아웃 시 `posthog.reset()`으로 세션 식별이 초기화됩니다.
+- **Person Properties**: `branch`(소속 군), `service_status`(복무 상태), `d_day`(남은 일수), `is_leaderboard_user` (`true`)
+
+### UTM 유입 경로 & 대시보드 / 코호트
+
+- **UTM 분석**: PostHog 기본 기능을 통해 유입 URL의 `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` 및 레퍼러가 자동 캡처됩니다.
+- **코호트 (Cohorts)**:
+  - 로그인 유저 vs 비로그인 플레이어
+  - 소속 군별 코호트 (육군, 해병, 해군, 공군)
+  - 하이 인게이지먼트 유저 (1000일 이상 삭제 또는 세션 내 100회 이상 클릭)
+  - 과금/보상형 광고 유저 (보상형 광고 1회 이상 완료)
+- **대시보드 권장 구성**:
+  - **Funnel 분석**: 메인 유입 → 첫 클릭(`first_delete_click`) → 상점 열람(`shop_opened`) → 보상형 광고(`reward_ad_completed`) 또는 아이템 구매(`item_purchased`)
+  - **리텐션(Retention)**: UTM 캠페인별 재방문율 및 세션 참여 지속 시간(`session_duration_seconds`)
+  - **세션 리플레이(Session Replay)**: 인터랙션 지연 분석 및 UI 이상 현상 감지 (민감 정보는 자동 마스킹 처리됨)
+
+### 검증 테스트
+
+```bash
+node --test scripts/test-analytics.js
+```
+
 

@@ -16,3 +16,6 @@ desktop.ini
 .env
 .env.*
 !.env.example
+
+# Superpowers
+.superpowers/

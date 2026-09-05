@@ -56,6 +56,21 @@
   window.adBreak = window.adConfig = function (o) { window.adsbygoogle.push(o); };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getGlobalPlugins getSessionReplayUrl".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+
+  var POSTHOG_KEY = window.ENV_POSTHOG_KEY || 'phc_qQioeVSWtNBsnkB96GCYifbfMyokNxBx46wk5v7yCRsJ';
+  var POSTHOG_HOST = window.ENV_POSTHOG_HOST || 'https://us.i.posthog.com';
+
+  if (POSTHOG_KEY && POSTHOG_KEY !== 'phc_PLACEHOLDER_KEY') {
+    posthog.init(POSTHOG_KEY, {
+      api_host: POSTHOG_HOST,
+      autocapture: false,
+      capture_pageview: true,
+      persistence: 'localStorage+cookie'
+    });
+  }
+</script>
 
 <style>
   :root{
@@ -1362,6 +1377,56 @@
   'use strict';
 
   /* ══════════════════════════════════════════
+     PostHog 분석 래퍼 (광고차단기/오프라인 완전 방어)
+     ══════════════════════════════════════════ */
+  var MILESTONES = [10, 50, 100, 500, 1000, 5000, 10000];
+
+  function checkMilestone(prevTotal, newTotal) {
+    for (var i = 0; i < MILESTONES.length; i++) {
+      var m = MILESTONES[i];
+      if (prevTotal < m && newTotal >= m) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  var __analytics = {
+    session: {
+      startTime: Date.now(),
+      sessionClicks: 0,
+      maxCombo: 0,
+      firstClickFired: false,
+      flushed: false
+    },
+    MILESTONES: MILESTONES,
+    checkMilestone: checkMilestone,
+    track: function (eventName, properties) {
+      try {
+        if (window.posthog && typeof window.posthog.capture === 'function') {
+          window.posthog.capture(eventName, properties || {});
+        }
+      } catch (err) {}
+    },
+    identify: function (userId, userProperties) {
+      try {
+        if (window.posthog && typeof window.posthog.identify === 'function') {
+          window.posthog.identify(userId, userProperties || {});
+        }
+      } catch (err) {}
+    },
+    reset: function () {
+      try {
+        if (window.posthog && typeof window.posthog.reset === 'function') {
+          window.posthog.reset();
+        }
+      } catch (err) {}
+    }
+  };
+  window.__analytics = __analytics;
+
+
+  /* ══════════════════════════════════════════
      설정
      ══════════════════════════════════════════ */
   var COMBO_RESET_MS = 1200;     // 이 시간 이상 쉬면 콤보 초기화
@@ -1423,6 +1488,29 @@
 
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+  function flushSessionEngagement() {
+    if (__analytics.session.sessionClicks === 0 || __analytics.session.flushed) return;
+    __analytics.session.flushed = true;
+    var total = parseInt(load(LS.total) || '0', 10);
+    var spent = parseInt(load(LS.spent) || '0', 10);
+    __analytics.track('session_engagement', {
+      session_clicks: __analytics.session.sessionClicks,
+      max_combo: __analytics.session.maxCombo,
+      total_days_deleted: total,
+      spent_days: spent,
+      balance: Math.max(0, total - spent),
+      session_duration_seconds: Math.max(0, Math.round((Date.now() - __analytics.session.startTime) / 1000))
+    });
+  }
+  __analytics.flushSessionEngagement = flushSessionEngagement;
+
+  window.addEventListener('pagehide', flushSessionEngagement);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+      flushSessionEngagement();
+    }
+  });
 
   /* ══════════════════════════════════════════
      날짜 계산 (순수 함수)
@@ -1710,6 +1798,7 @@
   anchorClose.addEventListener('click', function () {
     anchor.classList.add('closed');
     document.body.classList.add('ad-closed');   // 배너 자리로 비워둔 여백도 같이 회수
+    __analytics.track('anchor_ad_closed', { viewport_width: window.innerWidth });
   });
 
   /* ══════════════════════════════════════════
@@ -1731,6 +1820,8 @@
     return [];
   }
   var owned = readOwned();
+
+  function loadOwned() { return owned; }
 
   function balance() { return Math.max(0, total - spent); }
 
@@ -1790,9 +1881,45 @@
   }
 
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var currentCombo = 0;
+  var lastClickTime = 0;
 
   btn.addEventListener('click', function () {
+    if (!__analytics.session.firstClickFired) {
+      __analytics.session.firstClickFired = true;
+      var currentCalc = calcService(startEl.value, endEl.value, midnightToday());
+      __analytics.track('first_delete_click', {
+        start_date: startEl.value || null,
+        end_date: endEl.value || null,
+        service_status: currentCalc.state,
+        d_day: currentCalc.dday || null
+      });
+    }
+
+    var now = Date.now();
+    if (now - lastClickTime <= COMBO_RESET_MS) {
+      currentCombo++;
+    } else {
+      currentCombo = 1;
+    }
+    lastClickTime = now;
+    var combo = currentCombo;
+
+    __analytics.session.sessionClicks++;
+    __analytics.session.flushed = false;
+    if (combo > __analytics.session.maxCombo) __analytics.session.maxCombo = combo;
+
+    var prevTotal = total;
     addDays(multiplier());
+    var newTotal = total;
+
+    var milestone = checkMilestone(prevTotal, newTotal);
+    if (milestone) {
+      __analytics.track('click_milestone_reached', {
+        milestone_days: milestone,
+        current_combo: combo
+      });
+    }
 
     playClick(total);
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
@@ -1945,6 +2072,7 @@
     if (!rewardCfg || rewardInFlight || cooldownLeft() > 0) return;
     rewardInFlight = true;
     renderReward('광고를 불러오는 중…');
+    __analytics.track('reward_ad_clicked', { current_balance: balance() });
 
     // 개발용 모달은 로컬에서만 쓴다. adBreak 별칭은 항상 정의되어 있어서
     // SDK 유무로 가를 수 없고, 배포본에서 이 경로를 타면 광고 없이 일수가
@@ -1954,8 +2082,17 @@
       showDevRewardAd(function (completed) {
         resumeAfterAd();
         rewardInFlight = false;
-        if (completed) grantReward();
-        else renderReward('끝까지 봐야 받을 수 있습니다.');
+        if (completed) {
+          var newBal = balance() + rewardCfg.days;
+          grantReward();
+          __analytics.track('reward_ad_completed', {
+            reward_days: rewardCfg.days,
+            new_balance: newBal
+          });
+        } else {
+          renderReward('끝까지 봐야 받을 수 있습니다.');
+          __analytics.track('reward_ad_failed', { reason: 'dismissed' });
+        }
       });
       return;
     }
@@ -1969,24 +2106,43 @@
       rewardInFlight = false;
       resumeAfterAd();
       renderReward('지금은 볼 수 있는 광고가 없습니다.');
+      __analytics.track('reward_ad_failed', { reason: 'adblock_timeout' });
     }, 12000);
 
     window.adBreak({
       type: 'reward',
       name: 'shop-reward',
-      beforeReward: function (showAdFn) { offered = true; showAdFn(); },
+      beforeReward: function (showAdFn) {
+        clearTimeout(giveUp);
+        offered = true;
+        showAdFn();
+      },
       beforeAd: pauseForAd,
       afterAd: resumeAfterAd,
-      adViewed: grantReward,                                   // 보상은 오직 여기서만
-      adDismissed: function () { renderReward('끝까지 봐야 받을 수 있습니다.'); },
+      adViewed: function () {
+        var newBal = balance() + rewardCfg.days;
+        grantReward();
+        __analytics.track('reward_ad_completed', {
+          reward_days: rewardCfg.days,
+          new_balance: newBal
+        });
+      },                                   // 보상은 오직 여기서만
+      adDismissed: function () {
+        renderReward('끝까지 봐야 받을 수 있습니다.');
+        __analytics.track('reward_ad_failed', { reason: 'dismissed' });
+      },
       adBreakDone: function (info) {
         // beforeReward 가 아예 안 불렸으면 지금 줄 광고가 없다는 뜻이다.
         clearTimeout(giveUp);
         if (settled) return;
         settled = true;
         rewardInFlight = false;
-        if (!offered) renderReward('지금은 볼 수 있는 광고가 없습니다.');
-        else renderReward();
+        if (!offered) {
+          renderReward('지금은 볼 수 있는 광고가 없습니다.');
+          __analytics.track('reward_ad_failed', { reason: 'no_ad' });
+        } else {
+          renderReward();
+        }
         if (window.console && console.debug) {
           console.debug('[ad] reward breakStatus =', info && info.breakStatus);
         }
@@ -2121,8 +2277,15 @@
 
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
-    if (!item) return;
-    if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
+    if (item.effect && item.effect.type === 'share') {
+      __analytics.track('share_boost_activated', {
+        method: (navigator.share && window.isSecureContext) ? 'navigator.share' : 'clipboard',
+        boost_multiplier: item.effect.value,
+        boost_duration_ms: item.effect.durationMs
+      });
+      shareLink(item);
+      return;
+    }
 
     // 다른 탭이 그새 벌었거나 사뒀을 수 있다 — 저장된 값으로 다시 판단한다
     total = readInt(LS.total) || total;
@@ -2136,6 +2299,13 @@
     owned.push(id);
     store(LS.spent, String(spent));
     store(LS.owned, JSON.stringify(owned));
+    __analytics.track('item_purchased', {
+      item_id: item.id,
+      item_name: item.name,
+      price: item.price,
+      item_type: item.effect ? item.effect.type : 'collectible',
+      remaining_balance: balance()
+    });
     applyEffects();          // 산 즉시 배수·자동 대원이 붙는다
     renderShop();
   }
@@ -2195,6 +2365,10 @@
   }
 
   function openShop() {
+    __analytics.track('shop_opened', {
+      current_balance: balance(),
+      owned_items_count: loadOwned().length
+    });
     // 터치 기기에서 검색창에 바로 포커스를 주면 키보드가 튀어 올라오고
     // 상점이 키보드에 가린다. 포커스는 대화상자 안에 두되(Esc·스크린리더용)
     // 검색은 사용자가 직접 누를 때만 열리게 한다.
@@ -2237,6 +2411,22 @@
   var LB_ON = !!(SB_URL && SB_KEY && supabaseClient);
   var branch = load(LS.branch) || '';
   if (!BRANCH_LABEL[branch]) branch = '';
+  var lastLoginUserId = null;
+
+  function identifyUserSession(evt) {
+    if (!currentUser) return;
+    var currentCalc = calcService(startEl.value, endEl.value, midnightToday());
+    __analytics.identify(currentUser.id, {
+      branch: load(LS.branch) || null,
+      service_status: currentCalc.state,
+      d_day: currentCalc.dday || null,
+      is_leaderboard_user: true
+    });
+    if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
+      lastLoginUserId = currentUser.id;
+      __analytics.track('login_completed', { has_branch: !!load(LS.branch) });
+    }
+  }
 
   function syncPresets() {
     Array.prototype.forEach.call(document.querySelectorAll('.preset'), function (p) {
@@ -2246,10 +2436,16 @@
 
   function setBranch(id) {
     if (!BRANCH_LABEL[id]) return;
+    var b = { id: id };
     branch = id;
     store(LS.branch, id);
     syncPresets();
+    __analytics.track('branch_selected', {
+      branch: b.id,
+      contributed_days: parseInt(load(LS.total) || '0', 10)
+    });
     if (currentUser) {
+      __analytics.identify(currentUser.id, { branch: b.id });
       syncUserRecord().then(function () {
         if (lbScrim.classList.contains('on')) refreshBoard();
       });
@@ -2275,6 +2471,8 @@
 
   function signOutGoogle() {
     if (!supabaseClient) return;
+    lastLoginUserId = null;
+    __analytics.reset();
     supabaseClient.auth.signOut().then(function () {
       currentUser = null;
       pulledFor = '';          // 다시 로그인하면 계정을 다시 불러온다
@@ -2553,6 +2751,7 @@
   }
 
   function openLb() {
+    __analytics.track('leaderboard_opened', { is_authenticated: !!currentUser });
     openModal(lbScrim, lbClose);
     renderBoard();
     if (currentUser) {
@@ -2562,6 +2761,7 @@
       supabaseClient.auth.getSession().then(function (res) {
         if (res && res.data && res.data.session) {
           currentUser = res.data.session.user;
+          identifyUserSession();
           renderBoard();
           syncUserRecord().then(refreshBoard);
           lbTimer = setInterval(refreshBoard, 15000);
@@ -2586,6 +2786,7 @@
     supabaseClient.auth.getSession().then(function (res) {
       if (res && res.data && res.data.session) {
         currentUser = res.data.session.user;
+        identifyUserSession();
         pullAccount().then(function () { syncUserRecord(); });
       }
     });
@@ -2593,14 +2794,18 @@
     supabaseClient.auth.onAuthStateChange(function (evt, session) {
       currentUser = (session && session.user) ? session.user : null;
       if (currentUser) {
+        identifyUserSession(evt);
         // 불러오기가 먼저다 — 순서가 뒤집히면 빈 로컬 상태를 서버에 밀어 넣는다
         pullAccount().then(syncUserRecord).then(function () {
+
           if (lbScrim.classList.contains('on')) refreshBoard();
         });
         if (window.location.hash && window.location.hash.indexOf('access_token') !== -1) {
           history.replaceState(null, '', window.location.pathname + window.location.search);
           openLb();
         }
+      } else {
+        lastLoginUserId = null;
       }
       if (lbScrim.classList.contains('on')) renderBoard();
     });
