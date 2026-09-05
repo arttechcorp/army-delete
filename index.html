@@ -67,7 +67,9 @@
       api_host: POSTHOG_HOST,
       autocapture: false,
       capture_pageview: true,
-      persistence: 'localStorage+cookie'
+      persistence: 'localStorage+cookie',
+      disable_session_recording: false,
+      session_recording: { maskAllInputs: true }
     });
   }
 </script>
@@ -1917,7 +1919,8 @@
     if (milestone) {
       __analytics.track('click_milestone_reached', {
         milestone_days: milestone,
-        current_combo: combo
+        current_combo: combo,
+        time_to_reach_seconds: Math.max(0, Math.round((now - __analytics.session.startTime) / 1000))
       });
     }
 
@@ -2420,7 +2423,8 @@
       branch: load(LS.branch) || null,
       service_status: currentCalc.state,
       d_day: currentCalc.dday || null,
-      is_leaderboard_user: true
+      is_leaderboard_user: true,
+      total_days_deleted: parseInt(load(LS.total) || '0', 10)
     });
     if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
       lastLoginUserId = currentUser.id;

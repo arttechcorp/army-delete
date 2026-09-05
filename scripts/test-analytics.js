@@ -44,6 +44,10 @@ test('index.html contains PostHog snippet and safe __analytics wrapper', () => {
   assert.match(html, /https:\/\/us\.i\.posthog\.com|posthog-js/);
   assert.match(html, /window\.__analytics/);
   assert.match(html, /autocapture:\s*false/);
+  assert.match(html, /disable_session_recording:\s*false/);
+  assert.match(html, /maskAllInputs:\s*true/);
+  assert.match(html, /time_to_reach_seconds:/);
+  assert.match(html, /is_leaderboard_user:\s*true,\s*\n\s*total_days_deleted:/);
   assert.match(html, /startTime:\s*Date\.now\(\)/);
   assert.match(html, /sessionClicks:\s*0/);
   assert.match(html, /maxCombo:\s*0/);

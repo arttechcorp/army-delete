@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "npx serve .",
     "start": "npx serve .",
-    "db:push": "node scripts/db-push.js"
+    "db:push": "node scripts/db-push.js",
+    "test": "node --test scripts/test-analytics.js",
+    "posthog:setup": "node --env-file=.env scripts/posthog-setup.js"
   }
 }
-
