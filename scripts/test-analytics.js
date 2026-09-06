@@ -556,5 +556,39 @@ test('privacy.html includes PostHog disclosures', () => {
   assert.match(privacyHtml, /세션 리플레이|행동 분석/);
 });
 
+test('index.html contains combo effects and dopamine enhancement implementation', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+
+  // Web Audio synthesizers
+  assert.match(html, /function soundBell\s*\(now\)/);
+  assert.match(html, /function soundSubKick\s*\(now\)/);
+  assert.match(html, /function soundFanfare\s*\(now\)/);
+  assert.match(html, /function soundGlissando\s*\(now\)/);
+
+  // Visual, shake, particle, and state functions
+  assert.match(html, /function burstParticles\s*\(count,\s*colors\)/);
+  assert.match(html, /function triggerScreenShake\s*\(\)/);
+  assert.match(html, /function triggerFlash\s*\(\)/);
+  assert.match(html, /function updateComboState\s*\(c\)/);
+  assert.match(html, /function triggerComboMilestone\s*\(c,\s*now\)/);
+
+  // CSS tier classes and keyframes
+  assert.match(html, /\.combo-badge\.tier-10/);
+  assert.match(html, /\.combo-badge\.tier-25/);
+  assert.match(html, /\.combo-badge\.tier-50/);
+  assert.match(html, /\.combo-badge\.tier-100/);
+  assert.match(html, /@keyframes screenShake/);
+  assert.match(html, /\.shake\s*\{/);
+  assert.match(html, /\.combo-flash/);
+  assert.match(html, /\.plate\.singularity::after/);
+  assert.match(html, /\.spark-particle/);
+  assert.match(html, /@keyframes sparkBurst/);
+
+  // Click handler integration & milestone calls
+  assert.match(html, /updateComboState\s*\(\s*combo\s*\)/);
+  assert.match(html, /triggerComboMilestone\s*\(\s*combo,\s*audioNow\s*\)/);
+});
+
+
 
 

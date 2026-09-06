@@ -636,6 +636,109 @@
     to{transform:translate(-50%, -50%) scale(1.08)}
   }
 
+  /* 콤보 단계별 뱃지 스타일 */
+  .combo-badge.tier-10{
+    background:#eab308;
+    color:#000000;
+    border-color:#fef08a;
+    box-shadow:0 0 12px rgba(234, 179, 8, 0.45);
+  }
+  .combo-badge.tier-25{
+    background:#9333ea;
+    color:#ffffff;
+    border-color:#d8b4fe;
+    box-shadow:0 0 18px rgba(147, 51, 234, 0.65);
+    animation:comboPulse 0.22s ease-in-out infinite alternate;
+  }
+  .combo-badge.tier-50{
+    background:linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+    color:#ffffff;
+    border-color:#fecaca;
+    box-shadow:0 0 24px rgba(220, 38, 38, 0.8);
+    animation:comboPulse 0.16s ease-in-out infinite alternate;
+  }
+  .combo-badge.tier-100{
+    background:linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6, #10b981);
+    background-size:300% 300%;
+    color:#ffffff;
+    border-color:#ffffff;
+    box-shadow:0 0 30px rgba(139, 92, 246, 0.9);
+    animation:rainbowShift 2s linear infinite, comboPulse 0.14s ease-in-out infinite alternate;
+  }
+  @keyframes rainbowShift{
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+  }
+
+  /* 화면 흔들림 (50콤보 이상 도달 시 트리거) */
+  @keyframes screenShake{
+    0%{transform:translate(0, 0)}
+    20%{transform:translate(-3px, 2px)}
+    40%{transform:translate(3px, -2px)}
+    60%{transform:translate(-2px, -1px)}
+    80%{transform:translate(2px, 1px)}
+    100%{transform:translate(0, 0)}
+  }
+  .shake{
+    animation:screenShake 0.15s ease-in-out;
+  }
+
+  /* 100콤보 화면 백색 플래시 */
+  .combo-flash{
+    position:fixed;
+    inset:0;
+    background:#ffffff;
+    pointer-events:none;
+    z-index:999;
+    opacity:0.35;
+    animation:flashOut 0.08s ease-out forwards;
+  }
+  @keyframes flashOut{
+    to{opacity:0}
+  }
+
+  /* 100콤보 유지 시 버튼 플레이트 회전 오라 */
+  .plate.singularity::after{
+    content:"";
+    position:absolute;
+    inset:-6px;
+    border-radius:50%;
+    background:conic-gradient(from 0deg, #ec4899, #8b5cf6, #3b82f6, #10b981, #ec4899);
+    z-index:0;
+    filter:blur(8px);
+    opacity:0.75;
+    animation:spinAura 1.5s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes spinAura{
+    to{transform:rotate(360deg)}
+  }
+
+  /* 분출 파티클 (DOM 기반 경량 요소) */
+  .spark-particle{
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    pointer-events:none;
+    z-index:20;
+    transform:translate(-50%, -50%);
+    animation:sparkBurst 0.45s cubic-bezier(0.12, 0.8, 0.32, 1) forwards;
+  }
+  @keyframes sparkBurst{
+    0%{
+      transform:translate(-50%, -50%) scale(1);
+      opacity:1;
+    }
+    100%{
+      transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0);
+      opacity:0;
+    }
+  }
+
   .milestone-toast{
     position:fixed;
     top:1.2rem;
@@ -2187,6 +2290,88 @@
     }
   }
 
+  /* 콤보 특수 사운드 합성 함수군 */
+
+  // 1. 고음 금속 벨 소리 (10콤보용: 두 개의 고주파 사인파 간섭)
+  function soundBell(now) {
+    if (muted || !ctx) return;
+    [1568, 2093].forEach(function (freq, i) {
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + (i * 0.02));
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.38);
+      track(osc);
+    });
+  }
+
+  // 2. 808 서브 베이스 킥 (25콤보용: 120Hz에서 35Hz로 급강하하는 묵직한 펀치)
+  function soundSubKick(now) {
+    if (muted || !ctx) return;
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(130, now);
+    osc.frequency.exponentialRampToValueAtTime(32, now + 0.18);
+    g.gain.setValueAtTime(0.35, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+    track(osc);
+  }
+
+  // 3. 4화음 메이저 팡파르 코드 (50콤보 피버용: C5, E5, G5, C6)
+  function soundFanfare(now) {
+    if (muted || !ctx) return;
+    var chord = [523.25, 659.25, 783.99, 1046.50];
+    chord.forEach(function (freq, idx) {
+      var osc = ctx.createOscillator();
+      var g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + (idx * 0.035));
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.22, now + (idx * 0.035) + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.7);
+      track(osc);
+    });
+  }
+
+  // 4. 상승 주파수 글리산도 (100콤보용: 220Hz에서 1760Hz로 솟구치는 스윕음)
+  function soundGlissando(now) {
+    if (muted || !ctx) return;
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.type = 'sawtooth';
+    var bp = ctx.createBiquadFilter();
+    bp.type = 'lowpass';
+    bp.frequency.value = 2400;
+
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.32);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+
+    osc.connect(bp);
+    bp.connect(g);
+    g.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.48);
+    track(osc);
+  }
+
   var LS_THEME = 'ad.theme';
   function applyTheme(t) {
     if (t === 'dark' || t === 'light') {
@@ -2394,17 +2579,116 @@
   var comboFadeTimer = null;
 
   function showCombo(c) {
+  /* 파티클 분출 함수 */
+  function burstParticles(count, colors) {
+    if (reduced) return;
+    for (var i = 0; i < count; i++) {
+      var p = document.createElement('span');
+      p.className = 'spark-particle';
+      var color = colors[Math.floor(Math.random() * colors.length)];
+      p.style.backgroundColor = color;
+      p.style.boxShadow = '0 0 6px ' + color;
+
+      var angle = (Math.PI * 2 * i) / count + ((Math.random() - 0.5) * 0.4);
+      var distance = 55 + Math.random() * 65;
+      var dx = Math.cos(angle) * distance + 'px';
+      var dy = Math.sin(angle) * distance + 'px';
+
+      p.style.setProperty('--dx', dx);
+      p.style.setProperty('--dy', dy);
+
+      plate.appendChild(p);
+      setTimeout((function (el) {
+        return function () {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        };
+      })(p), 480);
+    }
+  }
+
+  /* 화면 흔들림 함수 */
+  function triggerScreenShake() {
+    if (reduced) return;
+    stage.classList.remove('shake');
+    void stage.offsetWidth; // 리플로우 강제하여 애니메이션 재시작
+    stage.classList.add('shake');
+    setTimeout(function () {
+      stage.classList.remove('shake');
+    }, 160);
+  }
+
+  /* 화면 플래시 함수 */
+  function triggerFlash() {
+    if (reduced) return;
+    var flash = document.createElement('div');
+    flash.className = 'combo-flash';
+    document.body.appendChild(flash);
+    setTimeout(function () {
+      if (flash.parentNode) flash.parentNode.removeChild(flash);
+    }, 100);
+  }
+
+  /* 콤보 뱃지 및 단계별 연출 메인 함수 */
+  function updateComboState(c) {
     if (!comboBadge || !comboNum) return;
+
     if (c < 3) {
       comboBadge.className = 'combo-badge';
+      plate.classList.remove('singularity');
       return;
     }
+
     comboNum.textContent = String(c);
     comboBadge.className = (c >= 15) ? 'combo-badge on fire' : 'combo-badge on';
+
+    // 단계별 스타일 적용
+    if (c >= 100) {
+      comboBadge.className = 'combo-badge on tier-100';
+      plate.classList.add('singularity');
+    } else if (c >= 50) {
+      comboBadge.className = 'combo-badge on tier-50';
+      plate.classList.remove('singularity');
+    } else if (c >= 25) {
+      comboBadge.className = 'combo-badge on tier-25';
+      plate.classList.remove('singularity');
+    } else if (c >= 10) {
+      comboBadge.className = 'combo-badge on tier-10';
+      plate.classList.remove('singularity');
+    } else {
+      comboBadge.className = 'combo-badge on';
+      plate.classList.remove('singularity');
+    }
+
     clearTimeout(comboFadeTimer);
     comboFadeTimer = setTimeout(function () {
       if (comboBadge) comboBadge.className = 'combo-badge';
+      if (plate) plate.classList.remove('singularity');
     }, COMBO_RESET_MS + 250);
+  }
+  function showCombo(c) { updateComboState(c); }
+
+  /* 구간 도달 시 1회성 마일스톤 폭발 연출 */
+  function triggerComboMilestone(c, now) {
+    if (c === 10) {
+      soundBell(now);
+      burstParticles(8, ['#facc15', '#f59e0b', '#fbbf24']);
+      if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
+    } else if (c === 25) {
+      soundSubKick(now);
+      burstParticles(12, ['#c084fc', '#a855f7', '#e879f9']);
+      if (navigator.vibrate) { try { navigator.vibrate([20, 30, 20]); } catch (e) {} }
+    } else if (c === 50) {
+      soundFanfare(now);
+      triggerScreenShake();
+      burstParticles(16, ['#ef4444', '#f97316', '#eab308']);
+      if (navigator.vibrate) { try { navigator.vibrate([40, 30, 40, 30, 40]); } catch (e) {} }
+    } else if (c === 100) {
+      soundGlissando(now);
+      triggerFlash();
+      triggerScreenShake();
+      burstParticles(24, ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#fbbf24']);
+      if (navigator.vibrate) { try { navigator.vibrate([60, 40, 80]); } catch (e) {} }
+    }
   }
 
   var milestoneTimer = null;
@@ -2440,6 +2724,15 @@
     lastClickTime = now;
     var combo = currentCombo;
     showCombo(combo);
+    updateComboState(combo);
+
+    // Web Audio 초기화 및 사운드 시각 산출
+    var c = audio();
+    if (c && c.state === 'suspended') c.resume();
+    var audioNow = c ? c.currentTime : 0;
+
+    // 특정 콤보 도달 시 1회성 특수 마일스톤 연출
+    triggerComboMilestone(combo, audioNow);
 
     __analytics.session.sessionClicks++;
     __analytics.session.flushed = false;
@@ -2463,6 +2756,9 @@
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
     if (!reduced) { pop(); ripple(); }
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    if (combo !== 10 && combo !== 25 && combo !== 50 && combo !== 100) {
+      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    }
   });
 
   /* ══════════════════════════════════════════
