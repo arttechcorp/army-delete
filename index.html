@@ -1441,9 +1441,139 @@
      확대하고, 그 배율을 되돌리지 않는다. 그래서 상점을 열었다 닫으면 본문이
      확대된 채로 남아 두 화면의 배율이 어긋난다.
      터치 기기에서만 16px 로 올린다 — 마우스 쓰는 화면은 촘촘한 편이 낫다. */
+  /* ---------- 선물하기 ---------- */
+  /* 대화상자 틀은 상점의 .shop-scrim / .shop 을 그대로 쓴다. 여기서는 그 안에서
+     교체되는 단계(pane)만 정의한다 — 창을 새로 띄우지 않는다. */
+  .gift-pane{display:none}
+  .gift-pane.on{
+    display:flex;
+    flex-direction:column;
+    gap:.85rem;
+    min-height:0;
+    overflow-y:auto;
+    padding:.9rem .9rem 1.1rem;
+  }
+  .gift-lead{margin:0;font-size:.95rem;line-height:1.7;color:var(--ink)}
+  .gift-note{margin:0;font-size:.82rem;line-height:1.6;color:var(--muted)}
+  .gift-have{margin:0;font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+  .gift-have b{color:var(--accent);font-size:1.05rem;font-weight:600}
+
+  .gift-amount{
+    width:100%;
+    font-family:var(--mono);
+    font-size:1.15rem;
+    color:var(--ink);
+    background:var(--ground);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:.6rem .7rem;
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  .gift-amount:focus{border-color:var(--accent);outline:none}
+
+  .gift-chips{display:flex;flex-wrap:wrap;gap:.4rem}
+  .gift-chip{
+    font-family:var(--sans);
+    font-size:.8rem;
+    font-weight:600;
+    color:var(--ink-2);
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:.32rem .75rem;
+    cursor:pointer;
+  }
+  .gift-chip:hover:not([disabled]){border-color:var(--accent);color:var(--accent)}
+  .gift-chip[disabled]{color:var(--muted);opacity:.45;cursor:default}
+
+  .gift-err{margin:0;font-size:.8rem;line-height:1.5;color:var(--danger)}
+  .gift-err.ok{color:var(--muted)}
+  .gift-err:empty{display:none}
+
+  .gift-actions{display:flex;gap:.5rem;margin-top:.15rem}
+  .gift-actions button{flex:1;margin-top:0;padding:.6rem}
+
+  /* 꽃 편지 — 배경 이미지 없이 CSS 로만 그린다 */
+  .letter{
+    position:relative;
+    overflow:hidden;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1rem 1.05rem 1.15rem;
+  }
+  .letter::before{
+    content:"";
+    position:absolute;
+    left:0;top:0;bottom:0;
+    width:3px;
+    background:linear-gradient(var(--accent),var(--accent-soft));
+  }
+  .letter-flowers{
+    font-size:1.25rem;
+    line-height:1;
+    letter-spacing:.2em;
+  }
+  .letter-text{
+    display:block;
+    width:100%;
+    min-height:7.5rem;
+    resize:vertical;
+    margin-top:.7rem;
+    font-family:var(--sans);
+    font-size:.97rem;
+    line-height:1.85;
+    color:var(--ink);
+    background:transparent;
+    border:0;
+    padding:0;
+  }
+  .letter-text:focus{outline:none}
+  .letter-read{
+    margin:.7rem 0 0;
+    font-size:.97rem;
+    line-height:1.85;
+    color:var(--ink);
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+  }
+  .letter-count{
+    margin:0;
+    text-align:right;
+    font-family:var(--mono);
+    font-size:.7rem;
+    color:var(--muted);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .gift-got{margin:0;text-align:center;font-size:1rem;font-weight:600}
+  .gift-got b{
+    color:var(--accent);
+    font-size:1.35rem;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .gift-link{
+    width:100%;
+    font-family:var(--mono);
+    font-size:.75rem;
+    color:var(--ink-2);
+    background:var(--ground);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:.5rem .6rem;
+  }
+
+  /* iOS Safari 는 글자 16px 미만인 입력창에 포커스가 가면 페이지를 강제로
+     확대하고 그 배율을 되돌리지 않는다. 선물 창의 입력들도 반드시 여기 넣는다 —
+     빠뜨리면 상점에서 고쳤던 확대 문제가 그대로 재발한다. */
   @media (pointer: coarse){
     input[type="date"],
-    .shop-search{ font-size:16px }
+    .shop-search,
+    .gift-amount,
+    .gift-link,
+    .letter-text{ font-size:16px }
   }
 
   @media (prefers-reduced-motion:reduce){
@@ -1533,6 +1663,7 @@
       <span>리더보드</span>
     </button>
   </div>
+  <button class="shop-enter" id="giftOpen" type="button">일수 선물하기</button>
 
   <div class="foot-row">
     <button class="icon-btn" id="themeBtn" type="button" aria-label="화면 모드 전환">
@@ -1615,6 +1746,75 @@
   </div>
 </div>
 
+<div class="shop-scrim" id="giftScrim" role="dialog" aria-modal="true" aria-labelledby="giftTitle">
+  <div class="shop">
+    <div class="shop-top">
+      <h2 class="shop-title" id="giftTitle">일수 선물하기</h2>
+      <button class="shop-close" id="giftClose" type="button" aria-label="선물 창 닫기">&times;</button>
+    </div>
+
+    <!-- 로그인 안내 — 발신은 로그인이 필요하다 (수령은 필요 없다) -->
+    <div class="gift-pane" id="giftGate">
+      <p class="gift-lead">고생하는 군인들을 위해 응원의 메시지를 보내주세요!</p>
+      <p class="gift-note">선물을 보내려면 구글 로그인이 필요합니다. 받는 사람은 로그인하지 않아도 됩니다.</p>
+      <div class="gift-actions">
+        <button class="reward-btn" id="giftLogin" type="button">Google 계정으로 계속하기</button>
+      </div>
+    </div>
+
+    <!-- 1단계 · 일수 선택 -->
+    <div class="gift-pane" id="giftStep1">
+      <p class="gift-lead">고생하는 군인들을 위해 응원의 메시지를 보내주세요!</p>
+      <p class="gift-have">보유 <b id="giftHave">0</b>일</p>
+      <input type="number" class="gift-amount" id="giftDays" inputmode="numeric"
+             min="1" step="1" placeholder="0" aria-label="선물할 일수">
+      <div class="gift-chips" id="giftChips"></div>
+      <p class="gift-err" id="giftErr" aria-live="polite"></p>
+      <div class="gift-actions">
+        <button class="reward-btn" id="giftNext" type="button">선물하기</button>
+      </div>
+    </div>
+
+    <!-- 2단계 · 편지 -->
+    <div class="gift-pane" id="giftStep2">
+      <div class="letter">
+        <div class="letter-flowers" aria-hidden="true">🌷 🌸 🌼</div>
+        <textarea class="letter-text" id="giftMsg" maxlength="200" aria-label="응원 메시지"></textarea>
+      </div>
+      <p class="letter-count"><span id="giftCount">0</span>/200</p>
+      <p class="gift-err" id="giftErr2" aria-live="polite"></p>
+      <div class="gift-actions">
+        <button class="shop-enter" id="giftBack" type="button">뒤로</button>
+        <button class="reward-btn" id="giftSend" type="button">보내기</button>
+      </div>
+    </div>
+
+    <!-- 3단계 · 공유 -->
+    <div class="gift-pane" id="giftShare">
+      <p class="gift-lead" id="giftShareLead"></p>
+      <input type="text" class="gift-link" id="giftUrl" readonly aria-label="선물 링크">
+      <p class="gift-err" id="giftErr3" aria-live="polite"></p>
+      <div class="gift-actions">
+        <button class="shop-enter" id="giftCopyBtn" type="button">링크 복사</button>
+        <button class="reward-btn" id="giftShareBtn" type="button">공유하기</button>
+      </div>
+    </div>
+
+    <!-- 수령 — ?gift= 로 들어왔을 때 -->
+    <div class="gift-pane" id="giftClaim">
+      <div class="letter" id="claimLetter" hidden>
+        <div class="letter-flowers" aria-hidden="true">🌷 🌸 🌼</div>
+        <p class="letter-read" id="claimMsg"></p>
+      </div>
+      <p class="gift-got" id="claimGot"></p>
+      <p class="gift-err" id="claimErr" aria-live="polite"></p>
+      <div class="gift-actions">
+        <button class="reward-btn" id="claimBtn" type="button">선물 받은 일 수 추가하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <aside class="anchor" id="anchor" aria-label="광고">
   <button class="anchor-close" id="anchorClose" type="button" aria-label="광고 닫기">
     <svg class="svg-ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -1688,6 +1888,9 @@
     start: 'ad.start', end: 'ad.end', muted: 'ad.muted',
     total: 'ad.total',        // 누적 삭제 일수 — 절대 줄지 않는다
     spent: 'ad.spent',        // 상점에서 쓴 누적 일수
+    gifted: 'ad.gifted',      // 선물로 받은 누적 일수 (아래 netTotal 주석 참고)
+    gsent: 'ad.gsent',        // 선물로 보낸 누적 일수. ad.sent 는 옛 리더보드가
+                              // 쓰던 키라 재사용하면 그 시절 값이 그대로 차감된다.
     owned: 'ad.owned',        // 보유 아이템 id 목록
     branch: 'ad.branch',      // 리더보드 소속
     acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
@@ -1748,14 +1951,15 @@
   function flushSessionEngagement() {
     if (__analytics.session.sessionClicks === 0 || __analytics.session.flushed) return;
     __analytics.session.flushed = true;
-    var total = parseInt(load(LS.total) || '0', 10);
-    var spent = parseInt(load(LS.spent) || '0', 10);
+    var num = function (k) { return parseInt(load(k) || '0', 10) || 0; };
+    var total = num(LS.total), spent = num(LS.spent);
+    var gifted = num(LS.gifted), gsent = num(LS.gsent);
     __analytics.track('session_engagement', {
       session_clicks: __analytics.session.sessionClicks,
       max_combo: __analytics.session.maxCombo,
-      total_days_deleted: total,
+      total_days_deleted: Math.max(0, total + gifted - gsent),
       spent_days: spent,
-      balance: Math.max(0, total - spent),
+      balance: Math.max(0, total + gifted - spent),
       session_duration_seconds: Math.max(0, Math.round((Date.now() - __analytics.session.startTime) / 1000))
     });
   }
@@ -2091,6 +2295,8 @@
   // 지갑 도입 전에는 클릭 수가 ad.count 하나에만 있었다. 그 값을 누적으로 넘긴다.
   var total = readInt(LS.total) || readInt(LS.legacy);
   var spent = readInt(LS.spent);
+  var gifted = readInt(LS.gifted);
+  var gsent = readInt(LS.gsent);
   function readOwned() {
     try {
       var raw = JSON.parse(load(LS.owned) || '[]');
@@ -2102,11 +2308,21 @@
 
   function loadOwned() { return owned; }
 
-  function balance() { return Math.max(0, total - spent); }
+  // spent 는 상점 구매와 선물 발신을 함께 센다. 잔액은 그 둘을 다 빼야 한다.
+  function balance() { return Math.max(0, total + gifted - spent); }
+
+  // 화면과 리더보드에 쓰는 "누적 삭제한 일수". 선물은 일수를 새로 만들지 않고
+  // 사람 사이에서 옮기기만 한다 — 받은 쪽이 늘면 보낸 쪽이 그만큼 줄어야
+  // 총합이 보존되고, 자기 자신에게 보내면 정확히 0 이 된다. 받은 것만 더하면
+  // 자기 선물을 반복해 클릭 한 번 없이 순위를 무한히 올릴 수 있다.
+  //
+  // 저장은 total·gifted·gsent 세 값 모두 단조 증가라 서버의 greatest() 병합이
+  // 그대로 성립한다. 빼기는 표시할 때만 한다.
+  function netTotal() { return Math.max(0, total + gifted - gsent); }
 
   function renderWallet() {
     balanceNum.textContent = balance().toLocaleString('ko-KR');
-    totalNum.textContent = total.toLocaleString('ko-KR');
+    totalNum.textContent = netTotal().toLocaleString('ko-KR');
     shopBalance.textContent = balance().toLocaleString('ko-KR');
     var m = multiplier();
     multBadge.hidden = m <= 1;
@@ -2121,6 +2337,14 @@
   function addDays(n) {
     total = readInt(LS.total) + n;
     store(LS.total, String(total));
+    renderWallet();
+    refreshShopSoon();
+  }
+
+  // 선물 수령 전용. addDays 와 달리 누적 삭제 일수를 건드리지 않는다.
+  function addGifted(n) {
+    gifted = readInt(LS.gifted) + n;
+    store(LS.gifted, String(gifted));
     renderWallet();
     refreshShopSoon();
   }
@@ -2622,6 +2846,8 @@
     // 다른 탭이 그새 벌었거나 사뒀을 수 있다 — 저장된 값으로 다시 판단한다
     total = readInt(LS.total) || total;
     spent = readInt(LS.spent);
+    gifted = readInt(LS.gifted);
+    gsent = readInt(LS.gsent);
     owned = readOwned();
 
     if (owned.indexOf(id) > -1) return;      // 이미 보유
@@ -2746,6 +2972,7 @@
     if (adScrim.classList.contains('on')) return;
     if (shopScrim.classList.contains('on')) closeShop();
     else if (lbScrim.classList.contains('on')) closeLb();
+    else if (giftScrim.classList.contains('on')) closeGift();
   });
 
   soundBtn.addEventListener('click', function () {
@@ -2771,7 +2998,7 @@
       service_status: currentCalc.state,
       d_day: currentCalc.dday || null,
       is_leaderboard_user: true,
-      total_days_deleted: parseInt(load(LS.total) || '0', 10)
+      total_days_deleted: netTotal()
     });
     if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
       lastLoginUserId = currentUser.id;
@@ -2793,7 +3020,7 @@
     syncPresets();
     __analytics.track('branch_selected', {
       branch: b.id,
-      contributed_days: parseInt(load(LS.total) || '0', 10)
+      contributed_days: netTotal()
     });
     if (currentUser) {
       __analytics.identify(currentUser.id, { branch: b.id });
@@ -2843,6 +3070,8 @@
       p_branch: branch || null,          // 소속 미선택도 저장한다 (서버가 기존 값을 지우지 않는다)
       p_total_days: total,
       p_spent: spent,
+      p_gifted: gifted,
+      p_sent: gsent,
       p_owned: owned
     };
   }
@@ -2857,7 +3086,7 @@
     pulledFor = currentUser.id;
 
     return supabaseClient.from('user_records')
-      .select('branch,total_days,spent,owned')
+      .select('branch,total_days,spent,gifted,sent,owned')
       .eq('user_id', currentUser.id)
       .maybeSingle()
       .then(function (res) {
@@ -2876,6 +3105,8 @@
     row = row || {};
     var srvTotal = Math.max(0, row.total_days || 0);
     var srvSpent = Math.max(0, row.spent || 0);
+    var srvGifted = Math.max(0, row.gifted || 0);
+    var srvSent = Math.max(0, row.sent || 0);
     var srvOwned = Object.prototype.toString.call(row.owned) === '[object Array]' ? row.owned : [];
 
     // 이 계정에 처음 연결하는 기기라면 로그인 전에 모아둔 값을 한 번만 합친다.
@@ -2885,6 +3116,8 @@
     var linked = load(LS.acct) === currentUser.id;
     total = mergeNum(readInt(LS.total), srvTotal, linked);
     spent = mergeNum(readInt(LS.spent), srvSpent, linked);
+    gifted = mergeNum(readInt(LS.gifted), srvGifted, linked);
+    gsent = mergeNum(readInt(LS.gsent), srvSent, linked);
 
     owned = readOwned();
     srvOwned.forEach(function (id) {
@@ -2900,6 +3133,8 @@
     store(LS.acct, currentUser.id);      // 합산은 한 번뿐 — 재로그인에 다시 더해지지 않게
     store(LS.total, String(total));
     store(LS.spent, String(spent));
+    store(LS.gifted, String(gifted));
+    store(LS.gsent, String(gsent));
     store(LS.owned, JSON.stringify(owned));
 
     lastSynced = '';                     // 병합 결과를 서버에도 올려야 한다
@@ -2911,7 +3146,7 @@
   var syncing = false;
   var lastSynced = '';
 
-  function syncSig() { return [total, spent, branch, owned.join(',')].join('|'); }
+  function syncSig() { return [total, spent, gifted, gsent, branch, owned.join(',')].join('|'); }
 
   function syncUserRecord(unloading) {
     if (!supabaseClient || !currentUser || syncing) return Promise.resolve();
@@ -2984,7 +3219,7 @@
              +   '<div class="lb-gate-icon">🎖️</div>'
              +   '<h3 class="lb-gate-title">전우들과 함께하는 군별 리더보드</h3>'
              +   '<p class="lb-gate-desc">'
-             +     '구글 계정으로 로그인하면 지금까지 삭제한 <b>' + total.toLocaleString('ko-KR') + '일</b>이 '
+             +     '구글 계정으로 로그인하면 지금까지 삭제한 <b>' + netTotal().toLocaleString('ko-KR') + '일</b>이 '
              +     '소속 군의 전력으로 합산되며, 전우들의 실시간 랭킹을 확인할 수 있습니다.'
              +   '</p>'
              +   '<button type="button" class="google-btn" id="googleLoginBtn">'
@@ -3069,7 +3304,7 @@
 
     if (!branch) {
       html += '<div class="lb-choose-branch" style="margin-top:.75rem;padding:.75rem;background:var(--ground);border:1px dashed var(--line);border-radius:10px;text-align:center">'
-            +   '<p style="margin:0 0 .5rem;font-size:.78rem;color:var(--muted)">소속 군을 선택하시면 내 기록(' + total.toLocaleString('ko-KR') + '일)이 합산됩니다</p>'
+            +   '<p style="margin:0 0 .5rem;font-size:.78rem;color:var(--muted)">소속 군을 선택하시면 내 기록(' + netTotal().toLocaleString('ko-KR') + '일)이 합산됩니다</p>'
             +   '<div style="display:flex;gap:.4rem;justify-content:center">'
             +     '<button type="button" class="lb-sub-branch" data-branch="army" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">육군</button>'
             +     '<button type="button" class="lb-sub-branch" data-branch="marine" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">해병</button>'
@@ -3084,7 +3319,7 @@
           +   '<div class="lb-my-details">'
           +     '<span class="lb-my-user" title="' + esc(userEmail) + '">' + esc(userEmail) + '</span>'
           +     '<span class="lb-my-badge">' + (branch ? BRANCH_LABEL[branch] : '소속 미선택') + '</span>'
-          +     '<span class="lb-my-days">내 기여: ' + total.toLocaleString('ko-KR') + '일</span>'
+          +     '<span class="lb-my-days">내 기여: ' + netTotal().toLocaleString('ko-KR') + '일</span>'
           +   '</div>'
           +   '<button type="button" class="lb-signout-btn" id="lbSignoutBtn">로그아웃</button>'
           + '</div>';
@@ -3132,6 +3367,316 @@
   lbScrim.addEventListener('click', function (e) {
     if (e.target === lbScrim) closeLb();
   });
+
+
+  /* ══════════════════════════════════════════
+     일수 선물하기
+     ══════════════════════════════════════════
+
+     발신은 로그인이 필요하고, 수령은 필요 없다. 이 비대칭이 설계의 중심이다.
+     일회성은 "누가 받았나"가 아니라 "이 선물이 이미 열렸나"로 판정하므로
+     익명 수령으로도 중복이 불가능하고, 링크를 받은 사람에게 로그인을
+     요구하지 않아도 된다.
+
+     서버는 발신자가 정말 그 일수를 가졌는지 검증하지 않는다 — 이 앱의 잔액은
+     localStorage 에만 있어서 검증할 방법이 없다. 서버가 보장하는 건 오직
+     "한 링크는 한 번만 열린다" 뿐이고, 그건 위조 방지가 아니라 기능의 성립
+     조건이다 (무한히 열리면 받은 사람이 버튼만 눌러 일수를 찍어낸다). */
+
+  var GIFT_DEFAULT_MSG = '아프고 고된 시간 모두 지나가고 꿈 같은 빛이 다가오리';
+  var GIFT_MSG_MAX = 200;
+  var GIFT_PANES = ['giftGate', 'giftStep1', 'giftStep2', 'giftShare', 'giftClaim'];
+
+  var giftScrim = $('giftScrim'), giftOpen = $('giftOpen'), giftClose = $('giftClose');
+  var giftDaysEl = $('giftDays'), giftHave = $('giftHave'), giftChips = $('giftChips');
+  var giftErr = $('giftErr'), giftErr2 = $('giftErr2'), giftErr3 = $('giftErr3');
+  var giftMsg = $('giftMsg'), giftCount = $('giftCount');
+  var giftUrl = $('giftUrl'), giftShareLead = $('giftShareLead');
+  var claimMsg = $('claimMsg'), claimGot = $('claimGot'), claimErr = $('claimErr'), claimBtn = $('claimBtn');
+  var claimLetter = $('claimLetter');
+  var giftTitle = $('giftTitle');
+
+  var giftPending = 0;        // 편지 단계로 넘어온 일수
+  var giftSending = false;
+  var claimToken = '';
+  var claimDays = 0;
+  var claiming = false;
+
+  function showGiftPane(id, title) {
+    GIFT_PANES.forEach(function (name) {
+      var el = $(name);
+      if (el) el.classList.toggle('on', name === id);
+    });
+    giftTitle.textContent = title || '일수 선물하기';
+  }
+
+  function renderGiftStep1() {
+    var max = balance();
+    giftHave.textContent = max.toLocaleString('ko-KR');
+    giftDaysEl.max = max;
+    giftErr.textContent = '';
+
+    var chips = [10, 50, 100].concat(max > 0 ? [max] : []);
+    giftChips.innerHTML = chips.map(function (v, i) {
+      var label = (i === 3) ? '전부 ' + v.toLocaleString('ko-KR') + '일'
+                            : v.toLocaleString('ko-KR') + '일';
+      var off = v > max || v <= 0;
+      return '<button type="button" class="gift-chip" data-days="' + v + '"' +
+             (off ? ' disabled' : '') + '>' + esc(label) + '</button>';
+    }).join('');
+  }
+
+  // 입력값에 문제가 있으면 문구를 돌려준다. 없으면 빈 문자열.
+  function giftAmountError(n) {
+    if (!isFinite(n) || n < 1) return '선물할 일수를 1일 이상 입력해 주세요.';
+    if (n > balance()) return '보유한 일수(' + balance().toLocaleString('ko-KR') + '일)보다 많이 보낼 수 없습니다.';
+    return '';
+  }
+
+  function openGift() {
+    if (!supabaseClient) {
+      openModal(giftScrim, giftClose);
+      showGiftPane('giftGate');
+      $('giftLogin').hidden = true;
+      $('giftGate').querySelector('.gift-note').textContent = '선물하기가 아직 연결되지 않았습니다.';
+      return;
+    }
+    if (!currentUser) {
+      openModal(giftScrim, giftClose);
+      showGiftPane('giftGate');
+      return;
+    }
+    __analytics.track('gift_opened', { current_balance: balance() });
+    renderGiftStep1();
+    // 터치 기기에서 숫자칸에 바로 포커스를 주면 키보드가 창을 가린다 (상점과 같은 이유)
+    var coarse = window.matchMedia('(pointer: coarse)').matches;
+    openModal(giftScrim, coarse ? giftClose : giftDaysEl);
+    showGiftPane('giftStep1');
+  }
+
+  function closeGift() {
+    closeModal(giftScrim, giftOpen);
+    // 수령 화면을 닫았으면 주소를 정리한다 — 새로고침에 다시 뜨지 않게
+    if (claimToken) { clearGiftParam(); claimToken = ''; }
+  }
+
+  function clearGiftParam() {
+    try {
+      var u = new URL(location.href);
+      if (!u.searchParams.has('gift')) return;
+      u.searchParams.delete('gift');
+      history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+    } catch (e) {}
+  }
+
+  /* 1단계 → 2단계 */
+  function toLetter() {
+    var n = parseInt(giftDaysEl.value, 10);
+    var err = giftAmountError(n);
+    giftErr.textContent = err;
+    if (err) { giftDaysEl.focus(); return; }
+
+    giftPending = n;
+    giftMsg.value = GIFT_DEFAULT_MSG;
+    giftCount.textContent = String(giftMsg.value.length);
+    giftErr2.textContent = '';
+    showGiftPane('giftStep2', giftPending.toLocaleString('ko-KR') + '일 선물하기');
+  }
+
+  /* 2단계 → 생성 → 공유 */
+  function sendGift() {
+    if (giftSending) return;
+
+    // 다른 탭이 그새 썼을 수 있다 — 보내기 직전에 저장된 값으로 다시 판단한다
+    total = readInt(LS.total) || total;
+    spent = readInt(LS.spent);
+    gifted = readInt(LS.gifted);
+    gsent = readInt(LS.gsent);
+    var err = giftAmountError(giftPending);
+    if (err) { giftErr2.textContent = err; renderWallet(); return; }
+
+    giftSending = true;
+    giftErr2.textContent = '';
+    var days = giftPending;
+    var msg = giftMsg.value.slice(0, GIFT_MSG_MAX);
+
+    supabaseClient.rpc('create_gift', { p_days: days, p_message: msg }).then(function (res) {
+      giftSending = false;
+      if (res.error || !res.data) {
+        giftErr2.textContent = '선물을 만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+        console.warn('create_gift failed:', res.error);
+        return;
+      }
+
+      // 차감은 서버가 선물을 만든 뒤에만. 먼저 깎고 요청이 실패하면 일수가 증발한다.
+      // spent 는 잔액에서, gsent 는 누적 삭제 일수에서 뺀다 (netTotal 참고).
+      spent = readInt(LS.spent) + days;
+      gsent = readInt(LS.gsent) + days;
+      store(LS.spent, String(spent));
+      store(LS.gsent, String(gsent));
+      renderWallet();
+      refreshShopSoon();
+      syncUserRecord();
+
+      __analytics.track('gift_created', { days: days, message_length: msg.length });
+
+      var url = location.origin + location.pathname + '?gift=' + encodeURIComponent(res.data);
+      giftUrl.value = url;
+      giftShareLead.textContent = days.toLocaleString('ko-KR') + '일을 담은 편지가 준비됐습니다. 링크를 보내면 상대가 받을 수 있습니다.';
+      giftMsgOut('', true);
+      showGiftPane('giftShare', '보내기');
+    }, function (e) {
+      giftSending = false;
+      giftErr2.textContent = '선물을 만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+      console.warn('create_gift error:', e);
+    });
+  }
+
+  function giftMsgOut(text, ok) {
+    giftErr3.textContent = text;
+    giftErr3.classList.toggle('ok', !!ok);
+  }
+
+  function copyGiftLink() {
+    var url = giftUrl.value;
+    if (!url) return;
+
+    // clipboard API 는 https 가 아니거나 권한이 막히면 조용히 실패한다.
+    // 그때는 입력칸을 선택해 두어 사용자가 직접 복사할 수 있게 남긴다.
+    function manual() {
+      try {
+        giftUrl.focus();
+        giftUrl.setSelectionRange(0, url.length);
+        giftMsgOut('링크가 선택됐습니다. 복사해서 보내주세요.', true);
+      } catch (e) {
+        giftMsgOut('아래 링크를 길게 눌러 복사해 주세요.', true);
+      }
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(function () {
+        giftMsgOut('링크를 복사했습니다.', true);
+      }, manual);
+    } else {
+      manual();
+    }
+  }
+
+  function shareGift() {
+    var url = giftUrl.value;
+    if (!url) return;
+    // 공유 시트가 없거나(데스크톱) 사용자가 닫으면 복사로 넘어간다
+    if (navigator.share) navigator.share({ title: document.title, url: url }).then(function () {}, copyGiftLink);
+    else copyGiftLink();
+  }
+
+  /* ── 수령 ── */
+  function giftTokenFromUrl() {
+    try { return new URL(location.href).searchParams.get('gift') || ''; } catch (e) { return ''; }
+  }
+
+  function openClaim(token) {
+    claimToken = token;
+    claimDays = 0;
+    claimErr.textContent = '';
+    claimGot.textContent = '';
+    claimMsg.textContent = '';
+    claimLetter.hidden = true;          // 불러오기 전에는 빈 편지지를 보여주지 않는다
+    claimBtn.disabled = true;
+    claimBtn.textContent = '선물 받은 일 수 추가하기';
+    showGiftPane('giftClaim', '도착한 편지');
+    openModal(giftScrim, claimBtn);
+
+    supabaseClient.rpc('peek_gift', { p_token: token }).then(function (res) {
+      if (res.error || !res.data) {
+        claimErr.textContent = '선물을 찾을 수 없습니다. 링크가 온전한지 확인해 주세요.';
+        console.warn('peek_gift failed:', res.error);
+        return;
+      }
+      var g = res.data;
+      claimDays = g.days || 0;
+      // 남이 쓴 문자열이다 — 절대 innerHTML 로 넣지 않는다
+      claimMsg.textContent = g.message || GIFT_DEFAULT_MSG;
+      claimLetter.hidden = false;
+      claimGot.innerHTML = '<b>' + claimDays.toLocaleString('ko-KR') + '</b>일을 선물 받으셨습니다!';
+      claimBtn.disabled = !!g.claimed;
+      if (g.claimed) claimErr.textContent = '이미 수령된 선물입니다.';
+    }, function (e) {
+      claimErr.textContent = '선물을 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+      console.warn('peek_gift error:', e);
+    });
+  }
+
+  function claimGift() {
+    if (claiming || !claimToken) return;
+    claiming = true;
+    claimBtn.disabled = true;
+    claimErr.textContent = '';
+
+    supabaseClient.rpc('claim_gift', { p_token: claimToken }).then(function (res) {
+      claiming = false;
+      var d = res.data;
+      if (res.error || !d) {
+        claimErr.textContent = '선물을 받지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+        claimBtn.disabled = false;               // 실패했으면 일수를 건드리지 않는다
+        console.warn('claim_gift failed:', res.error);
+        return;
+      }
+      if (!d.ok) {
+        claimErr.textContent = (d.reason === 'claimed')
+          ? '이미 수령된 선물입니다.'
+          : '선물을 찾을 수 없습니다. 링크가 온전한지 확인해 주세요.';
+        return;                                   // 버튼은 잠근 채로 둔다
+      }
+
+      // 서버가 성공을 돌려준 뒤에만 더한다.
+      // addDays 가 아니다 — 받은 일수는 누적 삭제 일수에 들어가지 않는다.
+      addGifted(d.days);
+      syncUserRecord();
+      __analytics.track('gift_claimed', { days: d.days });
+
+      claimBtn.textContent = d.days.toLocaleString('ko-KR') + '일이 추가되었습니다';
+      clearGiftParam();
+      claimToken = '';
+      setTimeout(function () { closeModal(giftScrim, giftOpen); }, 900);
+    }, function (e) {
+      claiming = false;
+      claimBtn.disabled = false;
+      claimErr.textContent = '선물을 받지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
+      console.warn('claim_gift error:', e);
+    });
+  }
+
+  /* 배선 */
+  giftOpen.addEventListener('click', openGift);
+  giftClose.addEventListener('click', closeGift);
+  giftScrim.addEventListener('click', function (e) {
+    if (e.target === giftScrim) closeGift();
+  });
+  $('giftLogin').addEventListener('click', signInWithGoogle);
+  $('giftNext').addEventListener('click', toLetter);
+  $('giftBack').addEventListener('click', function () {
+    renderGiftStep1();
+    giftDaysEl.value = String(giftPending);        // 입력한 일수는 유지된다
+    showGiftPane('giftStep1');
+  });
+  $('giftSend').addEventListener('click', sendGift);
+  $('giftShareBtn').addEventListener('click', shareGift);
+  $('giftCopyBtn').addEventListener('click', copyGiftLink);
+  claimBtn.addEventListener('click', claimGift);
+
+  giftChips.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.gift-chip') : null;
+    if (!b || b.disabled) return;
+    giftDaysEl.value = b.getAttribute('data-days');
+    giftErr.textContent = '';
+  });
+  giftMsg.addEventListener('input', function () {
+    giftCount.textContent = String(giftMsg.value.length);
+  });
+
+  // 링크를 타고 들어왔으면 편지를 띄운다. 로그인은 필요 없다.
+  if (supabaseClient && giftTokenFromUrl()) openClaim(giftTokenFromUrl());
 
   if (supabaseClient) {
     supabaseClient.auth.getSession().then(function (res) {
@@ -3207,6 +3752,8 @@
     if (!e.key) return;
     if (e.key === LS.total) total = readInt(LS.total);
     else if (e.key === LS.spent) spent = readInt(LS.spent);
+    else if (e.key === LS.gifted) gifted = readInt(LS.gifted);
+    else if (e.key === LS.gsent) gsent = readInt(LS.gsent);
     else if (e.key === LS.owned) { owned = readOwned(); applyEffects(); return; }
     else return;
     renderWallet();
@@ -3255,10 +3802,37 @@
       function ok(c, m) { if (!c) throw new Error(m); }
 
       // 지갑: 잔액은 누적에서 쓴 만큼 뺀 값이고 음수가 되지 않는다
-      var t0 = total, s0 = spent;
-      total = 100; spent = 30;  ok(balance() === 70, '잔액 = 누적 - 사용액');
-      total = 100; spent = 500; ok(balance() === 0,  '잔액은 음수가 되지 않는다');
-      total = t0; spent = s0;
+      var t0 = total, s0 = spent, g0 = gifted, gs0 = gsent;
+      total = 100; spent = 30; gifted = 0;
+      ok(balance() === 70, '잔액 = 누적 + 받은 선물 - 사용액');
+      total = 100; spent = 500; gifted = 0;
+      ok(balance() === 0,  '잔액은 음수가 되지 않는다');
+      total = 100; spent = 0; gifted = 40;
+      ok(balance() === 140, '받은 선물은 잔액에 더해진다');
+
+      // 선물은 일수를 옮기기만 한다. 받으면 누적이 늘고 보내면 그만큼 준다.
+      total = 1000; spent = 0; gifted = 0; gsent = 0;
+      ok(netTotal() === 1000, '선물이 없으면 누적은 그대로다');
+
+      gifted = 300;
+      ok(netTotal() === 1300, '받은 선물은 누적에 더해진다');
+      ok(balance() === 1300,  '받은 선물은 잔액에도 더해진다');
+
+      total = 1000; spent = 100; gifted = 0; gsent = 100;   // 100일 보냄
+      ok(netTotal() === 900, '보낸 선물은 누적에서 빠진다');
+      ok(balance() === 900,  '보낸 선물은 잔액에서도 빠진다');
+
+      // 자기 자신에게 보내고 그대로 받으면 정확히 상쇄된다.
+      // 이게 성립해야 자기 선물로 순위를 올릴 수 없다.
+      total = 1000; spent = 100; gsent = 100; gifted = 100;
+      ok(netTotal() === 1000, '자기 선물은 누적을 바꾸지 않는다');
+      ok(balance() === 1000,  '자기 선물은 잔액을 바꾸지 않는다');
+
+      // 준 것보다 많이 보낼 수는 없지만, 병합이 어긋나도 음수로 새지 않아야 한다
+      total = 0; spent = 0; gifted = 0; gsent = 500;
+      ok(netTotal() === 0, '누적은 음수가 되지 않는다');
+
+      total = t0; spent = s0; gifted = g0; gsent = gs0;
 
       // 저장된 값을 다시 읽고 더한다 — 탭이 둘일 때 서로 덮어쓰지 않는 근거
       var keep = load(LS.total);

@@ -419,12 +419,18 @@ test('leaderboard and auth lifecycle tracking logic', () => {
     }
   }
 
+  // 선물은 일수를 새로 만들지 않고 옮기기만 한다 — 받은 만큼 더하고 보낸 만큼 뺀다
+  function netTotal() {
+    const num = (k) => parseInt(fakeStorage[k] || '0', 10) || 0;
+    return Math.max(0, num('ad.total') + num('ad.gifted') - num('ad.gsent'));
+  }
+
   function selectBranch(branchId) {
     const b = { id: branchId };
     fakeStorage['ad.branch'] = b.id;
     fakeAnalytics.track('branch_selected', {
       branch: b.id,
-      contributed_days: parseInt(fakeStorage['ad.total'] || '0', 10)
+      contributed_days: netTotal()
     });
     if (currentUser) {
       fakeAnalytics.identify(currentUser.id, { branch: b.id });
@@ -484,6 +490,32 @@ test('leaderboard and auth lifecycle tracking logic', () => {
   identifyUserSession('SIGNED_IN');
   assert.equal(events.length, 5);
   assert.equal(events[4].name, 'login_completed');
+
+  // 8. 선물 회계. 이벤트 개수를 세는 위 검증들을 건드리지 않도록 맨 뒤에 둔다.
+  //    자기 자신에게 선물하면 보낸 만큼과 받은 만큼이 상쇄돼야 한다 —
+  //    상쇄되지 않으면 클릭 한 번 없이 순위를 무한히 올릴 수 있다.
+  fakeStorage['ad.gifted'] = '50';
+  fakeStorage['ad.gsent'] = '50';
+  selectBranch('navy');
+  assert.equal(events[events.length - 1].props.contributed_days, 120,
+    '자기 선물은 리더보드 기여도를 바꾸지 않아야 한다');
+
+  // 받기만 하면 그만큼 오르고, 보내기만 하면 그만큼 준다
+  fakeStorage['ad.gsent'] = '0';
+  selectBranch('navy');
+  assert.equal(events[events.length - 1].props.contributed_days, 170,
+    '받은 선물은 기여도에 더해져야 한다');
+
+  fakeStorage['ad.gifted'] = '0';
+  fakeStorage['ad.gsent'] = '40';
+  selectBranch('navy');
+  assert.equal(events[events.length - 1].props.contributed_days, 80,
+    '보낸 선물은 기여도에서 빠져야 한다');
+
+  fakeStorage['ad.gsent'] = '9999';
+  selectBranch('navy');
+  assert.equal(events[events.length - 1].props.contributed_days, 0,
+    '기여도는 음수가 되지 않아야 한다');
 });
 
 test('index.html contains leaderboard and identity tracking instrumentation', () => {
@@ -505,7 +537,11 @@ test('index.html contains leaderboard and identity tracking instrumentation', ()
 
   // branch_selected properties
   assert.match(html, /branch_selected[\s\S]*?branch:\s*(?:b\.id|id)/);
-  assert.match(html, /contributed_days:\s*parseInt\(load\(LS\.total\)/);
+  // 리더보드에 보고하는 값은 netTotal() 이다 — 선물로 받은 만큼 더하고 보낸
+  // 만큼 뺀 순 누적. 원시 ad.total 을 보내면 자기 선물로 순위가 부풀어 오른다.
+  assert.match(html, /contributed_days:\s*netTotal\(\)/);
+  assert.match(html, /total_days_deleted:\s*netTotal\(\)/);
+  assert.match(html, /function netTotal\(\)\s*\{\s*return Math\.max\(0, total \+ gifted - gsent\)/);
 
   // identify on branch selection
   assert.match(html, /__analytics\.identify\(currentUser\.id,\s*\{\s*branch:\s*(?:b\.id|id)\s*\}\)/);
