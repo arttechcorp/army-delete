@@ -36,8 +36,12 @@ sed -n '/^<script>$/,/^<\/script>$/p' index.html | grep -v '^</\?script>$' | nod
 
 - **localStorage 키(`ad.*`)나 외부로 나가는 요청이 바뀌면 `privacy.html` 도 같이 고친다.**
   AdSense 승인 요건이고, 테스트도 이걸 검사한다.
-- Supabase RPC 는 4인자 `sync_my_record(p_branch, p_total_days, p_spent, p_owned)` 다.
-  옛 2인자 버전은 `supabase/board.sql` 에서 drop 됐다 — 2인자로 호출하면 런타임에 실패한다.
+- Supabase RPC 는 5인자 `sync_my_record(p_branch, p_total_days, p_spent, p_owned, p_gifted)` 다.
+  `p_gifted` 에만 default 가 있어 옛 4인자 호출도 받는다 (배포 창 대비). 옛 2인자·4인자
+  판은 `supabase/board.sql` 에서 drop 됐다 — 남겨두면 호출이 모호해지거나 값이 날아간다.
+- **잔액은 `total + gifted - spent`** 다. 선물로 받은 일수를 `total` 에 더하면
+  자기 자신에게 선물해 리더보드 순위를 공짜로 올릴 수 있다 (보내며 `spent`+n,
+  받으며 `total`+n → 잔액 제자리, 누적만 상승). 수령은 반드시 `addGifted()` 로 간다.
 - 서버 검증 변경 시 `supabase/board_test.sql` 도 함께 (assert 후 rollback 하는 자체 점검).
 
 ## 스타일

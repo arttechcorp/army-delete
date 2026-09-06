@@ -8,6 +8,7 @@ create table if not exists public.user_records (
   branch      text check (branch in ('army','marine','navy','airforce')),
   total_days  bigint not null default 0,
   spent       bigint not null default 0,
+  gifted      bigint not null default 0,
   owned       text[] not null default '{}',
   updated_at  timestamptz not null default now()
 );
@@ -15,6 +16,7 @@ create table if not exists public.user_records (
 -- 이미 배포된 테이블을 위한 이관. 새로 만든 경우엔 아무 일도 하지 않는다.
 alter table public.user_records add column if not exists spent bigint not null default 0;
 alter table public.user_records add column if not exists owned text[] not null default '{}';
+alter table public.user_records add column if not exists gifted bigint not null default 0;
 
 -- 소속은 리더보드 참가용이지 계정 저장의 조건이 아니다. 소속을 고르지 않은
 -- 사람도 일수와 아이템은 저장돼야 하므로 null 을 허용한다.
@@ -54,17 +56,23 @@ create policy "user_records_update_own"
 -- 교체가 아니라 오버로드가 생겨서, 아이템을 모르는 옛 2인자 함수가 그대로
 -- 살아남는다. 반드시 먼저 지운다.
 drop function if exists public.sync_my_record(text, bigint);
+-- 4인자 판이 남아 있으면 5인자(default 포함) 판과 겹쳐 호출이 모호해진다.
+drop function if exists public.sync_my_record(text, bigint, bigint, text[]);
 
 -- 동기화 RPC: 본인의 소속·누적 일수·사용액·보유 아이템을 반영 (upsert)
 --
 -- 세 값 모두 단조 증가한다 — 일수는 클릭·광고·선물수령으로만 늘고, 사용액은
 -- 구매·선물발신으로만 늘고, 아이템은 되팔 수 없다. 그래서 병합이 max/max/합집합
 -- 으로 끝난다. 기기 두 대에서 무엇이 먼저 도착하든 결과가 같다.
+-- p_gifted 에 default 를 준다. PostgREST 는 본문의 인자 "이름"으로 함수를 찾으므로,
+-- 아직 옛 코드를 들고 있는 브라우저가 4인자로 불러도 이 함수가 그대로 받는다.
+-- (default 없이 5인자로 만들면 배포와 SQL 적용 사이에 동기화가 통째로 실패한다.)
 create or replace function public.sync_my_record(
   p_branch     text,
   p_total_days bigint,
   p_spent      bigint,
-  p_owned      text[]
+  p_owned      text[],
+  p_gifted     bigint default 0
 )
 returns void
 language plpgsql
@@ -106,17 +114,18 @@ begin
   v_allow := coalesce(v_prev_days, 0) + 20000000
            + 200 * greatest(extract(epoch from (now() - coalesce(v_prev_at, now())))::bigint, 0);
 
-  if greatest(coalesce(p_total_days, 0), coalesce(p_spent, 0)) > v_allow then
+  if greatest(coalesce(p_total_days, 0), coalesce(p_spent, 0), coalesce(p_gifted, 0)) > v_allow then
     raise exception '기록 값이 허용 범위를 벗어났습니다.';
   end if;
 
-  insert into public.user_records (user_id, email, branch, total_days, spent, owned, updated_at)
+  insert into public.user_records (user_id, email, branch, total_days, spent, gifted, owned, updated_at)
   values (
     v_uid,
     auth.jwt() ->> 'email',
     p_branch,
     greatest(coalesce(p_total_days, 0), 0),
     greatest(coalesce(p_spent, 0), 0),
+    greatest(coalesce(p_gifted, 0), 0),
     coalesce(p_owned, '{}'),
     now()
   )
@@ -125,6 +134,7 @@ begin
     branch     = coalesce(excluded.branch, user_records.branch),
     total_days = greatest(user_records.total_days, excluded.total_days),
     spent      = greatest(user_records.spent, excluded.spent),
+    gifted     = greatest(user_records.gifted, excluded.gifted),
     owned      = array(select distinct unnest(user_records.owned || excluded.owned)),
     updated_at = now();
 end;
@@ -178,8 +188,8 @@ revoke insert, update, delete on table public.user_records from authenticated;
 -- Supabase 는 public 스키마 함수에 대해 anon·authenticated 에게 EXECUTE 를
 -- 기본 부여한다. from public 만 회수하면 anon 권한이 남으므로 따로 적는다.
 -- (본체의 auth.uid() 검사가 한 겹 더 막지만, 권한으로도 막아둔다.)
-revoke all on function public.sync_my_record(text, bigint, bigint, text[]) from public, anon;
+revoke all on function public.sync_my_record(text, bigint, bigint, text[], bigint) from public, anon;
 revoke all on function public.leaderboard() from public;
 
-grant execute on function public.sync_my_record(text, bigint, bigint, text[]) to authenticated;
+grant execute on function public.sync_my_record(text, bigint, bigint, text[], bigint) to authenticated;
 grant execute on function public.leaderboard() to anon, authenticated;
