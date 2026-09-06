@@ -175,7 +175,10 @@ revoke all on table public.user_records from public, anon;
 grant select on table public.user_records to authenticated;
 revoke insert, update, delete on table public.user_records from authenticated;
 
-revoke all on function public.sync_my_record(text, bigint, bigint, text[]) from public;
+-- Supabase 는 public 스키마 함수에 대해 anon·authenticated 에게 EXECUTE 를
+-- 기본 부여한다. from public 만 회수하면 anon 권한이 남으므로 따로 적는다.
+-- (본체의 auth.uid() 검사가 한 겹 더 막지만, 권한으로도 막아둔다.)
+revoke all on function public.sync_my_record(text, bigint, bigint, text[]) from public, anon;
 revoke all on function public.leaderboard() from public;
 
 grant execute on function public.sync_my_record(text, bigint, bigint, text[]) to authenticated;

@@ -109,7 +109,10 @@ $$;
 -- PATCH /rest/v1/gifts 로 claimed_at 을 null 로 되돌려 무한 수령이 된다.
 revoke all on table public.gifts from public, anon, authenticated;
 
-revoke all on function public.create_gift(int, text) from public;
+-- Supabase 는 public 스키마 함수에 대해 anon·authenticated 에게 EXECUTE 를
+-- 기본 부여한다 (alter default privileges). 그래서 from public 만 회수하면
+-- anon 에게 남아 있는 명시적 권한이 그대로다 — anon 을 따로 적어야 한다.
+revoke all on function public.create_gift(int, text) from public, anon;
 revoke all on function public.peek_gift(uuid)        from public;
 revoke all on function public.claim_gift(uuid)       from public;
 

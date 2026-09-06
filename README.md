@@ -348,6 +348,7 @@ node --test scripts/test-analytics.js
 | 차감 순서 | `spent` 차감은 **서버가 선물을 만든 뒤에만** 합니다. 먼저 깎고 요청이 실패하면 일수가 증발합니다. 수령도 마찬가지로 RPC 가 성공을 반환한 뒤에만 `addDays()` 합니다. |
 | 회계 | 발신은 `spent` 를, 수령은 `total` 을 늘립니다 — 상점 구매·광고 보상과 같은 경로입니다. 그래서 선물 일수만큼 리더보드 총합이 부풀지만, 광고 보상이 이미 같은 방식이라 새로 생기는 문제는 아닙니다. |
 | 메시지 | 200자 상한(입력·서버 양쪽). 남이 쓴 문자열이므로 **`textContent` 로만** 렌더합니다. |
+| `revoke ... from public` 만으로는 부족 | Supabase 는 `public` 스키마 함수에 `anon`·`authenticated` EXECUTE 를 **기본 부여**합니다(default privileges). `from public` 만 회수하면 `anon` 에게 남은 명시적 권한이 그대로라, 비로그인도 함수 본체까지 들어옵니다. `create_gift` 와 `sync_my_record` 는 `from public, anon` 으로 적었습니다. 본체의 `auth.uid()` 검사가 한 겹 더 막지만 권한으로도 막습니다. |
 | 취소·만료 없음 | 만료를 넣으면 "만료된 선물의 일수는 누구 것인가"라는 반환 경로가 붙는데, 잔액을 검증하지 않는 이상 정직하게 처리할 수 없습니다. |
 
 ### 알려진 제약
