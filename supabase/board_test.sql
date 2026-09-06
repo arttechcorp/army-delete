@@ -22,6 +22,11 @@ declare
   base_navy  bigint;
   rec public.user_records%rowtype;
 begin
+  -- 스키마가 뒤처져 있으면 한참 뒤에 42883 으로 죽는다. 먼저 확인하고 말해준다.
+  if to_regprocedure('public.sync_my_record(text, bigint, bigint, text[], bigint)') is null then
+    raise exception 'board.sql 을 먼저 (다시) 적용하세요 — 5인자 sync_my_record 가 없습니다.';
+  end if;
+
   -- 0. 실재하는 계정 셋을 고른다. 외래키 때문에 임의 uuid 는 못 쓴다.
   select array_agg(id) into uids from (select id from auth.users limit 3) t;
 

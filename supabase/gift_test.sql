@@ -16,6 +16,13 @@ declare
   res  json;
   peek json;
 begin
+  -- 스키마가 뒤처져 있으면 알아보기 어려운 에러로 죽는다. 먼저 확인하고 말해준다.
+  if to_regprocedure('public.create_gift(int, text)') is null
+     or to_regprocedure('public.peek_gift(uuid)') is null
+     or to_regprocedure('public.claim_gift(uuid)') is null then
+    raise exception 'gift.sql 을 먼저 적용하세요 — 선물 함수가 없습니다.';
+  end if;
+
   -- 외래키 때문에 임의 uuid 는 못 쓴다. 실재하는 계정을 발신자로 삼는다.
   select id into sender_uid from auth.users limit 1;
   if sender_uid is null then
