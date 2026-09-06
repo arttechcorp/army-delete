@@ -1270,6 +1270,7 @@
   .gift-chip[disabled]{color:var(--muted);opacity:.45;cursor:default}
 
   .gift-err{margin:0;font-size:.8rem;line-height:1.5;color:var(--danger)}
+  .gift-err.ok{color:var(--muted)}
   .gift-err:empty{display:none}
 
   .gift-actions{display:flex;gap:.5rem;margin-top:.15rem}
@@ -1547,7 +1548,8 @@
       <input type="text" class="gift-link" id="giftUrl" readonly aria-label="선물 링크">
       <p class="gift-err" id="giftErr3" aria-live="polite"></p>
       <div class="gift-actions">
-        <button class="reward-btn" id="giftShareBtn" type="button">링크 공유하기</button>
+        <button class="shop-enter" id="giftCopyBtn" type="button">링크 복사</button>
+        <button class="reward-btn" id="giftShareBtn" type="button">공유하기</button>
       </div>
     </div>
 
@@ -3138,7 +3140,7 @@
       var url = location.origin + location.pathname + '?gift=' + encodeURIComponent(res.data);
       giftUrl.value = url;
       giftShareLead.textContent = days.toLocaleString('ko-KR') + '일을 담은 편지가 준비됐습니다. 링크를 보내면 상대가 받을 수 있습니다.';
-      giftErr3.textContent = '';
+      giftMsgOut('', true);
       showGiftPane('giftShare', '보내기');
     }, function (e) {
       giftSending = false;
@@ -3147,19 +3149,42 @@
     });
   }
 
+  function giftMsgOut(text, ok) {
+    giftErr3.textContent = text;
+    giftErr3.classList.toggle('ok', !!ok);
+  }
+
+  function copyGiftLink() {
+    var url = giftUrl.value;
+    if (!url) return;
+
+    // clipboard API 는 https 가 아니거나 권한이 막히면 조용히 실패한다.
+    // 그때는 입력칸을 선택해 두어 사용자가 직접 복사할 수 있게 남긴다.
+    function manual() {
+      try {
+        giftUrl.focus();
+        giftUrl.setSelectionRange(0, url.length);
+        giftMsgOut('링크가 선택됐습니다. 복사해서 보내주세요.', true);
+      } catch (e) {
+        giftMsgOut('아래 링크를 길게 눌러 복사해 주세요.', true);
+      }
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(function () {
+        giftMsgOut('링크를 복사했습니다.', true);
+      }, manual);
+    } else {
+      manual();
+    }
+  }
+
   function shareGift() {
     var url = giftUrl.value;
     if (!url) return;
-    function copied() {
-      giftErr3.style.color = 'var(--muted)';
-      giftErr3.textContent = '링크를 복사했습니다.';
-    }
-    function copy() {
-      if (navigator.clipboard) navigator.clipboard.writeText(url).then(copied, copied);
-      else copied();
-    }
-    if (navigator.share) navigator.share({ title: document.title, url: url }).then(function () {}, copy);
-    else copy();
+    // 공유 시트가 없거나(데스크톱) 사용자가 닫으면 복사로 넘어간다
+    if (navigator.share) navigator.share({ title: document.title, url: url }).then(function () {}, copyGiftLink);
+    else copyGiftLink();
   }
 
   /* ── 수령 ── */
@@ -3253,6 +3278,7 @@
   });
   $('giftSend').addEventListener('click', sendGift);
   $('giftShareBtn').addEventListener('click', shareGift);
+  $('giftCopyBtn').addEventListener('click', copyGiftLink);
   claimBtn.addEventListener('click', claimGift);
 
   giftChips.addEventListener('click', function (e) {
