@@ -9,6 +9,7 @@ create table if not exists public.user_records (
   total_days  bigint not null default 0,
   spent       bigint not null default 0,
   gifted      bigint not null default 0,
+  sent        bigint not null default 0,
   owned       text[] not null default '{}',
   updated_at  timestamptz not null default now()
 );
@@ -17,6 +18,7 @@ create table if not exists public.user_records (
 alter table public.user_records add column if not exists spent bigint not null default 0;
 alter table public.user_records add column if not exists owned text[] not null default '{}';
 alter table public.user_records add column if not exists gifted bigint not null default 0;
+alter table public.user_records add column if not exists sent bigint not null default 0;
 
 -- 소속은 리더보드 참가용이지 계정 저장의 조건이 아니다. 소속을 고르지 않은
 -- 사람도 일수와 아이템은 저장돼야 하므로 null 을 허용한다.
@@ -56,8 +58,10 @@ create policy "user_records_update_own"
 -- 교체가 아니라 오버로드가 생겨서, 아이템을 모르는 옛 2인자 함수가 그대로
 -- 살아남는다. 반드시 먼저 지운다.
 drop function if exists public.sync_my_record(text, bigint);
--- 4인자 판이 남아 있으면 5인자(default 포함) 판과 겹쳐 호출이 모호해진다.
+-- 인자를 늘릴 때마다 옛 판을 지워야 한다. 남겨두면 default 가 있는 새 판과
+-- 겹쳐 호출이 모호해지거나, 새 값을 모르는 옛 판으로 흘러들어 값이 날아간다.
 drop function if exists public.sync_my_record(text, bigint, bigint, text[]);
+drop function if exists public.sync_my_record(text, bigint, bigint, text[], bigint);
 
 -- 동기화 RPC: 본인의 소속·누적 일수·사용액·보유 아이템을 반영 (upsert)
 --
@@ -72,7 +76,8 @@ create or replace function public.sync_my_record(
   p_total_days bigint,
   p_spent      bigint,
   p_owned      text[],
-  p_gifted     bigint default 0
+  p_gifted     bigint default 0,
+  p_sent       bigint default 0
 )
 returns void
 language plpgsql
@@ -82,6 +87,7 @@ as $$
 declare
   v_uid       uuid := auth.uid();
   v_prev_days bigint;
+  v_prev_net  bigint;
   v_prev_at   timestamptz;
   v_allow     bigint;
 begin
@@ -114,11 +120,12 @@ begin
   v_allow := coalesce(v_prev_days, 0) + 20000000
            + 200 * greatest(extract(epoch from (now() - coalesce(v_prev_at, now())))::bigint, 0);
 
-  if greatest(coalesce(p_total_days, 0), coalesce(p_spent, 0), coalesce(p_gifted, 0)) > v_allow then
+  if greatest(coalesce(p_total_days, 0), coalesce(p_spent, 0),
+              coalesce(p_gifted, 0), coalesce(p_sent, 0)) > v_allow then
     raise exception '기록 값이 허용 범위를 벗어났습니다.';
   end if;
 
-  insert into public.user_records (user_id, email, branch, total_days, spent, gifted, owned, updated_at)
+  insert into public.user_records (user_id, email, branch, total_days, spent, gifted, sent, owned, updated_at)
   values (
     v_uid,
     auth.jwt() ->> 'email',
@@ -126,6 +133,7 @@ begin
     greatest(coalesce(p_total_days, 0), 0),
     greatest(coalesce(p_spent, 0), 0),
     greatest(coalesce(p_gifted, 0), 0),
+    greatest(coalesce(p_sent, 0), 0),
     coalesce(p_owned, '{}'),
     now()
   )
@@ -135,6 +143,7 @@ begin
     total_days = greatest(user_records.total_days, excluded.total_days),
     spent      = greatest(user_records.spent, excluded.spent),
     gifted     = greatest(user_records.gifted, excluded.gifted),
+    sent       = greatest(user_records.sent, excluded.sent),
     owned      = array(select distinct unnest(user_records.owned || excluded.owned)),
     updated_at = now();
 end;
@@ -146,6 +155,12 @@ $$;
 -- 소속을 고르지 않은 사람은 모든 집계에서 뺀다. 소속 null 을 group by 에
 -- 넣으면 json_object_agg 가 null 키로 에러를 내고, 총합만 포함시키면
 -- 총합과 군별 합이 어긋난다. 리더보드에 참가하지 않은 것으로 본다.
+--
+-- 집계하는 값은 total_days 가 아니라 total_days + gifted - sent 다. 선물은
+-- 일수를 새로 만들지 않고 사람 사이에서 옮기기만 한다 — 받은 쪽이 늘면 보낸
+-- 쪽이 그만큼 줄어야 총합이 보존되고, 자기 자신에게 보내면 정확히 0이 된다.
+-- 저장은 세 값 모두 단조 증가라 greatest() 병합이 그대로 성립하고, 빼기는
+-- 여기서만 한다. 기기 병합 도중 잠깐 어긋나도 음수로 새지 않게 0 에서 자른다.
 create or replace function public.leaderboard()
 returns json
 language sql
@@ -154,7 +169,8 @@ security definer
 set search_path = public
 as $$
   select json_build_object(
-    'total_all', coalesce((select sum(total_days) from public.user_records where branch is not null), 0),
+    'total_all', coalesce((select sum(greatest(total_days + gifted - sent, 0))
+                             from public.user_records where branch is not null), 0),
     'total_users', coalesce((select count(*) from public.user_records where branch is not null), 0),
     'branches', coalesce((
       select json_object_agg(
@@ -165,7 +181,7 @@ as $$
         )
       )
       from (
-        select branch, sum(total_days) as s, count(*) as c
+        select branch, sum(greatest(total_days + gifted - sent, 0)) as s, count(*) as c
         from public.user_records
         where branch is not null
         group by branch
@@ -188,8 +204,8 @@ revoke insert, update, delete on table public.user_records from authenticated;
 -- Supabase 는 public 스키마 함수에 대해 anon·authenticated 에게 EXECUTE 를
 -- 기본 부여한다. from public 만 회수하면 anon 권한이 남으므로 따로 적는다.
 -- (본체의 auth.uid() 검사가 한 겹 더 막지만, 권한으로도 막아둔다.)
-revoke all on function public.sync_my_record(text, bigint, bigint, text[], bigint) from public, anon;
+revoke all on function public.sync_my_record(text, bigint, bigint, text[], bigint, bigint) from public, anon;
 revoke all on function public.leaderboard() from public;
 
-grant execute on function public.sync_my_record(text, bigint, bigint, text[], bigint) to authenticated;
+grant execute on function public.sync_my_record(text, bigint, bigint, text[], bigint, bigint) to authenticated;
 grant execute on function public.leaderboard() to anon, authenticated;

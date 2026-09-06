@@ -36,12 +36,17 @@ sed -n '/^<script>$/,/^<\/script>$/p' index.html | grep -v '^</\?script>$' | nod
 
 - **localStorage 키(`ad.*`)나 외부로 나가는 요청이 바뀌면 `privacy.html` 도 같이 고친다.**
   AdSense 승인 요건이고, 테스트도 이걸 검사한다.
-- Supabase RPC 는 5인자 `sync_my_record(p_branch, p_total_days, p_spent, p_owned, p_gifted)` 다.
-  `p_gifted` 에만 default 가 있어 옛 4인자 호출도 받는다 (배포 창 대비). 옛 2인자·4인자
-  판은 `supabase/board.sql` 에서 drop 됐다 — 남겨두면 호출이 모호해지거나 값이 날아간다.
-- **잔액은 `total + gifted - spent`** 다. 선물로 받은 일수를 `total` 에 더하면
-  자기 자신에게 선물해 리더보드 순위를 공짜로 올릴 수 있다 (보내며 `spent`+n,
-  받으며 `total`+n → 잔액 제자리, 누적만 상승). 수령은 반드시 `addGifted()` 로 간다.
+- Supabase RPC 는 6인자 `sync_my_record(p_branch, p_total_days, p_spent, p_owned, p_gifted, p_sent)` 다.
+  뒤 두 개에 default 가 있어 옛 4·5인자 호출도 받는다 (배포 창 대비). 옛 판들은
+  `supabase/board.sql` 에서 drop 됐다 — 남겨두면 호출이 모호해지거나 값이 날아간다.
+  **인자를 늘릴 때는 반드시 옛 시그니처를 `drop function` 할 것.**
+- **잔액 = `total + gifted - spent`, 누적 삭제 일수 = `netTotal()` = `total + gifted - gsent`** 다.
+  선물은 일수를 새로 만들지 않고 옮기기만 한다 — 받은 것만 더하면 자기 자신에게
+  선물해 클릭 없이 순위를 무한히 올릴 수 있다. 화면·리더보드·분석에 `total` 을
+  그대로 쓰지 말고 `netTotal()` 을 쓸 것. 수령은 `addGifted()`, 발신은 `spent` 와
+  `gsent` 를 함께 올린다.
+- 선물 발신 키는 **`ad.gsent`** 다. `ad.sent` 는 옛 익명 리더보드가 쓰던 이름이라
+  그 시절 값이 남은 브라우저에서 누적이 통째로 깎인다 — 재사용 금지.
 - 서버 검증 변경 시 `supabase/board_test.sql` 도 함께 (assert 후 rollback 하는 자체 점검).
 
 ## 스타일

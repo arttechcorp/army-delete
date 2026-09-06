@@ -1639,7 +1639,9 @@
     start: 'ad.start', end: 'ad.end', muted: 'ad.muted',
     total: 'ad.total',        // 누적 삭제 일수 — 절대 줄지 않는다
     spent: 'ad.spent',        // 상점에서 쓴 누적 일수
-    gifted: 'ad.gifted',      // 선물로 받은 누적 일수 (아래 balance 주석 참고)
+    gifted: 'ad.gifted',      // 선물로 받은 누적 일수 (아래 netTotal 주석 참고)
+    gsent: 'ad.gsent',        // 선물로 보낸 누적 일수. ad.sent 는 옛 리더보드가
+                              // 쓰던 키라 재사용하면 그 시절 값이 그대로 차감된다.
     owned: 'ad.owned',        // 보유 아이템 id 목록
     branch: 'ad.branch',      // 리더보드 소속
     acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
@@ -1697,14 +1699,15 @@
   function flushSessionEngagement() {
     if (__analytics.session.sessionClicks === 0 || __analytics.session.flushed) return;
     __analytics.session.flushed = true;
-    var total = parseInt(load(LS.total) || '0', 10);
-    var spent = parseInt(load(LS.spent) || '0', 10);
+    var num = function (k) { return parseInt(load(k) || '0', 10) || 0; };
+    var total = num(LS.total), spent = num(LS.spent);
+    var gifted = num(LS.gifted), gsent = num(LS.gsent);
     __analytics.track('session_engagement', {
       session_clicks: __analytics.session.sessionClicks,
       max_combo: __analytics.session.maxCombo,
-      total_days_deleted: total,
+      total_days_deleted: Math.max(0, total + gifted - gsent),
       spent_days: spent,
-      balance: Math.max(0, total - spent),
+      balance: Math.max(0, total + gifted - spent),
       session_duration_seconds: Math.max(0, Math.round((Date.now() - __analytics.session.startTime) / 1000))
     });
   }
@@ -2018,6 +2021,7 @@
   var total = readInt(LS.total) || readInt(LS.legacy);
   var spent = readInt(LS.spent);
   var gifted = readInt(LS.gifted);
+  var gsent = readInt(LS.gsent);
   function readOwned() {
     try {
       var raw = JSON.parse(load(LS.owned) || '[]');
@@ -2029,16 +2033,21 @@
 
   function loadOwned() { return owned; }
 
-  // 받은 선물은 total(누적 삭제 일수)에 넣지 않고 gifted 로 따로 센다.
-  // total 에 넣으면 자기 자신에게 선물해서 리더보드 숫자를 공짜로 올릴 수 있다 —
-  // 보낼 때 spent 가 늘고 받을 때 total 이 늘어 잔액은 그대로인데 누적만 오른다.
-  // 분리하면 자기 선물이 정확히 0이 되어, 막을 규칙 자체가 필요 없어진다.
-  // 개념적으로도 이쪽이 맞다. 남이 준 일수는 내가 삭제한 일수가 아니다.
+  // spent 는 상점 구매와 선물 발신을 함께 센다. 잔액은 그 둘을 다 빼야 한다.
   function balance() { return Math.max(0, total + gifted - spent); }
+
+  // 화면과 리더보드에 쓰는 "누적 삭제한 일수". 선물은 일수를 새로 만들지 않고
+  // 사람 사이에서 옮기기만 한다 — 받은 쪽이 늘면 보낸 쪽이 그만큼 줄어야
+  // 총합이 보존되고, 자기 자신에게 보내면 정확히 0 이 된다. 받은 것만 더하면
+  // 자기 선물을 반복해 클릭 한 번 없이 순위를 무한히 올릴 수 있다.
+  //
+  // 저장은 total·gifted·gsent 세 값 모두 단조 증가라 서버의 greatest() 병합이
+  // 그대로 성립한다. 빼기는 표시할 때만 한다.
+  function netTotal() { return Math.max(0, total + gifted - gsent); }
 
   function renderWallet() {
     balanceNum.textContent = balance().toLocaleString('ko-KR');
-    totalNum.textContent = total.toLocaleString('ko-KR');
+    totalNum.textContent = netTotal().toLocaleString('ko-KR');
     shopBalance.textContent = balance().toLocaleString('ko-KR');
     var m = multiplier();
     multBadge.hidden = m <= 1;
@@ -2512,6 +2521,7 @@
     total = readInt(LS.total) || total;
     spent = readInt(LS.spent);
     gifted = readInt(LS.gifted);
+    gsent = readInt(LS.gsent);
     owned = readOwned();
 
     if (owned.indexOf(id) > -1) return;      // 이미 보유
@@ -2644,7 +2654,7 @@
       service_status: currentCalc.state,
       d_day: currentCalc.dday || null,
       is_leaderboard_user: true,
-      total_days_deleted: parseInt(load(LS.total) || '0', 10)
+      total_days_deleted: netTotal()
     });
     if (evt !== 'TOKEN_REFRESHED' && lastLoginUserId !== currentUser.id) {
       lastLoginUserId = currentUser.id;
@@ -2666,7 +2676,7 @@
     syncPresets();
     __analytics.track('branch_selected', {
       branch: b.id,
-      contributed_days: parseInt(load(LS.total) || '0', 10)
+      contributed_days: netTotal()
     });
     if (currentUser) {
       __analytics.identify(currentUser.id, { branch: b.id });
@@ -2717,6 +2727,7 @@
       p_total_days: total,
       p_spent: spent,
       p_gifted: gifted,
+      p_sent: gsent,
       p_owned: owned
     };
   }
@@ -2731,7 +2742,7 @@
     pulledFor = currentUser.id;
 
     return supabaseClient.from('user_records')
-      .select('branch,total_days,spent,gifted,owned')
+      .select('branch,total_days,spent,gifted,sent,owned')
       .eq('user_id', currentUser.id)
       .maybeSingle()
       .then(function (res) {
@@ -2751,6 +2762,7 @@
     var srvTotal = Math.max(0, row.total_days || 0);
     var srvSpent = Math.max(0, row.spent || 0);
     var srvGifted = Math.max(0, row.gifted || 0);
+    var srvSent = Math.max(0, row.sent || 0);
     var srvOwned = Object.prototype.toString.call(row.owned) === '[object Array]' ? row.owned : [];
 
     // 이 계정에 처음 연결하는 기기라면 로그인 전에 모아둔 값을 한 번만 합친다.
@@ -2761,6 +2773,7 @@
     total = mergeNum(readInt(LS.total), srvTotal, linked);
     spent = mergeNum(readInt(LS.spent), srvSpent, linked);
     gifted = mergeNum(readInt(LS.gifted), srvGifted, linked);
+    gsent = mergeNum(readInt(LS.gsent), srvSent, linked);
 
     owned = readOwned();
     srvOwned.forEach(function (id) {
@@ -2777,6 +2790,7 @@
     store(LS.total, String(total));
     store(LS.spent, String(spent));
     store(LS.gifted, String(gifted));
+    store(LS.gsent, String(gsent));
     store(LS.owned, JSON.stringify(owned));
 
     lastSynced = '';                     // 병합 결과를 서버에도 올려야 한다
@@ -2788,7 +2802,7 @@
   var syncing = false;
   var lastSynced = '';
 
-  function syncSig() { return [total, spent, gifted, branch, owned.join(',')].join('|'); }
+  function syncSig() { return [total, spent, gifted, gsent, branch, owned.join(',')].join('|'); }
 
   function syncUserRecord(unloading) {
     if (!supabaseClient || !currentUser || syncing) return Promise.resolve();
@@ -2861,7 +2875,7 @@
              +   '<div class="lb-gate-icon">🎖️</div>'
              +   '<h3 class="lb-gate-title">전우들과 함께하는 군별 리더보드</h3>'
              +   '<p class="lb-gate-desc">'
-             +     '구글 계정으로 로그인하면 지금까지 삭제한 <b>' + total.toLocaleString('ko-KR') + '일</b>이 '
+             +     '구글 계정으로 로그인하면 지금까지 삭제한 <b>' + netTotal().toLocaleString('ko-KR') + '일</b>이 '
              +     '소속 군의 전력으로 합산되며, 전우들의 실시간 랭킹을 확인할 수 있습니다.'
              +   '</p>'
              +   '<button type="button" class="google-btn" id="googleLoginBtn">'
@@ -2946,7 +2960,7 @@
 
     if (!branch) {
       html += '<div class="lb-choose-branch" style="margin-top:.75rem;padding:.75rem;background:var(--ground);border:1px dashed var(--line);border-radius:10px;text-align:center">'
-            +   '<p style="margin:0 0 .5rem;font-size:.78rem;color:var(--muted)">소속 군을 선택하시면 내 기록(' + total.toLocaleString('ko-KR') + '일)이 합산됩니다</p>'
+            +   '<p style="margin:0 0 .5rem;font-size:.78rem;color:var(--muted)">소속 군을 선택하시면 내 기록(' + netTotal().toLocaleString('ko-KR') + '일)이 합산됩니다</p>'
             +   '<div style="display:flex;gap:.4rem;justify-content:center">'
             +     '<button type="button" class="lb-sub-branch" data-branch="army" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">육군</button>'
             +     '<button type="button" class="lb-sub-branch" data-branch="marine" style="padding:.3rem .6rem;font-size:.75rem;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer">해병</button>'
@@ -2961,7 +2975,7 @@
           +   '<div class="lb-my-details">'
           +     '<span class="lb-my-user" title="' + esc(userEmail) + '">' + esc(userEmail) + '</span>'
           +     '<span class="lb-my-badge">' + (branch ? BRANCH_LABEL[branch] : '소속 미선택') + '</span>'
-          +     '<span class="lb-my-days">내 기여: ' + total.toLocaleString('ko-KR') + '일</span>'
+          +     '<span class="lb-my-days">내 기여: ' + netTotal().toLocaleString('ko-KR') + '일</span>'
           +   '</div>'
           +   '<button type="button" class="lb-signout-btn" id="lbSignoutBtn">로그아웃</button>'
           + '</div>';
@@ -3133,6 +3147,7 @@
     total = readInt(LS.total) || total;
     spent = readInt(LS.spent);
     gifted = readInt(LS.gifted);
+    gsent = readInt(LS.gsent);
     var err = giftAmountError(giftPending);
     if (err) { giftErr2.textContent = err; renderWallet(); return; }
 
@@ -3150,8 +3165,11 @@
       }
 
       // 차감은 서버가 선물을 만든 뒤에만. 먼저 깎고 요청이 실패하면 일수가 증발한다.
+      // spent 는 잔액에서, gsent 는 누적 삭제 일수에서 뺀다 (netTotal 참고).
       spent = readInt(LS.spent) + days;
+      gsent = readInt(LS.gsent) + days;
       store(LS.spent, String(spent));
+      store(LS.gsent, String(gsent));
       renderWallet();
       refreshShopSoon();
       syncUserRecord();
@@ -3383,6 +3401,7 @@
     if (e.key === LS.total) total = readInt(LS.total);
     else if (e.key === LS.spent) spent = readInt(LS.spent);
     else if (e.key === LS.gifted) gifted = readInt(LS.gifted);
+    else if (e.key === LS.gsent) gsent = readInt(LS.gsent);
     else if (e.key === LS.owned) { owned = readOwned(); applyEffects(); return; }
     else return;
     renderWallet();
@@ -3410,7 +3429,7 @@
       function ok(c, m) { if (!c) throw new Error(m); }
 
       // 지갑: 잔액은 누적에서 쓴 만큼 뺀 값이고 음수가 되지 않는다
-      var t0 = total, s0 = spent, g0 = gifted;
+      var t0 = total, s0 = spent, g0 = gifted, gs0 = gsent;
       total = 100; spent = 30; gifted = 0;
       ok(balance() === 70, '잔액 = 누적 + 받은 선물 - 사용액');
       total = 100; spent = 500; gifted = 0;
@@ -3418,16 +3437,29 @@
       total = 100; spent = 0; gifted = 40;
       ok(balance() === 140, '받은 선물은 잔액에 더해진다');
 
-      // 자기 자신에게 선물해도 아무것도 생기지 않아야 한다.
-      // 보낼 때 spent 가 늘고 받을 때 gifted 가 늘어 정확히 상쇄된다.
-      total = 1000; spent = 0; gifted = 0;
-      var b0 = balance(), tot0 = total;
-      spent += 100;      // 보내기
-      gifted += 100;     // 같은 링크를 내가 받기
-      ok(balance() === b0, '자기 선물은 잔액을 바꾸지 않는다');
-      ok(total === tot0,   '자기 선물은 누적 삭제 일수를 올리지 않는다');
+      // 선물은 일수를 옮기기만 한다. 받으면 누적이 늘고 보내면 그만큼 준다.
+      total = 1000; spent = 0; gifted = 0; gsent = 0;
+      ok(netTotal() === 1000, '선물이 없으면 누적은 그대로다');
 
-      total = t0; spent = s0; gifted = g0;
+      gifted = 300;
+      ok(netTotal() === 1300, '받은 선물은 누적에 더해진다');
+      ok(balance() === 1300,  '받은 선물은 잔액에도 더해진다');
+
+      total = 1000; spent = 100; gifted = 0; gsent = 100;   // 100일 보냄
+      ok(netTotal() === 900, '보낸 선물은 누적에서 빠진다');
+      ok(balance() === 900,  '보낸 선물은 잔액에서도 빠진다');
+
+      // 자기 자신에게 보내고 그대로 받으면 정확히 상쇄된다.
+      // 이게 성립해야 자기 선물로 순위를 올릴 수 없다.
+      total = 1000; spent = 100; gsent = 100; gifted = 100;
+      ok(netTotal() === 1000, '자기 선물은 누적을 바꾸지 않는다');
+      ok(balance() === 1000,  '자기 선물은 잔액을 바꾸지 않는다');
+
+      // 준 것보다 많이 보낼 수는 없지만, 병합이 어긋나도 음수로 새지 않아야 한다
+      total = 0; spent = 0; gifted = 0; gsent = 500;
+      ok(netTotal() === 0, '누적은 음수가 되지 않는다');
+
+      total = t0; spent = s0; gifted = g0; gsent = gs0;
 
       // 저장된 값을 다시 읽고 더한다 — 탭이 둘일 때 서로 덮어쓰지 않는 근거
       var keep = load(LS.total);

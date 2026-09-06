@@ -23,8 +23,8 @@ declare
   rec public.user_records%rowtype;
 begin
   -- 스키마가 뒤처져 있으면 한참 뒤에 42883 으로 죽는다. 먼저 확인하고 말해준다.
-  if to_regprocedure('public.sync_my_record(text, bigint, bigint, text[], bigint)') is null then
-    raise exception 'board.sql 을 먼저 (다시) 적용하세요 — 5인자 sync_my_record 가 없습니다.';
+  if to_regprocedure('public.sync_my_record(text, bigint, bigint, text[], bigint, bigint)') is null then
+    raise exception 'board.sql 을 먼저 (다시) 적용하세요 — 6인자 sync_my_record 가 없습니다.';
   end if;
 
   -- 0. 실재하는 계정 셋을 고른다. 외래키 때문에 임의 uuid 는 못 쓴다.
@@ -86,7 +86,7 @@ begin
 
   -- 4. 세 값 모두 뒤로 가지 않고, 아이템은 합쳐진다.
   --    기기를 두 대 쓰면 낮은 값이 뒤늦게 올라올 수 있다.
-  perform public.sync_my_record('army', 10, 5, '{share-link}', 0);
+  perform public.sync_my_record('army', 10, 5, '{share-link}', 0, 0);
   select * into rec from public.user_records where user_id = test_uid;
 
   assert rec.total_days = 1500, '낮은 값이 올라와도 누적 일수는 줄지 않아야 한다';
@@ -96,7 +96,7 @@ begin
   assert array_length(rec.owned, 1) = 3, '합집합에 중복이 쌓이면 안 된다';
 
   -- 5. 소속 미선택(null)으로 동기화해도 이미 고른 소속을 지우지 않는다
-  perform public.sync_my_record(null, 1600, 300, '{}', 0);
+  perform public.sync_my_record(null, 1600, 300, '{}', 0, 0);
   select * into rec from public.user_records where user_id = test_uid;
 
   assert rec.branch = 'army', '소속 없이 동기화해도 기존 소속은 유지돼야 한다';
@@ -116,7 +116,7 @@ begin
   -- 7. 아이템 개수 상한 — 클라이언트가 보내는 배열이므로 서버가 자른다
   begin
     perform public.sync_my_record('army', 1600, 300,
-      (select array_agg('i' || g) from generate_series(1, 201) g), 0);
+      (select array_agg('i' || g) from generate_series(1, 201) g), 0, 0);
     assert false, '아이템 200개를 넘으면 거부되어야 한다';
   exception when raise_exception then
     null; -- 기대한 거부
@@ -135,7 +135,7 @@ begin
 
   -- 9. 쓰기 경로인 RPC 는 여전히 실행 가능해야 한다
   assert has_function_privilege('authenticated',
-      'public.sync_my_record(text, bigint, bigint, text[], bigint)', 'EXECUTE'),
+      'public.sync_my_record(text, bigint, bigint, text[], bigint, bigint)', 'EXECUTE'),
     'sync_my_record 는 authenticated 가 실행할 수 있어야 한다';
   assert has_function_privilege('anon', 'public.leaderboard()', 'EXECUTE'),
     'leaderboard 는 비로그인도 볼 수 있어야 한다';
@@ -148,14 +148,14 @@ begin
   -- 11. 실제 플레이로 불가능한 일수는 거부한다.
   --     greatest() 병합은 되돌릴 수 없어서 한 번 들어오면 영구히 남는다.
   begin
-    perform public.sync_my_record('army', 9000000000000000000, 300, '{}', 0);
+    perform public.sync_my_record('army', 9000000000000000000, 300, '{}', 0, 0);
     assert false, '허용 범위를 벗어난 일수는 거부되어야 한다';
   exception when raise_exception then
     null; -- 기대한 거부
   end;
 
   begin
-    perform public.sync_my_record('army', 1600, 9000000000000000000, '{}', 0);
+    perform public.sync_my_record('army', 1600, 9000000000000000000, '{}', 0, 0);
     assert false, '허용 범위를 벗어난 사용액은 거부되어야 한다';
   exception when raise_exception then
     null; -- 기대한 거부
@@ -166,16 +166,16 @@ begin
   assert rec.spent = 300,       '거부된 사용액이 반영되면 안 된다';
 
   -- 12. 정상 범위의 증가는 그대로 통과해야 한다 (가드가 게임을 막으면 안 된다)
-  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 0);
+  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 0, 0);
   select * into rec from public.user_records where user_id = test_uid;
   assert rec.total_days = 1600 + 500000, '정상 범위의 증가는 반영돼야 한다';
 
   -- 13. gifted 도 단조 증가로 병합된다 (일수·사용액과 같은 규칙)
-  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 800);
+  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 800, 0);
   select * into rec from public.user_records where user_id = test_uid;
   assert rec.gifted = 800, '받은 선물이 반영돼야 한다';
 
-  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 10);
+  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 10, 0);
   select * into rec from public.user_records where user_id = test_uid;
   assert rec.gifted = 800, '낮은 값이 올라와도 받은 선물은 줄지 않아야 한다';
 
@@ -186,9 +186,36 @@ begin
        = (select sum(total_days) from public.user_records where branch = 'army'),
     '군별 합계는 total_days 만 더해야 한다 — gifted 가 섞이면 자기 선물로 순위가 오른다';
 
-  -- 15. 옛 4인자 판이 남아 있으면 5인자(default 포함) 판과 호출이 모호해진다
+  -- 15. 옛 판이 남아 있으면 default 가 있는 새 판과 호출이 모호해진다
   assert to_regprocedure('public.sync_my_record(text, bigint, bigint, text[])') is null,
     '옛 4인자 sync_my_record 는 drop 되어야 한다';
+  assert to_regprocedure('public.sync_my_record(text, bigint, bigint, text[], bigint)') is null,
+    '옛 5인자 sync_my_record 는 drop 되어야 한다';
+
+  -- 16. 선물은 일수를 새로 만들지 않고 옮기기만 한다.
+  --     리더보드가 집계하는 값은 total_days + gifted - sent 다.
+  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 800, 0);
+  lb := public.leaderboard();
+  army_days := (lb -> 'branches' -> 'army' ->> 'total_days')::bigint;
+
+  -- 받기만 하면 그만큼 오른다
+  assert army_days = (select sum(total_days + gifted - sent)
+                        from public.user_records where branch = 'army'),
+    '군별 합계는 받은 선물을 더하고 보낸 선물을 빼야 한다';
+
+  -- 자기 자신에게 보내고 그대로 받으면 정확히 상쇄된다.
+  -- 상쇄되지 않으면 클릭 한 번 없이 순위를 무한히 올릴 수 있다.
+  perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 800, 800);
+  lb := public.leaderboard();
+  assert (lb -> 'branches' -> 'army' ->> 'total_days')::bigint = army_days - 800,
+    '보낸 만큼 빠져야 한다 — 자기 선물이면 받은 800 과 정확히 상쇄된다';
+
+  -- 준 것보다 많이 보내도 음수로 새지 않는다 (기기 병합이 어긋난 경우 대비)
+  update public.user_records set total_days = 10, gifted = 0, sent = 9999
+   where user_id = test_uid;
+  lb := public.leaderboard();
+  assert (lb -> 'branches' -> 'army' ->> 'total_days')::bigint >= 0,
+    '군별 합계는 음수가 되지 않아야 한다';
 end $$;
 
 rollback;
