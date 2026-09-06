@@ -179,20 +179,13 @@ begin
   select * into rec from public.user_records where user_id = test_uid;
   assert rec.gifted = 800, '낮은 값이 올라와도 받은 선물은 줄지 않아야 한다';
 
-  -- 14. 받은 선물은 리더보드 집계에 들어가지 않는다.
-  --     들어가면 자기 자신에게 선물해서 순위를 공짜로 올릴 수 있다.
-  lb := public.leaderboard();
-  assert (lb -> 'branches' -> 'army' ->> 'total_days')::bigint
-       = (select sum(total_days) from public.user_records where branch = 'army'),
-    '군별 합계는 total_days 만 더해야 한다 — gifted 가 섞이면 자기 선물로 순위가 오른다';
-
-  -- 15. 옛 판이 남아 있으면 default 가 있는 새 판과 호출이 모호해진다
+  -- 14. 옛 판이 남아 있으면 default 가 있는 새 판과 호출이 모호해진다
   assert to_regprocedure('public.sync_my_record(text, bigint, bigint, text[])') is null,
     '옛 4인자 sync_my_record 는 drop 되어야 한다';
   assert to_regprocedure('public.sync_my_record(text, bigint, bigint, text[], bigint)') is null,
     '옛 5인자 sync_my_record 는 drop 되어야 한다';
 
-  -- 16. 선물은 일수를 새로 만들지 않고 옮기기만 한다.
+  -- 15. 선물은 일수를 새로 만들지 않고 옮기기만 한다.
   --     리더보드가 집계하는 값은 total_days + gifted - sent 다.
   perform public.sync_my_record('army', 1600 + 500000, 300, '{}', 800, 0);
   lb := public.leaderboard();
