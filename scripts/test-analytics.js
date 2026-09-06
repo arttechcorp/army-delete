@@ -589,6 +589,22 @@ test('index.html contains combo effects and dopamine enhancement implementation'
   assert.match(html, /triggerComboMilestone\s*\(\s*combo,\s*audioNow\s*\)/);
 });
 
+test('index.html contains Mobile Safari audio and haptic support', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+
+  // iOS Safari Haptic Switch DOM and function
+  assert.match(html, /<input[^>]+switch[^>]+id="hapticSwitch"/);
+  assert.match(html, /<label[^>]+for="hapticSwitch"[^>]+id="hapticLabel"/);
+  assert.match(html, /function triggerHaptic\s*\(pattern\)/);
+
+  // iOS Audio Unlock & Mute Switch bypass
+  assert.match(html, /function unlockSilentAudio\s*\(\)/);
+  assert.match(html, /function unlockAudio\s*\(\)/);
+  assert.match(html, /audioSession\.type\s*=\s*['"]playback['"]/);
+  assert.match(html, /addEventListener\(['"]visibilitychange['"]/);
+});
+
+
 
 
 

@@ -739,6 +739,16 @@
     }
   }
 
+  /* iOS 햅틱 트리거용 숨김 스위치 */
+  .haptic-switch, .haptic-label{
+    position:fixed;
+    top:-9999px;
+    left:-9999px;
+    width:1px;
+    height:1px;
+    opacity:0.001;
+  }
+
   .milestone-toast{
     position:fixed;
     top:1.2rem;
@@ -1933,6 +1943,9 @@
        data-ad-slot="1545014900"></ins>
 </aside>
 
+<input type="checkbox" switch id="hapticSwitch" class="haptic-switch" aria-hidden="true" tabindex="-1">
+<label for="hapticSwitch" id="hapticLabel" class="haptic-label" aria-hidden="true"></label>
+
 <script>
 (function () {
   'use strict';
@@ -2052,6 +2065,7 @@
   var adScrim = $('adScrim'), adTitle = $('adTitle'), adSlotBox = $('adSlotBox'), adClose = $('adClose');
   var stage = document.querySelector('.console');
   var anchor = $('anchor'), anchorClose = $('anchorClose');
+  var hapticLabel = $('hapticLabel');
 
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -2212,6 +2226,31 @@
                523.25, 587.33, 659.25, 783.99, 880.00,
                1046.50, 1174.66, 1318.51];
 
+  // iOS 무음 모드(Silent Switch) 우회용 무음 오디오 루프
+  var silentAudio = null;
+  function unlockSilentAudio() {
+    if (!silentAudio) {
+      try {
+        silentAudio = document.createElement('audio');
+        silentAudio.setAttribute('x-webkit-airplay', 'deny');
+        silentAudio.setAttribute('playsinline', '');
+        silentAudio.setAttribute('webkit-playsinline', '');
+        silentAudio.preload = 'auto';
+        silentAudio.loop = true;
+        silentAudio.src = 'data:audio/wav;base64,UklGRisAAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YQcAAACAgICAgICAAAA=';
+        silentAudio.load();
+      } catch (e) {}
+    }
+    if (silentAudio && silentAudio.paused) {
+      try {
+        var p = silentAudio.play();
+        if (p && typeof p.then === 'function') {
+          p.catch(function () {});
+        }
+      } catch (e) {}
+    }
+  }
+
   function audio() {
     if (ctx) return ctx;
     var AC = window.AudioContext || window.webkitAudioContext;
@@ -2224,6 +2263,47 @@
     for (var i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
     return ctx;
   }
+
+  // iOS 사파리 Web Audio 파이프라인 및 무음 스위치 언락
+  function unlockAudio() {
+    try {
+      if (window.navigator && window.navigator.audioSession) {
+        window.navigator.audioSession.type = 'playback';
+      }
+    } catch (e) {}
+    unlockSilentAudio();
+    var c = audio();
+    if (!c) return;
+    if (c.state === 'suspended' || c.state === 'interrupted') {
+      try { c.resume(); } catch (e) {}
+    }
+    if (!c.__unlocked) {
+      try {
+        var b = c.createBuffer(1, 1, 22050);
+        var s = c.createBufferSource();
+        s.buffer = b;
+        s.connect(c.destination);
+        s.start(0);
+        c.__unlocked = true;
+      } catch (e) {}
+    }
+  }
+
+  // 모바일 사파리: 사용자 상호작용 즉시 오디오 언락
+  ['touchstart', 'touchend', 'pointerdown', 'click'].forEach(function (evt) {
+    document.addEventListener(evt, function () {
+      if (!muted) unlockAudio();
+    }, { once: false, passive: true });
+  });
+
+  // 백그라운드 복귀 시 사운드 컨텍스트 자동 재개
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && ctx && !muted) {
+      if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+        try { ctx.resume(); } catch (e) {}
+      }
+    }
+  });
 
   // 연타해도 노드가 쌓이지 않도록 상한을 두고 끝난 노드는 즉시 끊는다.
   function track(node) {
@@ -2241,39 +2321,42 @@
 
   // 타격감: 짧은 노이즈 버스트를 밴드패스로 깎는다
   function thud(t, gain) {
+    var time = Math.max(ctx.currentTime, t || 0);
     var src = ctx.createBufferSource();
     src.buffer = noiseBuf;
     var bp = ctx.createBiquadFilter();
     bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 0.9;
     var g = ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    g.gain.setValueAtTime(gain, time);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
     src.connect(bp); bp.connect(g); g.connect(ctx.destination);
-    src.start(t); src.stop(t + 0.05);
+    src.start(time); src.stop(time + 0.05);
     track(src);
   }
 
   // 음정: 삼각파 + 지수 감쇠
   function tone(t, freq, gain, dur) {
+    var time = Math.max(ctx.currentTime, t || 0);
     var osc = ctx.createOscillator();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.setValueAtTime(freq, time);
     var g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(gain, time + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
     osc.connect(g); g.connect(ctx.destination);
-    osc.start(t); osc.stop(t + dur + 0.02);
+    osc.start(time); osc.stop(time + dur + 0.02);
     track(osc);
   }
 
   function playClick(count) {
     if (muted) return;
+    unlockAudio();
     var c = audio();
     if (!c) return;
-    if (c.state === 'suspended') c.resume();
+    if (c.state === 'suspended' || c.state === 'interrupted') c.resume();
 
-    var now = c.currentTime;
+    var now = Math.max(c.currentTime, 0.001);
     var wall = Date.now();
     if (wall - lastClick > COMBO_RESET_MS) comboIdx = 0;
     else comboIdx = Math.min(comboIdx + 1, SCALE.length - 1);
@@ -2295,18 +2378,20 @@
   // 1. 고음 금속 벨 소리 (10콤보용: 두 개의 고주파 사인파 간섭)
   function soundBell(now) {
     if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
     [1568, 2093].forEach(function (freq, i) {
       var osc = ctx.createOscillator();
       var g = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + (i * 0.02));
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      var t = base + (i * 0.02);
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
       osc.connect(g);
       g.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.38);
+      osc.start(t);
+      osc.stop(t + 0.38);
       track(osc);
     });
   }
@@ -2314,36 +2399,39 @@
   // 2. 808 서브 베이스 킥 (25콤보용: 120Hz에서 35Hz로 급강하하는 묵직한 펀치)
   function soundSubKick(now) {
     if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
     var osc = ctx.createOscillator();
     var g = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(130, now);
-    osc.frequency.exponentialRampToValueAtTime(32, now + 0.18);
-    g.gain.setValueAtTime(0.35, now);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    osc.frequency.setValueAtTime(130, base);
+    osc.frequency.exponentialRampToValueAtTime(32, base + 0.18);
+    g.gain.setValueAtTime(0.35, base);
+    g.gain.exponentialRampToValueAtTime(0.0001, base + 0.22);
     osc.connect(g);
     g.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.25);
+    osc.start(base);
+    osc.stop(base + 0.25);
     track(osc);
   }
 
   // 3. 4화음 메이저 팡파르 코드 (50콤보 피버용: C5, E5, G5, C6)
   function soundFanfare(now) {
     if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
     var chord = [523.25, 659.25, 783.99, 1046.50];
     chord.forEach(function (freq, idx) {
       var osc = ctx.createOscillator();
       var g = ctx.createGain();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, now + (idx * 0.035));
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.22, now + (idx * 0.035) + 0.015);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+      var t = base + (idx * 0.035);
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
       osc.connect(g);
       g.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.7);
+      osc.start(t);
+      osc.stop(t + 0.7);
       track(osc);
     });
   }
@@ -2351,6 +2439,7 @@
   // 4. 상승 주파수 글리산도 (100콤보용: 220Hz에서 1760Hz로 솟구치는 스윕음)
   function soundGlissando(now) {
     if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
     var osc = ctx.createOscillator();
     var g = ctx.createGain();
     osc.type = 'sawtooth';
@@ -2358,17 +2447,17 @@
     bp.type = 'lowpass';
     bp.frequency.value = 2400;
 
-    osc.frequency.setValueAtTime(220, now);
-    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.32);
-    g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.2, now + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    osc.frequency.setValueAtTime(220, base);
+    osc.frequency.exponentialRampToValueAtTime(1760, base + 0.32);
+    g.gain.setValueAtTime(0.0001, base);
+    g.gain.exponentialRampToValueAtTime(0.2, base + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, base + 0.45);
 
     osc.connect(bp);
     bp.connect(g);
     g.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.48);
+    osc.start(base);
+    osc.stop(base + 0.48);
     track(osc);
   }
 
@@ -2665,27 +2754,49 @@
   }
   function showCombo(c) { updateComboState(c); }
 
+  /* 모바일 햅틱 피드백 (안드로이드 Web Vibration API 및 iOS 17.4+ 스위치 트릭 지원) */
+  function triggerHaptic(pattern) {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+    var hl = hapticLabel || document.getElementById('hapticLabel');
+    if (hl) {
+      try {
+        hl.click();
+        if (Object.prototype.toString.call(pattern) === '[object Array]' && pattern.length > 1) {
+          var delay = 0;
+          for (var i = 1; i < pattern.length; i += 2) {
+            delay += (pattern[i - 1] || 20) + (pattern[i] || 30);
+            setTimeout(function () {
+              try { if (hl) hl.click(); } catch (err) {}
+            }, delay);
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
   /* 구간 도달 시 1회성 마일스톤 폭발 연출 */
   function triggerComboMilestone(c, now) {
     if (c === 10) {
       soundBell(now);
       burstParticles(8, ['#facc15', '#f59e0b', '#fbbf24']);
-      if (navigator.vibrate) { try { navigator.vibrate(25); } catch (e) {} }
+      triggerHaptic(25);
     } else if (c === 25) {
       soundSubKick(now);
       burstParticles(12, ['#c084fc', '#a855f7', '#e879f9']);
-      if (navigator.vibrate) { try { navigator.vibrate([20, 30, 20]); } catch (e) {} }
+      triggerHaptic([20, 30, 20]);
     } else if (c === 50) {
       soundFanfare(now);
       triggerScreenShake();
       burstParticles(16, ['#ef4444', '#f97316', '#eab308']);
-      if (navigator.vibrate) { try { navigator.vibrate([40, 30, 40, 30, 40]); } catch (e) {} }
+      triggerHaptic([40, 30, 40, 30, 40]);
     } else if (c === 100) {
       soundGlissando(now);
       triggerFlash();
       triggerScreenShake();
       burstParticles(24, ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#fbbf24']);
-      if (navigator.vibrate) { try { navigator.vibrate([60, 40, 80]); } catch (e) {} }
+      triggerHaptic([60, 40, 80]);
     }
   }
 
@@ -2694,7 +2805,7 @@
     if (!milestoneToast) return;
     milestoneToast.textContent = '🎉 ' + m.toLocaleString('ko-KR') + '일 삭제 돌파! 군생활이 녹아내리는 중!';
     milestoneToast.classList.add('show');
-    if (navigator.vibrate) { try { navigator.vibrate([35, 60, 35]); } catch (e) {} }
+    triggerHaptic([35, 60, 35]);
     clearTimeout(milestoneTimer);
     milestoneTimer = setTimeout(function () {
       if (milestoneToast) milestoneToast.classList.remove('show');
@@ -2724,9 +2835,10 @@
     updateComboState(combo);
 
     // Web Audio 초기화 및 사운드 시각 산출
+    unlockAudio();
     var c = audio();
-    if (c && c.state === 'suspended') c.resume();
-    var audioNow = c ? c.currentTime : 0;
+    if (c && (c.state === 'suspended' || c.state === 'interrupted')) c.resume();
+    var audioNow = c ? Math.max(c.currentTime, 0.001) : 0;
 
     // 특정 콤보 도달 시 1회성 특수 마일스톤 연출
     triggerComboMilestone(combo, audioNow);
@@ -2753,7 +2865,7 @@
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
     if (!reduced) { pop(); ripple(); }
     if (combo !== 10 && combo !== 25 && combo !== 50 && combo !== 100) {
-      if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+      triggerHaptic(12);
     }
   });
 
@@ -3276,7 +3388,16 @@
     muted = !muted;
     store(LS.muted, muted ? '1' : '0');
     syncSoundBtn();
-    if (!muted) { var c = audio(); if (c && c.state === 'suspended') c.resume(); }
+    if (muted) {
+      if (silentAudio) {
+        try { silentAudio.pause(); } catch (e) {}
+      }
+    } else {
+      unlockAudio();
+      var c = audio();
+      if (c && (c.state === 'suspended' || c.state === 'interrupted')) c.resume();
+      playClick(total);
+    }
   });
 
   /* ══════════════════════════════════════════
