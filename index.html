@@ -2578,7 +2578,6 @@
   var lastClickTime = 0;
   var comboFadeTimer = null;
 
-  function showCombo(c) {
   /* 파티클 분출 함수 */
   function burstParticles(count, colors) {
     if (reduced) return;
@@ -2639,7 +2638,6 @@
     }
 
     comboNum.textContent = String(c);
-    comboBadge.className = (c >= 15) ? 'combo-badge on fire' : 'combo-badge on';
 
     // 단계별 스타일 적용
     if (c >= 100) {
@@ -2723,7 +2721,6 @@
     }
     lastClickTime = now;
     var combo = currentCombo;
-    showCombo(combo);
     updateComboState(combo);
 
     // Web Audio 초기화 및 사운드 시각 산출
@@ -2755,7 +2752,6 @@
     playClick(total);
     punch();                              // 눌림은 장식이 아니라 버튼의 기본 피드백
     if (!reduced) { pop(); ripple(); }
-    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     if (combo !== 10 && combo !== 25 && combo !== 50 && combo !== 100) {
       if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     }
