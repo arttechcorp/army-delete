@@ -1,0 +1,46 @@
+# 군생활 삭제 버튼
+
+빌드 도구·프레임워크·의존성 없는 정적 사이트. 기능 설명은 `README.md`에 있다.
+여기에는 **고치다 깨먹기 쉬운 지점**만 적는다.
+
+## Commands
+
+```bash
+npx serve .            # 로컬 서버. file:// 로 열면 items.json fetch 가 막혀 상점이 빈다
+npm test               # node --test scripts/test-analytics.js
+npm run db:push        # supabase/board.sql 을 Supabase 에 적용
+npm run posthog:setup  # 코호트·대시보드 생성 (.env 필요)
+```
+
+## 편집 후 반드시: 인라인 스크립트 문법 검사
+
+앱 전체가 `index.html` 한 파일(~2,900줄)이고 로직은 마지막 `<script>` 블록 하나에 다 들어 있다.
+**거기서 SyntaxError 가 나면 이벤트 리스너가 하나도 안 붙어 페이지 전체가 죽는다** —
+버튼·날짜 계산·리더보드·상점이 한꺼번에 먹통이 되는 증상으로 나타난다.
+과거에 머지 충돌 마커가 그대로 커밋돼 프로덕션이 이렇게 죽은 적이 있다.
+
+```bash
+sed -n '/^<script>$/,/^<\/script>$/p' index.html | grep -v '^</\?script>$' | node --check /dev/stdin
+```
+
+브라우저 콘솔에서는 `__army.selfCheck()` 로 회계·날짜 로직을 확인한다 (`'ok'` 반환).
+
+## 테스트가 index.html 원문을 읽는다
+
+`scripts/test-analytics.js` 는 순수 로직뿐 아니라 `index.html` 과 `privacy.html` 의
+**소스 문자열을 정규식으로 검사**한다 (`disable_session_recording`, `maskAllInputs`,
+`time_to_reach_seconds`, `total_days_deleted` 등).
+분석 관련 코드를 지우거나 리네임하면 테스트가 깨진다 — 의도한 변경이면 테스트도 같이 고칠 것.
+
+## 크로스파일 제약
+
+- **localStorage 키(`ad.*`)나 외부로 나가는 요청이 바뀌면 `privacy.html` 도 같이 고친다.**
+  AdSense 승인 요건이고, 테스트도 이걸 검사한다.
+- Supabase RPC 는 4인자 `sync_my_record(p_branch, p_total_days, p_spent, p_owned)` 다.
+  옛 2인자 버전은 `supabase/board.sql` 에서 drop 됐다 — 2인자로 호출하면 런타임에 실패한다.
+- 서버 검증 변경 시 `supabase/board_test.sql` 도 함께 (assert 후 rollback 하는 자체 점검).
+
+## 스타일
+
+ES5 문법 (`var`, `function`), 빌드 단계가 없어 트랜스파일이 없다. 주변 코드를 따를 것.
+주석은 한국어이고 "왜"를 적는다.
