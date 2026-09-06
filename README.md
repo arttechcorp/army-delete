@@ -263,7 +263,9 @@ Supabase 무료 프로젝트는 **7일간 요청이 없으면 정지되고 클�
 
 ### 검증
 
-- SQL: `supabase/board_test.sql` 실행 (제약 조건, 권한, `leaderboard()` 합산, 계정 병합 검증). `request.jwt.claims` 를 트랜잭션 로컬로 심어 **실제 `sync_my_record()` 를 호출**하므로 규칙을 베껴 적지 않습니다. 단, `user_id` 가 `auth.users` 를 참조하므로 테스트 uuid 가 없는 프로젝트에서는 실재하는 값으로 바꿔야 합니다.
+- SQL: `supabase/board_test.sql` 실행 (제약 조건, 권한, `leaderboard()` 합산, 계정 병합 검증). `request.jwt.claims` 를 트랜잭션 로컬로 심어 **실제 `sync_my_record()` 를 호출**하므로 규칙을 베껴 적지 않습니다.
+  - `user_id` 가 `auth.users` 를 참조해 임의 uuid 를 못 쓰므로, 스크립트가 **실재하는 계정 셋을 골라** 씁니다 (계정 3개 이상 필요). 그 계정들의 기존 기록은 트랜잭션 안에서 지웠다가 `rollback` 으로 되돌립니다.
+  - **운영 데이터가 든 테이블 위에서 돌아갑니다.** "총 몇 명" 같은 절대값으로 검증하면 안 되고, 맨 앞에서 기준값을 잡아 증분으로 비교해야 합니다.
 - 클라이언트: `window.__army.selfCheck()` (병합 규칙 포함), 리더보드 모달 열람 시 비로그인 구글 로그인 버튼 노출 및 로그인 후 동기화 동작 확인
 
 ## 분석 (PostHog Analytics)

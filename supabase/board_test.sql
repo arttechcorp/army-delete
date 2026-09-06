@@ -3,31 +3,45 @@
 -- 통과하면 정상 완료되고, 실패 시 assert 에러가 발생합니다.
 -- 마지막에 rollback 되므로 실제 운영 데이터에는 영향을 주지 않습니다.
 --
--- 주의 — user_records.user_id 는 auth.users(id) 를 참조한다. 아래 테스트
--- uuid 가 실제로 없는 프로젝트에서는 1번 삽입이 외래키 위반으로 막힌다.
--- 그럴 때는 세 uuid 를 auth.users 에 실재하는 값으로 바꿔서 실행하면 된다.
---   select id from auth.users limit 3;
+-- user_records.user_id 는 auth.users(id) 를 참조하므로 아무 uuid 나 넣으면
+-- 외래키에 막힌다. 그래서 실재하는 계정 셋을 골라 쓴다 (계정이 3개 이상
+-- 필요하다). 그 계정들의 기존 기록은 트랜잭션 안에서 지웠다가 rollback 으로
+-- 되돌리므로, 운영 데이터는 스크립트가 끝나면 손대기 전과 똑같다.
 
 begin;
 
 do $$
 declare
-  test_uid  uuid := '00000000-0000-0000-0000-000000000001'::uuid;
-  other_uid uuid := '00000000-0000-0000-0000-000000000002'::uuid;
-  navy_uid  uuid := '00000000-0000-0000-0000-000000000003'::uuid;
+  uids uuid[];
+  test_uid  uuid;
+  other_uid uuid;
+  navy_uid  uuid;
   lb json;
   army_days bigint;
   base_users int;
   base_navy  bigint;
   rec public.user_records%rowtype;
 begin
-  -- 0. 기준값. 이 스크립트는 운영 데이터가 들어 있는 테이블 위에서 돌기 때문에
-  --    "총 몇 명" 같은 절대값으로 검증하면 안 된다. 증분으로 비교한다.
+  -- 0. 실재하는 계정 셋을 고른다. 외래키 때문에 임의 uuid 는 못 쓴다.
+  select array_agg(id) into uids from (select id from auth.users limit 3) t;
+
+  if coalesce(array_length(uids, 1), 0) < 3 then
+    raise exception '이 스크립트는 auth.users 에 계정이 3개 이상 필요합니다 (현재 %개).',
+      coalesce(array_length(uids, 1), 0);
+  end if;
+
+  test_uid := uids[1]; other_uid := uids[2]; navy_uid := uids[3];
+
+  -- 고른 계정의 기존 기록은 비워두고 시작한다. rollback 으로 되돌아간다.
+  delete from public.user_records where user_id = any(uids);
+
+  -- 기준값은 지운 "뒤"에 잡는다. 이 스크립트는 운영 데이터가 들어 있는 테이블
+  -- 위에서 돌기 때문에 "총 몇 명" 같은 절대값으로 검증하면 안 된다.
   lb := public.leaderboard();
   base_users := (lb ->> 'total_users')::int;
   base_navy  := coalesce((lb -> 'branches' -> 'navy' ->> 'total_days')::bigint, 0);
 
-  -- 1. 임의 테스트 데이터 삽입
+  -- 1. 테스트 데이터 삽입
   insert into public.user_records (user_id, email, branch, total_days, spent, owned, updated_at)
   values
     (test_uid,  'test1@example.com', 'army', 1500, 300, '{auto-1,boost}', now()),
@@ -46,10 +60,11 @@ begin
   assert (lb -> 'branches' -> 'army' ->> 'user_count')::int >= 2, '육군 참여자 수는 2 이상이어야 한다';
   assert (lb -> 'branches' -> 'navy' ->> 'total_days')::bigint >= 2000, '해군 총합은 2000 이상이어야 한다';
 
-  -- 3. 유효하지 않은 branch 체크 제약 검증
+  -- 3. 유효하지 않은 branch 체크 제약 검증.
+  --    없는 uuid 로 넣으면 외래키에 먼저 걸려 체크 제약을 검증하지 못한다.
+  --    이미 있는 행을 갱신해서 제약만 건드린다.
   begin
-    insert into public.user_records (user_id, email, branch, total_days)
-    values ('00000000-0000-0000-0000-000000000004'::uuid, 'test4@example.com', 'spaceforce', 100);
+    update public.user_records set branch = 'spaceforce' where user_id = test_uid;
     assert false, '체크 제약 외의 branch 는 거부되어야 한다';
   exception when check_violation then
     null; -- 기대한 거부
@@ -60,7 +75,7 @@ begin
   --    심어주면 RPC 본체를 그대로 검증할 수 있다 (규칙을 베껴 적지 않는다).
   perform set_config(
     'request.jwt.claims',
-    json_build_object('sub', test_uid::text, 'email', 'test1@example.com')::text,
+    json_build_object('sub', test_uid::text, 'email', 'test1@example.com')::text,  -- auth.uid() 대역
     true
   );
 

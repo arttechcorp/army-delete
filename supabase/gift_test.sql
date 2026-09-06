@@ -3,20 +3,25 @@
 -- 통과하면 정상 완료되고, 실패 시 assert 에러가 발생합니다.
 -- 마지막에 rollback 되므로 실제 운영 데이터에는 영향을 주지 않습니다.
 --
--- 주의 — gifts.sender_id 는 auth.users(id) 를 참조한다. 아래 uuid 가 없는
--- 프로젝트에서는 create_gift 가 외래키 위반으로 막힌다. 그럴 때는 실재하는
--- 값으로 바꿔서 실행하면 된다.
---   select id from auth.users limit 1;
+-- gifts.sender_id 는 auth.users(id) 를 참조하므로 아무 uuid 나 쓰면 외래키에
+-- 막힌다. 그래서 실재하는 계정 하나를 골라 발신자로 쓴다 (계정이 최소 1개
+-- 필요하다). 만들어진 선물은 rollback 으로 사라진다.
 
 begin;
 
 do $$
 declare
-  sender_uid uuid := '00000000-0000-0000-0000-000000000001'::uuid;
+  sender_uid uuid;
   tok  uuid;
   res  json;
   peek json;
 begin
+  -- 외래키 때문에 임의 uuid 는 못 쓴다. 실재하는 계정을 발신자로 삼는다.
+  select id into sender_uid from auth.users limit 1;
+  if sender_uid is null then
+    raise exception '이 스크립트는 auth.users 에 계정이 최소 1개 필요합니다.';
+  end if;
+
   -- auth.uid() 는 request.jwt.claims 를 읽는다. 트랜잭션 로컬로 심어주면
   -- RPC 본체를 그대로 검증할 수 있다 (규칙을 베껴 적지 않는다).
   perform set_config(
