@@ -17,8 +17,16 @@ declare
   navy_uid  uuid := '00000000-0000-0000-0000-000000000003'::uuid;
   lb json;
   army_days bigint;
+  base_users int;
+  base_navy  bigint;
   rec public.user_records%rowtype;
 begin
+  -- 0. 기준값. 이 스크립트는 운영 데이터가 들어 있는 테이블 위에서 돌기 때문에
+  --    "총 몇 명" 같은 절대값으로 검증하면 안 된다. 증분으로 비교한다.
+  lb := public.leaderboard();
+  base_users := (lb ->> 'total_users')::int;
+  base_navy  := coalesce((lb -> 'branches' -> 'navy' ->> 'total_days')::bigint, 0);
+
   -- 1. 임의 테스트 데이터 삽입
   insert into public.user_records (user_id, email, branch, total_days, spent, owned, updated_at)
   values
@@ -30,7 +38,7 @@ begin
   lb := public.leaderboard();
 
   assert (lb ->> 'total_all')::bigint >= 7000, '전체 총합은 7000 이상이어야 한다';
-  assert (lb ->> 'total_users')::int >= 3, '전체 유저 수는 3 이상이어야 한다';
+  assert (lb ->> 'total_users')::int = base_users + 3, '넣은 3명이 참여자 수에 잡혀야 한다';
 
   army_days := (lb -> 'branches' -> 'army' ->> 'total_days')::bigint;
   assert army_days >= 5000, '육군 총합은 5000 이상이어야 한다';
@@ -80,8 +88,10 @@ begin
   update public.user_records set branch = null where user_id = navy_uid;
   lb := public.leaderboard();
 
-  assert lb -> 'branches' -> 'navy' is null, '소속 없는 사람은 군별 집계에 없어야 한다';
-  assert (lb ->> 'total_users')::int = 2, '소속 없는 사람은 참여자 수에서도 빠져야 한다';
+  assert coalesce((lb -> 'branches' -> 'navy' ->> 'total_days')::bigint, 0) = base_navy,
+    '소속 없는 사람은 군별 집계에 없어야 한다';
+  assert (lb ->> 'total_users')::int = base_users + 2,
+    '소속 없는 사람은 참여자 수에서도 빠져야 한다';
 
   -- 7. 아이템 개수 상한 — 클라이언트가 보내는 배열이므로 서버가 자른다
   begin
