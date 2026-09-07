@@ -35,7 +35,7 @@ function makeHarness() {
     'var LS = deps.LS, startEl = deps.startEl, endEl = deps.endEl;',
     'var load = deps.load, store = deps.store;',
     'var addDays = deps.addDays, showToast = deps.showToast;',
-    'var owned = [], items = [];',
+    'var owned = [], items = [], catalog = null;',
     code,
     'return { multiplier: multiplier, settleOffline: settleOffline,',
     '  setState: function (list) { items = list; owned = list.map(function (i) { return i.id; }); } };'
@@ -87,7 +87,7 @@ test('items.json 의 카테고리는 상점 칩과 양방향으로 일치한다'
 });
 
 test('기존 아이템 id 는 보존된다 — 바뀌면 산 사람의 보유 기록이 끊긴다', () => {
-  const ids = data.items.map((i) => i.id);
+  const ids = data.items.concat(data.legacyItems || []).map((i) => i.id);
   for (const id of ['long-leave', 'early-discharge', 'share-link', 'work-detail', 'genie-tv',
     'rank-pvt', 'rank-pfc', 'rank-cpl', 'rank-sgt', 'rank-ssgt', 'rank-sfc', 'rank-msg']) {
     assert.ok(ids.includes(id), `사라진 id: ${id}`);

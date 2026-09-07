@@ -7,7 +7,9 @@
     "dev": "npx serve .",
     "start": "npx serve .",
     "db:push": "node scripts/db-push.js",
-    "test": "node --test scripts/test-analytics.js scripts/test-shop-effects.js",
-    "posthog:setup": "node --env-file=.env scripts/posthog-setup.js"
+    "test": "node --test scripts/test-analytics.js scripts/test-shop-effects.js scripts/test-shop-engine.js scripts/test-leave-ledger.js",
+    "posthog:setup": "node --env-file=.env scripts/posthog-setup.js",
+    "test:ui": "node --test scripts/test-shop-ui.js",
+    "test:sql": "node scripts/test-sql-local.js"
   }
 }
