@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>링크 생성기 · 군생활 삭제 버튼</title>
+
+<!-- AdSense 로더 없음: 색인도 안 되고 광고도 없는 운영자 전용 페이지 -->
+<style>
+  :root{
+    --ground:#f4f5f2; --surface:#ffffff; --ink:#14181a; --ink-2:#414a4c;
+    --muted:#78827f; --line:#dfe2dc; --accent:#4a5d23;
+    --sans:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0e1210; --surface:#161b18; --ink:#e9ede8; --ink-2:#b4bdb6;
+      --muted:#7e8880; --line:#262d28; --accent:#9dbb5a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e1210; --surface:#161b18; --ink:#e9ede8; --ink-2:#b4bdb6;
+    --muted:#7e8880; --line:#262d28; --accent:#9dbb5a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:clamp(2rem,7vw,3.5rem) clamp(1.1rem,4vw,1.75rem) 5rem;
+    background:var(--ground); color:var(--ink);
+    font-family:var(--sans); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  main, .gate{max-width:620px;margin:0 auto}
+  .mark{
+    font-family:var(--mono); font-size:.68rem; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--accent);
+  }
+  h1{font-size:clamp(1.5rem,5vw,1.9rem);line-height:1.2;letter-spacing:-.03em;margin:.6rem 0 .3rem}
+  h2{font-size:1.05rem;letter-spacing:-.01em;margin:0 0 .6rem}
+  p{color:var(--ink-2);font-size:.94rem}
+
+  /* ── 비밀번호 게이트 ── */
+  .gate-desc{margin-top:0}
+  .gate-note{
+    margin-top:2.5rem; padding-top:1.2rem; border-top:1px solid var(--line);
+    font-size:.8rem; color:var(--muted);
+  }
+  #gateForm{display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1.2rem}
+  #gateForm label{position:absolute; left:-9999px}
+  #gatePass{flex:1 1 200px}
+  .gate-err{color:#c0392b; font-size:.85rem; min-height:1.2em; margin:.6rem 0 0}
+
+  /* ── 공용 폼 요소 ── */
+  input[type="text"], input[type="password"], input[type="number"], select{
+    width:100%; padding:.6rem .7rem; font-size:.94rem; font-family:var(--sans);
+    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    border-radius:6px;
+  }
+  input:disabled{opacity:.5; cursor:not-allowed}
+  input:focus, select:focus, button:focus{outline:2px solid var(--accent); outline-offset:1px}
+  button{
+    padding:.6rem 1rem; font-size:.9rem; font-family:var(--sans); font-weight:600;
+    background:var(--accent); color:var(--surface); border:none; border-radius:6px;
+    cursor:pointer;
+  }
+  button:disabled{opacity:.45; cursor:not-allowed}
+  button.secondary{background:transparent; color:var(--ink-2); border:1px solid var(--line); font-weight:400}
+
+  /* ── 생성기 ── */
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:1.2rem 1.2rem 1.4rem; margin-top:1.5rem;
+  }
+  .field{margin-bottom:1rem}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block; font-family:var(--mono); font-size:.72rem; letter-spacing:.04em; color:var(--muted); margin-bottom:.35rem}
+  .result-box{margin-top:1.4rem}
+  .result-row{display:flex; gap:.6rem; align-items:flex-start; flex-wrap:wrap}
+  .result-row input{flex:1 1 260px; font-family:var(--mono); font-size:.82rem}
+  .result-row input.error{color:#c0392b; border-color:#c0392b}
+  .feedback{min-height:1.2em; font-size:.82rem; color:var(--accent); margin:.5rem 0 0}
+
+  /* ── 기록 ── */
+  .history{margin-top:2.2rem}
+  .history-head{display:flex; justify-content:space-between; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:.3rem}
+  .history-note{font-size:.8rem; color:var(--muted); margin-top:0}
+  #historyList{list-style:none; margin:1rem 0 0; padding:0}
+  .hist-item{
+    background:var(--surface); border:1px solid var(--line); border-radius:8px;
+    padding:.75rem .85rem; margin-bottom:.6rem;
+  }
+  .hist-meta{display:flex; gap:.6rem; flex-wrap:wrap; font-family:var(--mono); font-size:.72rem; color:var(--muted); margin-bottom:.4rem}
+  .hist-channel{color:var(--accent); font-weight:600}
+  .hist-row{display:flex; gap:.5rem; align-items:center}
+  .hist-row input{font-family:var(--mono); font-size:.78rem; flex:1 1 auto; min-width:0}
+  .hist-row button{flex:0 0 auto; padding:.45rem .75rem; font-size:.8rem}
+  .empty{color:var(--muted); font-size:.88rem}
+
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<!-- 비밀번호 게이트: 인증이 아니라 눈에 안 띄게 하는 가림막일 뿐이다.
+     정적 사이트라 소스만 보면 그대로 우회 가능하므로 이 페이지에 민감한 정보를 두면 안 된다. -->
+<section class="gate" id="gate">
+  <div class="mark">Admin</div>
+  <h1>링크 생성기</h1>
+  <p class="gate-desc">운영자 전용 페이지입니다. 비밀번호를 입력해 주세요.</p>
+  <form id="gateForm">
+    <label for="gatePass">비밀번호</label>
+    <input id="gatePass" type="password" autocomplete="off" placeholder="비밀번호">
+    <button type="submit">확인</button>
+  </form>
+  <p class="gate-err" id="gateErr" role="alert" aria-live="assertive"></p>
+  <p class="gate-note">※ 이 화면은 인증이 아니라 눈에 안 띄게 가려두는 것뿐입니다. 정적 사이트 특성상 우회할 수 있으니, 이 페이지에는 실제로 민감한 정보를 두지 마세요.</p>
+</section>
+
+<main id="app" hidden>
+  <div class="mark">Admin</div>
+  <h1>UTM 링크 생성기</h1>
+  <p>채널을 고르고 필요한 값을 채우면 아래에 링크가 바로 만들어집니다.</p>
+
+  <div class="card">
+    <form id="genForm">
+      <div class="field">
+        <label for="channelSel">채널</label>
+        <select id="channelSel"></select>
+      </div>
+      <div class="field">
+        <label for="codeInput" id="codeLabel">코드</label>
+        <input id="codeInput" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="postNumInput">회차</label>
+        <input id="postNumInput" type="number" min="1" value="1" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="campaignInput">캠페인</label>
+        <input id="campaignInput" type="text" autocomplete="off">
+      </div>
+    </form>
+
+    <div class="result-box">
+      <label for="resultUrl">결과 URL</label>
+      <div class="result-row">
+        <input id="resultUrl" type="text" readonly>
+        <button id="copyBtn" type="button">복사</button>
+      </div>
+      <p class="feedback" id="copyFeedback" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <section class="history">
+    <div class="history-head">
+      <h2>최근 생성 기록</h2>
+      <button class="secondary" id="clearHistoryBtn" type="button">기록 전체 삭제</button>
+    </div>
+    <p class="history-note">이 기록은 서버가 없어 <strong>이 브라우저에만</strong> 남습니다. 기기를 바꾸면 보이지 않습니다.</p>
+    <ul id="historyList"></ul>
+    <p class="empty" id="historyEmpty">아직 복사해서 가져간 링크가 없습니다.</p>
+  </section>
+</main>
+
+<script type="module">
+  import { UTM_CHANNELS, UTM_CAMPAIGN, buildUtmUrl, findChannel } from './scripts/utm.js';
+
+  /* ── 비밀번호 게이트 ──
+     SHA-256 해시만 비교하는 가림막이다. 소스에 평문 비밀번호를 넣지 않기 위함이지,
+     정적 사이트라 이 파일을 읽으면 로직이 다 보이므로 진짜 보안은 아니다. */
+  var PASS_HASH = '2accad81a9bdbd6cc0a7b75b33a7df10e12f8a1884a6c41e7ad4cd1706e5e6a6';
+  var GATE_KEY = 'admin.authed';
+  var HISTORY_KEY = 'admin.utmLinks';
+  var HISTORY_MAX = 30;
+
+  var gate = document.getElementById('gate');
+  var app = document.getElementById('app');
+  var gateForm = document.getElementById('gateForm');
+  var gatePass = document.getElementById('gatePass');
+  var gateErr = document.getElementById('gateErr');
+
+  function sha256Hex(text) {
+    var bytes = new TextEncoder().encode(text);
+    return crypto.subtle.digest('SHA-256', bytes).then(function (buf) {
+      var arr = Array.from(new Uint8Array(buf));
+      return arr.map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+
+  function unlock() {
+    gate.hidden = true;
+    app.hidden = false;
+    initApp();
+  }
+
+  // crypto.subtle 은 보안 컨텍스트(https/localhost)에서만 동작한다.
+  if (!window.isSecureContext || !window.crypto || !window.crypto.subtle) {
+    gateErr.textContent = 'http로 열면 동작하지 않습니다. https 또는 localhost로 접속해 주세요.';
+    gateForm.querySelector('button').disabled = true;
+  } else {
+    try {
+      if (sessionStorage.getItem(GATE_KEY) === '1') unlock();
+    } catch (e) { /* 사파리 프라이빗 모드 등: 매번 다시 물어본다 */ }
+
+    gateForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      gateErr.textContent = '';
+      var val = gatePass.value;
+      sha256Hex(val).then(function (hex) {
+        if (hex === PASS_HASH) {
+          try { sessionStorage.setItem(GATE_KEY, '1'); } catch (e) { /* 무시 */ }
+          unlock();
+        } else {
+          gateErr.textContent = '비밀번호가 올바르지 않습니다.';
+          gatePass.value = '';
+          gatePass.focus();
+        }
+      });
+    });
+  }
+
+  /* ── 생성기 (앱 잠금 해제 뒤에만 실행) ── */
+  var appInited = false;
+
+  function initApp() {
+    if (appInited) return;
+    appInited = true;
+
+    var channelSel = document.getElementById('channelSel');
+    var codeInput = document.getElementById('codeInput');
+    var codeLabel = document.getElementById('codeLabel');
+    var postNumInput = document.getElementById('postNumInput');
+    var campaignInput = document.getElementById('campaignInput');
+    var resultUrl = document.getElementById('resultUrl');
+    var copyBtn = document.getElementById('copyBtn');
+    var copyFeedback = document.getElementById('copyFeedback');
+    var historyList = document.getElementById('historyList');
+    var historyEmpty = document.getElementById('historyEmpty');
+    var clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+    var lastBuild = null; // { url, channel } — 마지막으로 화면에 표시된 유효한 결과
+
+    // 채널 셀렉트는 UTM_CHANNELS 를 순회해서 그린다 (하드코딩 금지)
+    UTM_CHANNELS.forEach(function (ch) {
+      var opt = document.createElement('option');
+      opt.value = ch.id;
+      opt.textContent = ch.label;
+      channelSel.appendChild(opt);
+    });
+
+    campaignInput.value = UTM_CAMPAIGN;
+
+    function updateCodeField(channel) {
+      if (channel && typeof channel.contentBase === 'string') {
+        codeInput.disabled = true;
+        codeInput.value = '';
+        codeInput.placeholder = '이 채널은 코드가 필요 없습니다';
+        codeLabel.textContent = '코드';
+      } else {
+        codeInput.disabled = false;
+        codeInput.placeholder = '';
+        codeLabel.textContent = (channel && channel.codeLabel) || '코드';
+      }
+    }
+
+    function recompute() {
+      var channel = findChannel(channelSel.value);
+      updateCodeField(channel);
+
+      try {
+        var url = buildUtmUrl({
+          baseUrl: location.origin + '/',
+          channelId: channelSel.value,
+          code: codeInput.value,
+          postNumber: postNumInput.value,
+          campaign: campaignInput.value || UTM_CAMPAIGN
+        });
+        resultUrl.value = url;
+        resultUrl.classList.remove('error');
+        copyBtn.disabled = false;
+        lastBuild = { url: url, channel: channel };
+      } catch (err) {
+        resultUrl.value = err.message;
+        resultUrl.classList.add('error');
+        copyBtn.disabled = true;
+        lastBuild = null;
+      }
+    }
+
+    ['input', 'change'].forEach(function (evt) {
+      channelSel.addEventListener(evt, recompute);
+      codeInput.addEventListener(evt, recompute);
+      postNumInput.addEventListener(evt, recompute);
+      campaignInput.addEventListener(evt, recompute);
+    });
+
+    /* ── 복사 (index.html 의 copyGiftLink 와 같은 패턴) ──
+       clipboard API 는 보안 컨텍스트가 아니거나 권한이 막히면 조용히 실패하므로,
+       그때는 입력칸을 선택 상태로 남겨 수동 복사를 유도한다. */
+    function copyText(text, inputEl, feedbackEl, onDone) {
+      function manual() {
+        try {
+          inputEl.focus();
+          inputEl.setSelectionRange(0, text.length);
+          feedbackEl.textContent = '링크가 선택됐습니다. 복사해서 보내주세요.';
+        } catch (e) {
+          feedbackEl.textContent = '위 링크를 길게 눌러 복사해 주세요.';
+        }
+        if (onDone) onDone();
+      }
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function () {
+          feedbackEl.textContent = '복사했습니다.';
+          if (onDone) onDone();
+        }, manual);
+      } else {
+        manual();
+      }
+    }
+
+    /* ── 최근 생성 기록 (localStorage, 이 브라우저 전용) ──
+       ad.* 는 방문자 데이터용 이름이라 운영자 기록과 섞지 않으려고 별도 키를 쓴다. */
+    function loadHistory() {
+      try {
+        var raw = localStorage.getItem(HISTORY_KEY);
+        if (!raw) return [];
+        var parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveHistory(list) {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+      } catch (e) { /* 사파리 프라이빗 모드 등: 이번 저장만 포기 */ }
+    }
+
+    function formatTime(iso) {
+      var d = new Date(iso);
+      function pad(n) { return n < 10 ? '0' + n : '' + n; }
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+        pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function renderHistory() {
+      var list = loadHistory();
+      historyList.innerHTML = '';
+      historyEmpty.hidden = list.length > 0;
+
+      list.forEach(function (item) {
+        var li = document.createElement('li');
+        li.className = 'hist-item';
+
+        var meta = document.createElement('div');
+        meta.className = 'hist-meta';
+        var chSpan = document.createElement('span');
+        chSpan.className = 'hist-channel';
+        chSpan.textContent = item.channelLabel || '';
+        var timeSpan = document.createElement('span');
+        timeSpan.textContent = formatTime(item.time);
+        var contentSpan = document.createElement('span');
+        contentSpan.textContent = item.content || '';
+        meta.appendChild(timeSpan);
+        meta.appendChild(chSpan);
+        meta.appendChild(contentSpan);
+
+        var row = document.createElement('div');
+        row.className = 'hist-row';
+        var urlInput = document.createElement('input');
+        urlInput.type = 'text';
+        urlInput.readOnly = true;
+        urlInput.value = item.url;
+        urlInput.setAttribute('aria-label', '생성된 URL');
+        var rowCopyBtn = document.createElement('button');
+        rowCopyBtn.type = 'button';
+        rowCopyBtn.className = 'secondary';
+        rowCopyBtn.textContent = '복사';
+
+        // 행별 피드백 요소 생성
+        var itemFeedback = document.createElement('p');
+        itemFeedback.className = 'feedback';
+        itemFeedback.setAttribute('aria-live', 'polite');
+
+        rowCopyBtn.addEventListener('click', function () {
+          copyText(item.url, urlInput, itemFeedback);
+        });
+        row.appendChild(urlInput);
+        row.appendChild(rowCopyBtn);
+
+        li.appendChild(meta);
+        li.appendChild(row);
+        li.appendChild(itemFeedback);
+        historyList.appendChild(li);
+      });
+    }
+
+    function addHistory(build) {
+      var utmContent = '';
+      try { utmContent = new URL(build.url).searchParams.get('utm_content') || ''; } catch (e) { /* 무시 */ }
+
+      var list = loadHistory();
+      // 같은 URL 이 이미 있으면 지우고 맨 위로 다시 올린다
+      list = list.filter(function (item) { return item.url !== build.url; });
+      list.unshift({
+        time: new Date().toISOString(),
+        channelLabel: build.channel ? build.channel.label : '',
+        content: utmContent,
+        url: build.url
+      });
+      if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
+      saveHistory(list);
+      renderHistory();
+    }
+
+    copyBtn.addEventListener('click', function () {
+      if (!lastBuild) return;
+      var build = lastBuild;
+      copyText(build.url, resultUrl, copyFeedback, function () {
+        addHistory(build);
+      });
+    });
+
+    clearHistoryBtn.addEventListener('click', function () {
+      if (!confirm('기록을 전부 삭제할까요? 되돌릴 수 없습니다.')) return;
+      try { localStorage.removeItem(HISTORY_KEY); } catch (e) { /* 무시 */ }
+      renderHistory();
+    });
+
+    recompute();
+    renderHistory();
+  }
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { checkMilestone, buildSessionPayload, MILESTONES, createAnalyticsHelper } from './analytics-helper.js';
+import { UTM_CAMPAIGN, UTM_CHANNELS, normalizeCode, assertPlainSlug, buildUtmContent, buildUtmUrl, findChannel } from './utm.js';
 
 test('checkMilestone should detect milestone crossing', () => {
   assert.equal(checkMilestone(9, 10), 10);
@@ -638,3 +639,197 @@ test('index.html contains tiered UI shake, progress bar surge, and layered audio
 
 
 
+
+test('findChannel returns a fixed channel by id', () => {
+  const channel = findChannel('dcinside_army');
+  assert.equal(channel.id, 'dcinside_army');
+  assert.equal(channel.label, '디시 육군');
+  assert.equal(channel.source, 'dcinside');
+  assert.equal(channel.medium, 'community');
+  assert.equal(channel.contentBase, 'army');
+  assert.equal(channel.codeLabel, null);
+});
+
+test('findChannel returns a code-required channel by id', () => {
+  const channel = findChannel('everytime');
+  assert.equal(channel.source, 'everytime');
+  assert.equal(channel.contentBase, null);
+  assert.equal(channel.codeLabel, '학교코드');
+});
+
+test('findChannel returns null for unknown id', () => {
+  assert.equal(findChannel('nope'), null);
+});
+
+test('normalizeCode lowercases and trims', () => {
+  assert.equal(normalizeCode('  Hongik  '), 'hongik');
+});
+
+test('normalizeCode replaces Korean characters and hyphens/dashes with underscore', () => {
+  assert.equal(normalizeCode('A대학교-B'), 'a_b');
+});
+
+test('normalizeCode collapses consecutive separators into one underscore', () => {
+  assert.equal(normalizeCode('Hongik   Univ--Seoul'), 'hongik_univ_seoul');
+});
+
+test('normalizeCode strips leading and trailing underscores', () => {
+  assert.equal(normalizeCode('  -Hongik Univ-  '), 'hongik_univ');
+});
+
+test('normalizeCode returns empty string for non-string input', () => {
+  assert.equal(normalizeCode(null), '');
+  assert.equal(normalizeCode(undefined), '');
+  assert.equal(normalizeCode(123), '');
+});
+
+test('normalizeCode returns empty string when result would be empty', () => {
+  assert.equal(normalizeCode('   '), '');
+  assert.equal(normalizeCode('---'), '');
+});
+
+test('buildUtmContent builds content for a fixed channel', () => {
+  assert.equal(buildUtmContent('dcinside_army', null, 1), 'army_post01');
+});
+
+test('buildUtmContent builds content for a code-required channel', () => {
+  assert.equal(buildUtmContent('everytime', 'Hongik Univ', 2), 'hongik_univ_post02');
+});
+
+test('buildUtmContent zero-pads post numbers at the 1/9/10/100 boundaries', () => {
+  assert.equal(buildUtmContent('dcinside_army', null, 1), 'army_post01');
+  assert.equal(buildUtmContent('dcinside_army', null, 9), 'army_post09');
+  assert.equal(buildUtmContent('dcinside_army', null, 10), 'army_post10');
+  assert.equal(buildUtmContent('dcinside_army', null, 100), 'army_post100');
+});
+
+test('buildUtmUrl assembles a URL for a fixed channel with correct query order', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1 });
+  assert.equal(url, 'https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=army_post01&utm_campaign=launch_202609');
+});
+
+test('buildUtmUrl assembles a URL for a code-required channel', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'everytime', code: 'Hongik Univ', postNumber: 2 });
+  assert.equal(url, 'https://example.com/?utm_source=everytime&utm_medium=community&utm_content=hongik_univ_post02&utm_campaign=launch_202609');
+});
+
+test('buildUtmUrl accepts a custom campaign override', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1, campaign: 'custom_campaign' });
+  assert.match(url, /utm_campaign=custom_campaign$/);
+});
+
+test('buildUtmUrl defaults campaign to UTM_CAMPAIGN when omitted', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1 });
+  assert.match(url, new RegExp('utm_campaign=' + UTM_CAMPAIGN + '$'));
+});
+
+test('buildUtmUrl strips existing query string and hash from baseUrl', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/path?foo=bar#section', channelId: 'dcinside_army', postNumber: 1 });
+  assert.equal(url, 'https://example.com/path?utm_source=dcinside&utm_medium=community&utm_content=army_post01&utm_campaign=launch_202609');
+});
+
+test('buildUtmUrl throws a Korean error for an unknown channelId', () => {
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'nope', postNumber: 1 });
+  }, /채널/);
+});
+
+test('buildUtmUrl throws a Korean error when a code is required but normalizes to empty', () => {
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'everytime', code: '   ', postNumber: 1 });
+  }, /코드/);
+});
+
+test('buildUtmUrl throws a Korean error for an invalid postNumber', () => {
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 0 });
+  }, /postNumber|게시물|번호/);
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1.5 });
+  }, /postNumber|게시물|번호/);
+});
+
+test('buildUtmUrl throws a Korean error for an invalid baseUrl', () => {
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'not a url', channelId: 'dcinside_army', postNumber: 1 });
+  }, /URL|주소/);
+});
+
+test('UTM_CHANNELS contains all six expected channels in order', () => {
+  const ids = UTM_CHANNELS.map(function (c) { return c.id; });
+  assert.deepEqual(ids, ['dcinside_army', 'dcinside_navy', 'dcinside_airforce', 'everytime', 'gundori', 'gomsin_cafe']);
+});
+
+test('assertPlainSlug rejects Korean and emoji, allows plain ASCII slug characters', () => {
+  assert.throws(() => assertPlainSlug('홍익대', '코드'), /코드에는 영문·숫자·언더스코어만/);
+  assert.throws(() => assertPlainSlug('🔥launch', '캠페인'), /캠페인에는 영문·숫자·언더스코어만/);
+  assert.doesNotThrow(() => assertPlainSlug('Hongik_Univ-2026.09 A', '코드'));
+});
+
+test('assertPlainSlug passes through blank input untouched', () => {
+  assert.doesNotThrow(() => assertPlainSlug('', '코드'));
+  assert.doesNotThrow(() => assertPlainSlug('   ', '코드'));
+});
+
+test('assertPlainSlug uses the exact rejection message with the given field label', () => {
+  assert.throws(() => assertPlainSlug('홍익대', '코드'), {
+    message: '코드에는 영문·숫자·언더스코어만 쓸 수 있습니다. 한글은 로마자로 바꿔 입력해 주세요.'
+  });
+});
+
+test('buildUtmContent throws for non-ASCII codes instead of silently colliding', () => {
+  assert.throws(() => buildUtmContent('everytime', '홍익대A', 1), /코드/);
+  assert.throws(() => buildUtmContent('everytime', '서울대A', 1), /코드/);
+  // 예전에는 두 값 모두 normalizeCode 를 거쳐 'a' 로 뭉개져 서로 다른 학교가
+  // 같은 유입원으로 합산됐다 — 지금은 애초에 조립되지 않고 각각 throw 되어야 한다.
+});
+
+test('buildUtmUrl falls back to UTM_CAMPAIGN when campaign is whitespace only, not "+++"', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1, campaign: '   ' });
+  assert.match(url, /utm_campaign=launch_202609$/);
+  assert.doesNotMatch(url, /utm_campaign=\+/);
+});
+
+test('buildUtmUrl normalizes campaign case so Launch_202609 and launch_202609 do not diverge', () => {
+  const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1, campaign: 'Launch_202609' });
+  assert.match(url, /utm_campaign=launch_202609$/);
+});
+
+test('buildUtmUrl throws a Korean error when campaign contains Korean characters', () => {
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1, campaign: '홍보_캠페인' });
+  }, /캠페인/);
+});
+
+test('buildUtmContent throws for boolean, array, and object postNumber instead of coercing', () => {
+  assert.throws(() => buildUtmContent('dcinside_army', null, true), /게시물 번호는 1 이상의 정수여야 합니다\./);
+  assert.throws(() => buildUtmContent('dcinside_army', null, [1]), /게시물 번호는 1 이상의 정수여야 합니다\./);
+  assert.throws(() => buildUtmContent('dcinside_army', null, {}), /게시물 번호는 1 이상의 정수여야 합니다\./);
+});
+
+test('buildUtmUrl throws for dangerous non-http(s) baseUrl schemes', () => {
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'javascript:alert(1)', channelId: 'dcinside_army', postNumber: 1 });
+  }, /URL|주소/);
+  assert.throws(() => {
+    buildUtmUrl({ baseUrl: 'mailto:a@b.c', channelId: 'dcinside_army', postNumber: 1 });
+  }, /URL|주소/);
+});
+
+test('buildUtmContent ignores a passed code for fixed channels', () => {
+  assert.equal(buildUtmContent('dcinside_army', '홍익대A', 1), 'army_post01');
+});
+
+test('buildUtmUrl assembles URLs for the remaining fixed and code-required channels', () => {
+  const navyUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_navy', postNumber: 3 });
+  assert.equal(navyUrl, 'https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=navy_post03&utm_campaign=launch_202609');
+
+  const airforceUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_airforce', postNumber: 4 });
+  assert.equal(airforceUrl, 'https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=airforce_post04&utm_campaign=launch_202609');
+
+  const gundoriUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'gundori', code: 'Board-1', postNumber: 5 });
+  assert.equal(gundoriUrl, 'https://example.com/?utm_source=gundori&utm_medium=community&utm_content=board_1_post05&utm_campaign=launch_202609');
+
+  const gomsinUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'gomsin_cafe', code: 'CafeCode', postNumber: 6 });
+  assert.equal(gomsinUrl, 'https://example.com/?utm_source=gomsin_cafe&utm_medium=community&utm_content=cafecode_post06&utm_campaign=launch_202609');
+});
