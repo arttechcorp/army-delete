@@ -56,6 +56,10 @@
   window.adBreak = window.adConfig = function (o) { window.adsbygoogle.push(o); };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- classic 스크립트로 동기 로드 — type="module" 은 defer 되어 PostHog init 보다
+     늦게 실행되므로 쓰지 않는다. 유입 출처 판정이 posthog.init 직후에 __share 를
+     바로 써야 한다. -->
+<script src="scripts/share.js"></script>
 <script>
   !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug getGlobalPlugins getSessionReplayUrl".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
 
@@ -71,6 +75,27 @@
     !window.ENV_POSTHOG_FORCE_ENABLE
   );
 
+  // 1단계: 유입 출처(attribution) 판정과 저장. ad.sid 발급·ad.attr 저장은
+  // 분석 기능이 아니라 앱 동작이므로 PostHog 가드(꺼짐/키 미설정)와 무관하게
+  // 항상 실행한다 — 안 그러면 공유 링크가 direct.none 으로 퇴화한다.
+  // __share 가 없으면(스크립트 로드 실패) 조용히 건너뛴다 — 앱 본체는 죽으면 안 된다.
+  var attrFinal = null;
+  var attrRes = null;
+  try {
+    if (window.__share) {
+      var myId = window.__share.getSharerId(localStorage);
+      attrRes = window.__share.readUrlAttribution(location.href, myId);
+
+      // 최초 유입(first touch)을 고정한다 — 이미 저장된 유입이 있으면 덮어쓰지 않는다.
+      var savedAttr = window.__share.loadAttr(localStorage);
+      attrFinal = savedAttr || attrRes.attr;
+      if (!savedAttr) window.__share.saveAttr(localStorage, attrRes.attr);
+
+      if (attrRes.via === 'sid') window.__landingSid = attrRes.incomingSid;
+    }
+  } catch (e) {}
+
+  // 2단계: PostHog 전송. 이 가드는 분석 전용이라 로컬 개발·키 미설정에서 꺼진다.
   if (!isLocalhost && POSTHOG_KEY && POSTHOG_KEY !== 'phc_PLACEHOLDER_KEY') {
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
@@ -82,7 +107,43 @@
       // 선택자를 따로 지정하지 않으면 리플레이에 그대로 남는다.
       session_recording: { maskAllInputs: true, maskTextSelector: '.lb-my-user' }
     });
+
+    try {
+      if (attrFinal) {
+        // register_once 라 이미 등록돼 있으면 덮어쓰지 않는다.
+        posthog.register_once({
+          first_source: attrFinal.firstSource,
+          root_source: attrFinal.rootSource,
+          root_content: attrFinal.rootContent,
+          generation: attrFinal.generation
+        });
+
+        if (attrRes && attrRes.via === 'sid') {
+          posthog.capture('referral_landed', {
+            share_id: attrRes.incomingSid,
+            root_source: attrFinal.rootSource,
+            root_content: attrFinal.rootContent,
+            generation: attrFinal.generation
+          });
+          // gift_claimed 가 나중에(모달·서버 왕복 뒤) 찍힐 때는 sid 가 이미
+          // 주소에서 지워진 뒤다. 랜딩 시점 sid 는 위 1단계에서 window.__landingSid 에 남겼다.
+        }
+      }
+    } catch (e) {}
   }
+
+  // 3단계: 주소 정리. PostHog 가드와 무관하게 항상 실행하고, 반드시 맨 마지막에 한다.
+  //
+  // 순서가 중요하다: posthog.init 은 capture_pageview: true 라 init 시점에 이미
+  // $pageview 를 잡는다. 그 pageview 가 PostHog 기본 utm 필드를 채우려면
+  // 주소창에 utm 파라미터가 아직 남아 있어야 한다. 그래서 주소 정리
+  // (stripTrackingParams)는 2단계(PostHog 전송) 뒤, 이 스크립트의 맨 마지막에 한다.
+  try {
+    if (window.__share) {
+      // 마지막: sid·utm 은 지우고 gift 는 남긴다.
+      history.replaceState(null, '', window.__share.stripTrackingParams(location.href));
+    }
+  } catch (e) {}
 </script>
 
 <style>
@@ -2095,7 +2156,9 @@
     acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
     rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
     boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
-    legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
+    legacy: 'ad.count',       // 지갑 도입 전 카운터 (마이그레이션용)
+    sid: 'ad.sid',            // 이 브라우저의 공유자 id (scripts/share.js 발급)
+    attr: 'ad.attr'           // 고정된 최초 유입(first-touch) 정보
   };
 
   /* Supabase — 비워두면 리더보드 버튼은 안내 문구만 띄운다.
@@ -3518,7 +3581,28 @@
 
   // 공유 여부는 어차피 확인할 수 없다. 공유창을 띄웠거나 링크를 복사했으면 준다.
   function shareLink(item) {
-    var url = location.href;
+    // location.href 를 그대로 쓰면 내가 타고 들어온 utm 이 그대로 퍼져 나가
+    // 다음 사람의 유입 데이터가 오염된다. sid 를 새로 조립해 붙인다.
+    // 폴백(__share 없음/try 실패)도 절대 location.href 를 쓰지 않는다 —
+    // utm 없는 origin+pathname 이 안전한 기본값이다.
+    var url = location.origin + location.pathname;
+    var sid = '';
+    try {
+      if (window.__share) {
+        var savedAttr = window.__share.loadAttr(localStorage) ||
+          { rootSource: 'direct', rootContent: 'none', generation: 0 };
+        sid = window.__share.buildSid(savedAttr, window.__share.getSharerId(localStorage));
+        url = location.origin + location.pathname + '?sid=' + encodeURIComponent(sid);
+        // generation 은 sid 에 실제로 박힌 값을 그대로 읽는다 (buildSid 가 +1 한다)
+        var parsed = window.__share.parseSid(sid);
+        __analytics.track('share_link_created', {
+          kind: 'boost',
+          share_id: sid,
+          root_source: savedAttr.rootSource,
+          generation: parsed ? parsed.generation : savedAttr.generation
+        });
+      }
+    } catch (e) {}
     function grant() {
       store(LS.boost, String(Date.now() + item.effect.durationMs));
       renderWallet();
@@ -4053,6 +4137,8 @@
   var claimToken = '';
   var claimDays = 0;
   var claiming = false;
+  var giftShareId = '';       // 방금 만든 선물의 sid — shareGift/copyGiftLink 가 같이 쓴다
+  var giftShareLogged = false; // 같은 선물에 대해 share_link_created 를 두 번 쏘지 않기 위한 플래그
 
   function showGiftPane(id, title) {
     GIFT_PANES.forEach(function (name) {
@@ -4170,9 +4256,27 @@
       refreshShopSoon();
       syncUserRecord();
 
-      __analytics.track('gift_created', { days: days, message_length: msg.length });
+      // sid 는 선물 링크에도 붙여 유입 사슬을 이어간다. 토큰(res.data)은 수령
+      // 가능한 비밀값이라 이벤트에는 절대 싣지 않는다.
+      var giftSavedAttr = { rootSource: 'direct', rootContent: 'none', generation: 0 };
+      giftShareId = '';
+      giftShareLogged = false;
+      try {
+        if (window.__share) {
+          giftSavedAttr = window.__share.loadAttr(localStorage) || giftSavedAttr;
+          giftShareId = window.__share.buildSid(giftSavedAttr, window.__share.getSharerId(localStorage));
+        }
+      } catch (e) {}
 
-      var url = location.origin + location.pathname + '?gift=' + encodeURIComponent(res.data);
+      __analytics.track('gift_created', {
+        days: days,
+        message_length: msg.length,
+        share_id: giftShareId,
+        root_source: giftSavedAttr.rootSource
+      });
+
+      var url = location.origin + location.pathname + '?gift=' + encodeURIComponent(res.data) +
+        (giftShareId ? '&sid=' + encodeURIComponent(giftShareId) : '');
       giftUrl.value = url;
       giftShareLead.textContent = days.toLocaleString('ko-KR') + '일을 담은 편지가 준비됐습니다. 링크를 보내면 상대가 받을 수 있습니다.';
       giftMsgOut('', true);
@@ -4189,9 +4293,26 @@
     giftErr3.classList.toggle('ok', !!ok);
   }
 
+  // shareGift 가 실패/취소돼 copyGiftLink 로 넘어가는 경로가 있어, 같은 선물에
+  // 대해 두 번 찍히지 않도록 giftShareLogged 플래그로 한 번만 보낸다.
+  function trackGiftShareOnce() {
+    if (giftShareLogged) return;
+    giftShareLogged = true;
+    try {
+      var parsed = (window.__share && giftShareId) ? window.__share.parseSid(giftShareId) : null;
+      __analytics.track('share_link_created', {
+        kind: 'gift',
+        share_id: giftShareId,
+        root_source: parsed ? parsed.rootSource : undefined,
+        generation: parsed ? parsed.generation : undefined
+      });
+    } catch (e) {}
+  }
+
   function copyGiftLink() {
     var url = giftUrl.value;
     if (!url) return;
+    trackGiftShareOnce();
 
     // clipboard API 는 https 가 아니거나 권한이 막히면 조용히 실패한다.
     // 그때는 입력칸을 선택해 두어 사용자가 직접 복사할 수 있게 남긴다.
@@ -4217,6 +4338,7 @@
   function shareGift() {
     var url = giftUrl.value;
     if (!url) return;
+    trackGiftShareOnce();
     // 공유 시트가 없거나(데스크톱) 사용자가 닫으면 복사로 넘어간다
     if (navigator.share) navigator.share({ title: document.title, url: url }).then(function () {}, copyGiftLink);
     else copyGiftLink();
@@ -4229,6 +4351,10 @@
 
   function openClaim(token) {
     claimToken = token;
+    // gift_claimed 는 버튼을 눌러 서버가 성공을 돌려준 뒤에만 찍힌다 — 링크만
+    // 열고 받지 않은 사람은 그걸로 안 보인다. 이 이벤트가 그 분모다. 토큰은
+    // 수령 가능한 비밀값이라 페이로드에 넣지 않는다.
+    __analytics.track('gift_link_opened', {});
     claimDays = 0;
     claimErr.textContent = '';
     claimGot.textContent = '';
@@ -4285,7 +4411,16 @@
       // addDays 가 아니다 — 받은 일수는 누적 삭제 일수에 들어가지 않는다.
       addGifted(d.days);
       syncUserRecord();
-      __analytics.track('gift_claimed', { days: d.days });
+
+      // share_id 는 랜딩 시점(주소 정리 전)에 잡아둔 값을 쓴다. root_source 는
+      // 이 브라우저에 고정된 최초 유입을 그대로 읽는다.
+      var claimPayload = { days: d.days };
+      if (window.__landingSid) claimPayload.share_id = window.__landingSid;
+      try {
+        var claimAttr = window.__share ? window.__share.loadAttr(localStorage) : null;
+        if (claimAttr) claimPayload.root_source = claimAttr.rootSource;
+      } catch (e) {}
+      __analytics.track('gift_claimed', claimPayload);
 
       claimBtn.textContent = d.days.toLocaleString('ko-KR') + '일이 추가되었습니다';
       clearGiftParam();

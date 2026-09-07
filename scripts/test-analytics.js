@@ -833,3 +833,256 @@ test('buildUtmUrl assembles URLs for the remaining fixed and code-required chann
   const gomsinUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'gomsin_cafe', code: 'CafeCode', postNumber: 6 });
   assert.equal(gomsinUrl, 'https://example.com/?utm_source=gomsin_cafe&utm_medium=community&utm_content=cafecode_post06&utm_campaign=launch_202609');
 });
+
+// ---- scripts/share.js: classic script(ES5, global.__share) 이라 import 불가.
+// new Function 으로 로드해 fakeWindow.__share 에 붙는지 확인한다.
+const shareSrc = fs.readFileSync('scripts/share.js', 'utf8');
+const fakeWindow = {};
+new Function('window', shareSrc + '\nreturn window;')(fakeWindow);
+const share = fakeWindow.__share;
+
+// 테스트용 가짜 storage. Map 기반이며 throwOn 을 지정하면 해당 메서드 호출 시 throw
+// 해 사파리 프라이빗 모드 등 storage 접근 자체가 막힌 상황을 재현한다.
+function makeFakeStorage(initial, throwOn) {
+  const data = Object.assign({}, initial);
+  const boom = throwOn || {};
+  return {
+    getItem: function (key) {
+      if (boom.getItem) throw new Error('storage blocked');
+      return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+    },
+    setItem: function (key, value) {
+      if (boom.setItem) throw new Error('storage blocked');
+      data[key] = String(value);
+    },
+    removeItem: function (key) {
+      delete data[key];
+    }
+  };
+}
+
+test('share: constants match the contract', () => {
+  assert.equal(share.SID_PARAM, 'sid');
+  assert.equal(share.SID_KEY, 'ad.sid');
+  assert.equal(share.ATTR_KEY, 'ad.attr');
+});
+
+test('share: buildSid + parseSid round trip, generation increments by 1', () => {
+  const attr = { rootSource: 'dcinside', rootContent: 'army_post01', generation: 0 };
+  const sid = share.buildSid(attr, 'ab12');
+  assert.equal(sid, 'dcinside.army_post01.ab12.1');
+
+  const parsed = share.parseSid(sid);
+  assert.deepEqual(parsed, { rootSource: 'dcinside', rootContent: 'army_post01', sharer: 'ab12', generation: 1 });
+});
+
+test('share: buildSid falls back rootSource/rootContent to direct/none when normalization empties them', () => {
+  const attr = { rootSource: '###', rootContent: '!!!', generation: 2 };
+  const sid = share.buildSid(attr, 'zz99');
+  assert.equal(sid, 'direct.none.zz99.3');
+});
+
+test('share: buildSid treats a non-integer generation as 0', () => {
+  const attr = { rootSource: 'gundori', rootContent: 'board1', generation: NaN };
+  const sid = share.buildSid(attr, 'ab12');
+  assert.equal(sid, 'gundori.board1.ab12.1');
+});
+
+test('share: parseSid returns null for wrong segment counts', () => {
+  assert.equal(share.parseSid('a.b.abcd'), null);
+  assert.equal(share.parseSid('a.b.abcd.1.2'), null);
+  assert.equal(share.parseSid('a.b.abcd.'), null);
+});
+
+test('share: parseSid returns null for empty segments', () => {
+  assert.equal(share.parseSid('.b.abcd.1'), null);
+  assert.equal(share.parseSid('a..abcd.1'), null);
+  assert.equal(share.parseSid('a.b..1'), null);
+});
+
+test('share: parseSid returns null for uppercase or Korean in source/content/sharer', () => {
+  assert.equal(share.parseSid('Dcinside.army.ab12.1'), null);
+  assert.equal(share.parseSid('디시.army.ab12.1'), null);
+  assert.equal(share.parseSid('dcinside.army.AB12.1'), null);
+  assert.equal(share.parseSid('dcinside.army.한글ab.1'), null);
+});
+
+test('share: parseSid returns null for negative or decimal generation', () => {
+  assert.equal(share.parseSid('dcinside.army.ab12.-1'), null);
+  assert.equal(share.parseSid('dcinside.army.ab12.1.5'), null);
+  assert.equal(share.parseSid('dcinside.army.ab12.abc'), null);
+});
+
+test('share: parseSid accepts a leading-zero generation as a number', () => {
+  assert.deepEqual(share.parseSid('dcinside.army.ab12.01'), {
+    rootSource: 'dcinside',
+    rootContent: 'army',
+    sharer: 'ab12',
+    generation: 1
+  });
+});
+
+test('share: parseSid never throws on garbage input', () => {
+  assert.doesNotThrow(() => share.parseSid(null));
+  assert.doesNotThrow(() => share.parseSid(undefined));
+  assert.doesNotThrow(() => share.parseSid(12345));
+  assert.doesNotThrow(() => share.parseSid({}));
+  assert.equal(share.parseSid(null), null);
+  assert.equal(share.parseSid(undefined), null);
+});
+
+test('share: normalizeSegment lowercases, strips disallowed chars, and truncates to 40', () => {
+  assert.equal(share.normalizeSegment('A.b-C d!'), 'abcd');
+  assert.equal(share.normalizeSegment('홍익대A'), 'a');
+  const long = 'a'.repeat(50);
+  assert.equal(share.normalizeSegment(long), 'a'.repeat(40));
+  assert.equal(share.normalizeSegment(''), '');
+  assert.equal(share.normalizeSegment(null), '');
+  assert.equal(share.normalizeSegment(123), '');
+});
+
+test('share: newSharerId produces a 4-char [a-z0-9] id and accepts an injected randomFn', () => {
+  const id = share.newSharerId(() => 0);
+  assert.match(id, /^[a-z0-9]{4}$/);
+  const id2 = share.newSharerId();
+  assert.match(id2, /^[a-z0-9]{4}$/);
+});
+
+test('share: readUrlAttribution excludes self-referral when sid.sharer equals mySharerId', () => {
+  const mySid = share.buildSid({ rootSource: 'dcinside', rootContent: 'army', generation: 0 }, 'ab12');
+  // mySid 의 sharer 는 'ab12' 이므로, mySharerId 를 'ab12' 로 주면 자기 자신의 링크로 인식돼야 한다.
+  const result = share.readUrlAttribution('https://example.com/?sid=' + mySid, 'ab12');
+  assert.equal(result.selfReferral, true);
+  assert.notEqual(result.via, 'sid');
+  assert.equal(result.via, 'direct');
+});
+
+test('share: readUrlAttribution reads a valid sid from a different sharer', () => {
+  const sid = 'dcinside.army_post01.ab12.1';
+  const result = share.readUrlAttribution('https://example.com/?sid=' + sid, 'zz99');
+  assert.equal(result.via, 'sid');
+  assert.equal(result.selfReferral, false);
+  assert.equal(result.incomingSid, sid);
+  assert.equal(result.attr.firstSource, 'user_share');
+  assert.equal(result.attr.rootSource, 'dcinside');
+  assert.equal(result.attr.rootContent, 'army_post01');
+  assert.equal(result.attr.generation, 1);
+});
+
+test('share: readUrlAttribution reads utm_source/utm_content inflow', () => {
+  const result = share.readUrlAttribution('https://example.com/?utm_source=dcinside&utm_content=army_post01', 'zz99');
+  assert.equal(result.via, 'utm');
+  assert.equal(result.attr.firstSource, 'dcinside');
+  assert.equal(result.attr.rootSource, 'dcinside');
+  assert.equal(result.attr.rootContent, 'army_post01');
+  assert.equal(result.attr.generation, 0);
+  assert.equal(result.selfReferral, false);
+  assert.equal(result.incomingSid, '');
+});
+
+test('share: readUrlAttribution falls back rootContent to "none" when utm_content is missing', () => {
+  const result = share.readUrlAttribution('https://example.com/?utm_source=dcinside', 'zz99');
+  assert.equal(result.via, 'utm');
+  assert.equal(result.attr.rootContent, 'none');
+});
+
+test('share: readUrlAttribution normalizes utm_source with dots/uppercase/Korean so the resulting sid stays parseable', () => {
+  const result = share.readUrlAttribution('https://example.com/?utm_source=A.b.C&utm_content=%ED%99%8D%EC%9D%B5', 'zz99');
+  assert.equal(result.via, 'utm');
+  // '.' 이 섞인 원본 utm_source 가 그대로 sid 에 들어가면 4조각 파싱이 깨진다 —
+  // normalizeSegment 를 거쳐야 sid 조립·재파싱이 살아남는다.
+  const sid = share.buildSid(result.attr, 'ab12');
+  const reparsed = share.parseSid(sid);
+  assert.notEqual(reparsed, null);
+  assert.equal(reparsed.rootSource, 'abc');
+});
+
+test('share: readUrlAttribution treats no sid/utm params as direct inflow', () => {
+  const result = share.readUrlAttribution('https://example.com/', 'zz99');
+  assert.equal(result.via, 'direct');
+  assert.equal(result.attr.firstSource, 'direct');
+  assert.equal(result.attr.rootSource, 'direct');
+  assert.equal(result.attr.rootContent, 'none');
+  assert.equal(result.attr.generation, 0);
+  assert.equal(result.selfReferral, false);
+  assert.equal(result.incomingSid, '');
+});
+
+test('share: readUrlAttribution never throws on an unparseable href, and falls back to direct', () => {
+  const result = share.readUrlAttribution('not a url at all', 'zz99');
+  assert.equal(result.via, 'direct');
+  assert.equal(result.selfReferral, false);
+});
+
+test('share: stripTrackingParams removes sid and utm_* but keeps gift and other params', () => {
+  const href = 'https://example.com/page?sid=dcinside.army.ab12.1&utm_source=dcinside&utm_content=army&gift=xyz123&foo=bar#section';
+  const stripped = share.stripTrackingParams(href);
+  assert.doesNotMatch(stripped, /sid=/);
+  assert.doesNotMatch(stripped, /utm_/);
+  assert.match(stripped, /gift=xyz123/);
+  assert.match(stripped, /foo=bar/);
+  assert.match(stripped, /#section$/);
+  assert.match(stripped, /^\/page\?/);
+});
+
+test('share: stripTrackingParams returns the input unchanged when href is unparseable', () => {
+  assert.equal(share.stripTrackingParams('not a url at all'), 'not a url at all');
+});
+
+test('share: getSharerId reuses an existing valid sid', () => {
+  const storage = makeFakeStorage({ 'ad.sid': 'ab12' });
+  const id = share.getSharerId(storage);
+  assert.equal(id, 'ab12');
+});
+
+test('share: getSharerId replaces a malformed stored sid with a freshly generated one', () => {
+  const storage = makeFakeStorage({ 'ad.sid': 'NOT-VALID!!' });
+  const id = share.getSharerId(storage, () => 0.5);
+  assert.match(id, /^[a-z0-9]{4}$/);
+  assert.notEqual(id, 'NOT-VALID!!');
+  assert.equal(storage.getItem('ad.sid'), id);
+});
+
+test('share: getSharerId issues and persists a new sid when none is stored', () => {
+  const storage = makeFakeStorage({});
+  const id = share.getSharerId(storage);
+  assert.match(id, /^[a-z0-9]{4}$/);
+  assert.equal(storage.getItem('ad.sid'), id);
+});
+
+test('share: getSharerId still returns an id when storage throws on every access', () => {
+  const storage = makeFakeStorage({}, { getItem: true, setItem: true });
+  const id = share.getSharerId(storage);
+  assert.match(id, /^[a-z0-9]{4}$/);
+});
+
+test('share: getSharerId works with no storage argument at all (undefined/null)', () => {
+  assert.doesNotThrow(() => {
+    const id = share.getSharerId(null);
+    assert.match(id, /^[a-z0-9]{4}$/);
+  });
+});
+
+test('share: loadAttr parses stored JSON, returns null when missing or corrupt', () => {
+  const storage1 = makeFakeStorage({ 'ad.attr': JSON.stringify({ rootSource: 'dcinside', rootContent: 'army', generation: 1, firstSource: 'user_share' }) });
+  assert.deepEqual(share.loadAttr(storage1), { rootSource: 'dcinside', rootContent: 'army', generation: 1, firstSource: 'user_share' });
+
+  const storage2 = makeFakeStorage({});
+  assert.equal(share.loadAttr(storage2), null);
+
+  const storage3 = makeFakeStorage({ 'ad.attr': '{not valid json' });
+  assert.equal(share.loadAttr(storage3), null);
+
+  const storage4 = makeFakeStorage({}, { getItem: true });
+  assert.equal(share.loadAttr(storage4), null);
+});
+
+test('share: saveAttr writes JSON that loadAttr can read back, and never throws when storage blocks', () => {
+  const storage = makeFakeStorage({});
+  const attr = { rootSource: 'dcinside', rootContent: 'army', generation: 2, firstSource: 'user_share' };
+  share.saveAttr(storage, attr);
+  assert.deepEqual(share.loadAttr(storage), attr);
+
+  const blockedStorage = makeFakeStorage({}, { setItem: true });
+  assert.doesNotThrow(() => share.saveAttr(blockedStorage, attr));
+});
