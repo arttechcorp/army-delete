@@ -1824,9 +1824,11 @@
     </div>
     <div class="shop-chips" id="shopChips" role="tablist" aria-label="아이템 분류">
       <button type="button" class="shop-chip active" data-cat="all" role="tab" aria-selected="true">전체</button>
-      <button type="button" class="shop-chip" data-cat="자동" role="tab" aria-selected="false">자동 대원</button>
-      <button type="button" class="shop-chip" data-cat="배수" role="tab" aria-selected="false">배수 아이템</button>
-      <button type="button" class="shop-chip" data-cat="특수" role="tab" aria-selected="false">특수/휴가</button>
+      <button type="button" class="shop-chip" data-cat="생활관" role="tab" aria-selected="false">생활관</button>
+      <button type="button" class="shop-chip" data-cat="연병장" role="tab" aria-selected="false">연병장</button>
+      <button type="button" class="shop-chip" data-cat="P.X" role="tab" aria-selected="false">P.X</button>
+      <button type="button" class="shop-chip" data-cat="행정반" role="tab" aria-selected="false">행정반</button>
+      <button type="button" class="shop-chip" data-cat="위병소" role="tab" aria-selected="false">위병소</button>
     </div>
     <div class="shop-scroll">
       <div class="reward-row" id="rewardRow" hidden>
@@ -2017,6 +2019,7 @@
     acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
     rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
     boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
+    seenAt: 'ad.seenAt',      // 마지막으로 페이지를 보고 있던 시각 (국방부 시계 정산 기준)
     legacy: 'ad.count'        // 지갑 도입 전 카운터 (마이그레이션용)
   };
 
@@ -2801,15 +2804,20 @@
   }
 
   var milestoneTimer = null;
-  function showMilestoneCelebration(m) {
+  // 토스트는 한 벌뿐이다. 마일스톤·국방부 시계·룰렛이 같은 자리를 돌려 쓴다.
+  function showToast(text) {
     if (!milestoneToast) return;
-    milestoneToast.textContent = '🎉 ' + m.toLocaleString('ko-KR') + '일 삭제 돌파! 군생활이 녹아내리는 중!';
+    milestoneToast.textContent = text;
     milestoneToast.classList.add('show');
     triggerHaptic([35, 60, 35]);
     clearTimeout(milestoneTimer);
     milestoneTimer = setTimeout(function () {
       if (milestoneToast) milestoneToast.classList.remove('show');
     }, 3200);
+  }
+
+  function showMilestoneCelebration(m) {
+    showToast('🎉 ' + m.toLocaleString('ko-KR') + '일 삭제 돌파! 군생활이 녹아내리는 중!');
   }
 
   btn.addEventListener('click', function () {
@@ -2897,13 +2905,36 @@
     })[0];
   }
 
+  // 짬 배수용 복무 진행률(0~1). calcService 는 날짜 미입력('empty')·역순 날짜('invalid')·
+  // 입대 전('before') 이면 progress 프로퍼티를 아예 안 준다 — 그대로 곱하면 NaN 이 되어
+  // 클릭당 일수가 통째로 깨진다. progress 가 있는 'active'·'done' 에서만 값을 쓴다.
+  function serviceProgress() {
+    var r = calcService(startEl.value, endEl.value, midnightToday());
+    if (r.state !== 'active' && r.state !== 'done') return 0;
+    var p = r.progress;
+    if (typeof p !== 'number' || !isFinite(p)) return 0;
+    return Math.max(0, Math.min(1, p));
+  }
+
   function multiplier() {
     var boosted = boostLeft() > 0 && shareItem();
     var m = boosted ? boosted.effect.value : 1;
+    var progress = -1;   // 매 클릭마다 도는 함수다. 짬 아이템이 있을 때만 날짜를 계산한다.
     ownedItems().forEach(function (it) {
-      if (it.effect && it.effect.type === 'multiplier') m = Math.max(m, it.effect.value);
+      if (!it.effect) return;
+      if (it.effect.type === 'multiplier') {
+        m = Math.max(m, it.effect.value);
+      } else if (it.effect.type === 'senior') {
+        // 짬은 못 이긴다 — 진행률이 높을수록 배수가 커진다.
+        if (progress < 0) progress = serviceProgress();
+        m = Math.max(m, 1 + progress * it.effect.value);
+      }
     });
-    return m;
+    // 일수는 정수로만 센다. 짬은 1+진행률×value 라 소수가 나오는데, 그대로 두면
+    // 배지·팝업은 '×3.5'·'-3.5일' 로 보이는데 실제로는 3 만 들어가 화면과 회계가 어긋난다.
+    // (부동소수점 탓에 '-3.5000000000000004일' 이 찍히기도 한다.) 여기서 한 번 자르면
+    // 배지·팝업·가산이 전부 같은 값을 쓴다.
+    return Math.floor(m);
   }
 
   var autoTimers = [];
@@ -2916,6 +2947,45 @@
     var now = Date.now();
     if (now - lastAutoPunch > 130) { lastAutoPunch = now; punch(); }
   }
+
+  // 국방부 시계는 거꾸로 매달아도 돈다 — 꺼둔 동안에도 자동 대원이 일한 것으로 친다.
+  // 부팅 때 1회만 정산한다(아이템을 다 읽은 뒤에 불러야 한다).
+  function settleOffline() {
+    var now = Date.now();
+    var seen = parseInt(load(LS.seenAt) || '0', 10);
+    store(LS.seenAt, String(now));                 // 지급 여부와 무관하게 기준점은 항상 갱신
+
+    var clock = ownedItems().filter(function (it) {
+      return it.effect && it.effect.type === 'offline' && it.effect.capMs > 0;
+    })[0];
+    if (!clock) return;                            // 안 샀으면 0일
+    if (!isFinite(seen) || seen <= 0) return;      // 첫 방문 — 기준 시각만 남기고 끝
+
+    // 기기 시계는 사용자가 마음대로 돌린다. 뒤로 돌리면 경과가 음수가 되고,
+    // 앞으로 돌리면 무한 획득 벡터가 된다 — 0 이상 capMs 이하로 잘라 쓴다.
+    var elapsed = Math.max(0, Math.min(now - seen, clock.effect.capMs));
+    if (elapsed <= 0) return;
+
+    // 평소 autoTick 이 하는 계산과 같다: 대원마다 눌린 횟수를 세고 배수를 곱한다.
+    var ticks = 0;
+    ownedItems().forEach(function (it) {
+      if (it.effect && it.effect.type === 'auto' && it.effect.intervalMs > 0) {
+        ticks += Math.floor(elapsed / it.effect.intervalMs);
+      }
+    });
+    var days = Math.floor(ticks * multiplier());
+    if (days <= 0) return;
+
+    addDays(days);
+    showToast('⏰ 국방부 시계: 자는 동안 ' + days.toLocaleString('ko-KR') + '일 삭제됨');
+  }
+
+  // 떠날 때 기준 시각을 남긴다. 이 파일이 이미 쓰는 두 이벤트를 그대로 따른다.
+  function markSeen() { store(LS.seenAt, String(Date.now())); }
+  window.addEventListener('pagehide', markSeen);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') markSeen();
+  });
 
   function applyEffects() {
     autoTimers.forEach(clearInterval);
@@ -3171,14 +3241,9 @@
 
   var activeShopCat = 'all';
 
+  // 한 장소에 여러 효과가 섞이므로 효과 타입이 아니라 category 를 그대로 비교한다.
   function itemMatches(item, q) {
-    if (activeShopCat === 'auto' || activeShopCat === '자동') {
-      if (!item.effect || item.effect.type !== 'auto') return false;
-    } else if (activeShopCat === 'mult' || activeShopCat === '배수') {
-      if (!item.effect || item.effect.type !== 'multiplier') return false;
-    } else if (activeShopCat === 'special' || activeShopCat === '특수') {
-      if (item.effect && (item.effect.type === 'auto' || item.effect.type === 'multiplier')) return false;
-    }
+    if (activeShopCat !== 'all' && item.category !== activeShopCat) return false;
     if (!q) return true;
     return (item.name + ' ' + (item.description || '') + ' ' + (item.category || ''))
       .toLowerCase().indexOf(q) > -1;
@@ -3200,13 +3265,14 @@
     var bal = balance();
     shopBody.innerHTML = list.map(function (it) {
       var isShare = it.effect && it.effect.type === 'share';
+      var isRoll = it.effect && it.effect.type === 'roll';
       var left = isShare ? boostLeft() : 0;
-      var has = !isShare && owned.indexOf(it.id) > -1;
+      var has = !isShare && !isRoll && owned.indexOf(it.id) > -1;
       var short = !isShare && !has && bal < it.price;
       var affordable = !isShare && !has && !short;
       var label = isShare
         ? (left > 0 ? mmss(Math.ceil(left / 1000)) + ' 남음' : '공유하기')
-        : (has ? '보유 중' : (short ? '부족' : '구매'));
+        : (has ? '보유 중' : (short ? '부족' : (isRoll ? '뽑기' : '구매')));
       return '<article class="item' + (has || left > 0 ? ' owned' : '') + (short ? ' short' : '') + (affordable ? ' affordable' : '') + '">' +
         '<div class="item-icon" aria-hidden="true">' + esc(it.icon || '📦') + '</div>' +
         '<div>' +
@@ -3239,6 +3305,31 @@
     });
   }
 
+  // 포상휴가는 원래 복불복이다. owned 에 넣지 않아 상점에서 유일하게 재구매된다.
+  function buyRoll(item) {
+    var table = (item.effect && item.effect.table) || [];
+    if (!table.length) return;
+    if (balance() < item.price) return;      // 잔액 부족이면 아무 일도 없다
+
+    spent += item.price;
+    store(LS.spent, String(spent));
+    var won = table[Math.floor(Math.random() * table.length)] || 0;
+    if (won > 0) addDays(won); else renderWallet();
+
+    __analytics.track('item_purchased', {
+      item_id: item.id,
+      item_name: item.name,
+      price: item.price,
+      item_type: item.effect ? item.effect.type : 'collectible',
+      roll_days: won,
+      remaining_balance: balance()
+    });
+    showToast(won > 0
+      ? '🎖️ 포상휴가 ' + won.toLocaleString('ko-KR') + '일 당첨! 오늘은 짬이 좋다'
+      : '🫡 꽝! 이번엔 없다. 행정반 다시 다녀와라');
+    renderShop();
+  }
+
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
     if (!item) return;
@@ -3258,6 +3349,8 @@
     gifted = readInt(LS.gifted);
     gsent = readInt(LS.gsent);
     owned = readOwned();
+
+    if (item.effect && item.effect.type === 'roll') { buyRoll(item); return; }
 
     if (owned.indexOf(id) > -1) return;      // 이미 보유
     if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
@@ -4209,7 +4302,7 @@
   render();
   initAds();
   // 상점을 열지 않아도 자동 대원이 일해야 하므로 아이템은 시작할 때 읽는다
-  loadItems().then(applyEffects);
+  loadItems().then(function () { applyEffects(); settleOffline(); });
   watchBoost();
 
   // 콘솔 검증용. __army.selfCheck() 로 회계 로직을 확인한다.

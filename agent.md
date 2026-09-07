@@ -13,7 +13,7 @@
 
 ```bash
 npx serve .            # 로컬 서버. file:// 로 열면 items.json fetch 가 막혀 상점이 빈다
-npm test               # node --test scripts/test-analytics.js
+npm test               # 분석 테스트 + 상점 효과 테스트
 npm run db:push        # supabase/board.sql 을 Supabase 에 적용
 npm run posthog:setup  # 코호트·대시보드 생성 (.env 필요)
 ```

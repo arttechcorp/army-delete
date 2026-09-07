@@ -31,6 +31,7 @@
 | `.github/workflows/keepalive.yml` | Supabase 무료 프로젝트 정지 방지용 주간 핑 |
 | `scripts/analytics-helper.js` | 분석 도우미 모듈 (마일스톤 판별 및 세션 페이로드 계산) |
 | `scripts/test-analytics.js` | 분석 이벤트 및 개인정보처리방침 검증 테스트 |
+| `scripts/test-shop-effects.js` | 상점 아이템 데이터와 senior·offline 효과의 회계 검증 |
 
 빌드 도구·의존성이 없습니다. 외부 요청은 Google Fonts, 광고 SDK, PostHog(분석), `items.json`,
 그리고 리더보드를 켰을 때의 Supabase 뿐입니다.
@@ -60,10 +61,18 @@
   "name": "화면에 보이는 이름",
   "price": 40,
   "icon": "🍗",
-  "category": "식사",
+  "category": "P.X",
   "description": "한 줄 설명"
 }
 ```
+
+`category`는 상점 상단 칩(부대 안의 장소)과 같은 값이어야 합니다. **유효한 값은 다섯 개뿐입니다.**
+
+```
+생활관   연병장   P.X   행정반   위병소
+```
+
+이 문자열은 `index.html` 의 칩 `data-cat` 속성과 **문자 단위로 같아야 필터가 동작합니다.** 한 글자만 달라도(`PX`, `P.X ` 처럼) 그 아이템은 어느 칩에도 뜨지 않습니다.
 
 `id`는 보유 여부를 저장하는 키이므로 **한 번 정하면 바꾸지 마세요.** 바꾸면 이미 산 사람의 보유 기록이 끊깁니다. `icon`과 `description`은 없어도 동작합니다(아이콘은 📦로 대체).
 
@@ -75,6 +84,9 @@
 "effect": { "type": "multiplier", "value": 2 }
 "effect": { "type": "auto", "intervalMs": 167 }
 "effect": { "type": "share", "value": 3, "durationMs": 1800000 }
+"effect": { "type": "senior", "value": 5 }
+"effect": { "type": "offline", "capMs": 28800000 }
+"effect": { "type": "roll", "table": [0, 100, 300, 600, 2000] }
 ```
 
 | 타입 | 동작 | 겹칠 때 |
@@ -82,6 +94,23 @@
 | `multiplier` | 한 번 누를 때 올라가는 일수가 `value`배 | **가장 높은 것 하나만** 적용 (2배+3배 = 3배) |
 | `auto` | `intervalMs`마다 알아서 버튼을 누름 | **전부 적용** — 산 만큼 대원이 늘어난다 |
 | `share` | 링크를 공유하면 `durationMs` 동안 `value`배 | `multiplier` 와 같은 취급 — 높은 쪽 하나만 |
+| `senior` | 복무 진행률에 비례하는 배수. 배수 = `floor(1 + 진행률 × value)` | `multiplier` 와 같은 최댓값 경쟁에 참여 |
+| `offline` | 페이지를 꺼둔 동안에도 자동 대원이 일하고, 돌아오면 정산해 지급 | 보유 여부만 본다 — 여러 개 사도 같다 |
+| `roll` | 살 때마다 `table` 에서 하나를 랜덤으로 뽑아 지급 | 보유 목록에 안 들어가 **몇 번이든 재구매된다** |
+
+`senior` 는 짬이 곧 배수입니다. `value` 가 5면 진행률 20% → ×2, 40% → ×3, 60% → ×4, 100% → ×6 으로 오릅니다.
+일수는 정수로만 세기 때문에 배수도 내림해서 계단으로 오릅니다 — 소수를 그대로 두면 배지는 `×3.5` 인데
+실제로는 3 일만 들어가 화면과 회계가 어긋납니다. 그래서 진행률 20% 전까지는 ×1 입니다.
+입대일·전역일을 안 넣었거나 아직 입대 전이면 진행률 자체가 없어 **×1 로 떨어집니다** — 아이템이
+죽는 게 아니라 아직 짬이 안 찬 것으로 취급합니다.
+
+`offline` 은 떠난 시각을 `ad.seenAt` 에 저장해 두고, 돌아왔을 때의 경과시간만큼 자동 대원이
+번 일수를 계산해 지급합니다. `capMs` 는 인정되는 최대 경과시간(8시간)입니다. **기기 시계는
+사용자가 마음대로 돌릴 수 있어** 캡이 없으면 시계를 1년 앞으로 돌리고 새로고침하는 것만으로
+무한히 벌 수 있습니다. 1회 이득을 8시간치로 잘라 그 이득을 없앴습니다.
+
+`roll` 은 보유 목록에 들어가지 않아 계속 다시 살 수 있습니다. `table` 의 `0` 은 꽝이고,
+꽝을 넣어야 뽑기가 됩니다.
 
 `share` 는 사는 아이템이 아니라 누르는 아이템입니다. 값을 치르지 않고, 보유 목록에도
 들어가지 않으며, 끝나면 다시 누를 수 있습니다. `price` 는 무시되고 화면에 "무료"로 뜹니다.
@@ -332,7 +361,7 @@ PostHog 프로젝트 생성 후 발급받은 Project API Key를 다음 두 가�
 ### 검증 테스트
 
 ```bash
-node --test scripts/test-analytics.js
+node --test scripts/test-analytics.js scripts/test-shop-effects.js
 ```
 
 
