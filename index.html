@@ -409,6 +409,36 @@
     border-radius:99px;
     transition:width .7s cubic-bezier(.22,1,.36,1);
   }
+  .bar-fill.combo-surge{
+    transition:width .12s ease-out, background .3s ease, box-shadow .3s ease;
+  }
+  .bar-fill.surge-tier-10{
+    background:linear-gradient(90deg, var(--accent) 0%, #facc15 100%);
+    box-shadow:0 0 10px rgba(250, 204, 21, .45);
+  }
+  .bar-fill.surge-tier-25{
+    background:linear-gradient(90deg, #facc15 0%, #c084fc 100%);
+    box-shadow:0 0 14px rgba(192, 132, 252, .55);
+  }
+  .bar-fill.surge-tier-50{
+    background:linear-gradient(90deg, #c084fc 0%, #f97316 50%, #eab308 100%);
+    box-shadow:0 0 18px rgba(249, 115, 22, .65);
+  }
+  .bar-fill.surge-tier-100{
+    background:linear-gradient(90deg, #ec4899 0%, #8b5cf6 25%, #3b82f6 50%, #10b981 75%, #fbbf24 100%);
+    background-size:200% 100%;
+    animation:surgeRainbow 1.2s linear infinite;
+    box-shadow:0 0 22px rgba(236, 72, 153, .75);
+  }
+  @keyframes surgeRainbow{
+    0%{background-position:0% 50%}
+    100%{background-position:200% 50%}
+  }
+  .pct.surge{
+    color:#f59e0b;
+    transform:scale(1.06);
+    transition:transform .1s ease, color .2s ease;
+  }
 
   .remain{
     margin:1.1rem 0 0;
@@ -692,6 +722,45 @@
   .shake{
     animation:screenShake 0.15s ease-in-out;
   }
+
+  /* 단계별 UI 흔들림 애니메이션 (컴포넌트 단위 확산) */
+  @keyframes shakeT1{
+    0%{transform:translate(0, 0)}
+    25%{transform:translate(-2px, 1px)}
+    50%{transform:translate(2px, -1px)}
+    75%{transform:translate(-1px, 1px)}
+    100%{transform:translate(0, 0)}
+  }
+  @keyframes shakeT2{
+    0%{transform:translate(0, 0)}
+    20%{transform:translate(-3px, 2px)}
+    40%{transform:translate(3px, -2px)}
+    60%{transform:translate(-2px, -1px)}
+    80%{transform:translate(2px, 1px)}
+    100%{transform:translate(0, 0)}
+  }
+  @keyframes shakeT3{
+    0%{transform:translate(0, 0)}
+    15%{transform:translate(-5px, 3px)}
+    30%{transform:translate(5px, -3px)}
+    45%{transform:translate(-4px, 2px)}
+    60%{transform:translate(4px, -2px)}
+    75%{transform:translate(-2px, 1px)}
+    100%{transform:translate(0, 0)}
+  }
+  @keyframes shakeT4{
+    0%{transform:translate(0, 0)}
+    15%{transform:translate(-8px, 5px)}
+    30%{transform:translate(8px, -5px)}
+    45%{transform:translate(-6px, 4px)}
+    60%{transform:translate(6px, -3px)}
+    75%{transform:translate(-3px, 2px)}
+    100%{transform:translate(0, 0)}
+  }
+  .shake-t1{animation:shakeT1 0.12s ease-in-out;}
+  .shake-t2{animation:shakeT2 0.15s ease-in-out;}
+  .shake-t3{animation:shakeT3 0.18s ease-in-out;}
+  .shake-t4{animation:shakeT4 0.22s ease-in-out;}
 
   /* 100콤보 화면 백색 플래시 */
   .combo-flash{
@@ -2013,7 +2082,7 @@
      설정
      ══════════════════════════════════════════ */
   var COMBO_RESET_MS = 1200;     // 이 시간 이상 쉬면 콤보 초기화
-  var MAX_VOICES = 8;            // 동시 발음 상한
+  var MAX_VOICES = 16;           // 동시 발음 상한 (다층 레이어 수용)
   var LS = {
     start: 'ad.start', end: 'ad.end', muted: 'ad.muted',
     total: 'ad.total',        // 누적 삭제 일수 — 절대 줄지 않는다
@@ -2073,6 +2142,10 @@
   var rewardTitle = $('rewardTitle'), rewardNote = $('rewardNote');
   var adScrim = $('adScrim'), adTitle = $('adTitle'), adSlotBox = $('adSlotBox'), adClose = $('adClose');
   var stage = document.querySelector('.console');
+  var wrapEl = document.querySelector('.wrap');
+  var walletEl = document.querySelector('.wallet');
+  var enterRowEl = document.querySelector('.enter-row');
+  var pctBoxEl = document.querySelector('.pct');
   var anchor = $('anchor'), anchorClose = $('anchorClose');
   var hapticLabel = $('hapticLabel');
 
@@ -2178,11 +2251,13 @@
     errEl.className = msg ? 'error on' : 'error';
   }
 
+  var currentBasePct = 0;
   function render() {
     var r = calcService(startEl.value, endEl.value, midnightToday());
 
-    if (r.state === 'empty') { setError(''); resultEl.className = 'card empty'; return; }
+    if (r.state === 'empty') { currentBasePct = 0; setError(''); resultEl.className = 'card empty'; return; }
     if (r.state === 'invalid') {
+      currentBasePct = 0;
       setError('전역일이 입대일보다 뒤여야 합니다.');
       resultEl.className = 'card empty';
       return;
@@ -2191,6 +2266,7 @@
     resultEl.className = 'card on';
 
     if (r.state === 'before') {
+      currentBasePct = 0;
       pctNum.textContent = '0';
       barFill.style.width = '0%';
       barEl.setAttribute('aria-valuenow', '0');
@@ -2201,6 +2277,7 @@
     }
 
     if (r.state === 'done') {
+      currentBasePct = 100;
       pctNum.textContent = '100';
       barFill.style.width = '100%';
       barEl.setAttribute('aria-valuenow', '100');
@@ -2211,6 +2288,7 @@
     }
 
     var pct = Math.floor(r.progress * 1000) / 10;   // 소수 첫째 자리, 반올림 없이
+    currentBasePct = pct;
     pctNum.textContent = pct.toFixed(1);
     barFill.style.width = (r.progress * 100) + '%';
     barEl.setAttribute('aria-valuenow', String(Math.round(r.progress * 100)));
@@ -2380,6 +2458,26 @@
       tone(now + 0.02, SCALE[base + 2], 0.16, 0.3);
       tone(now + 0.04, SCALE[base + 4], 0.14, 0.36);
     }
+
+    // 콤보 이어갈 때 추가되는 실시간 음향 레이어
+    var combo = currentCombo;
+    if (combo >= 10) {
+      // Layer 1: 장3도 화음 하모니 듀엣
+      var harmFreq = SCALE[(comboIdx + 2) % SCALE.length];
+      tone(now + 0.01, harmFreq, 0.12, 0.16);
+    }
+    if (combo >= 25) {
+      // Layer 2: 808 서브 베이스 펄스
+      soundLayerSubKick(now);
+    }
+    if (combo >= 50) {
+      // Layer 3: 고음 신스 차임 (Shimmer)
+      soundLayerShimmer(now, comboIdx);
+    }
+    if (combo >= 100) {
+      // Layer 4: 하이퍼 오버드라이브 파워 옥타브 배음
+      soundLayerSaw(now, SCALE[comboIdx]);
+    }
   }
 
   /* 콤보 특수 사운드 합성 함수군 */
@@ -2467,6 +2565,64 @@
     g.connect(ctx.destination);
     osc.start(base);
     osc.stop(base + 0.48);
+    track(osc);
+  }
+
+  // 5. 콤보 실시간 레이어 사운드 함수군
+  function soundLayerSubKick(now) {
+    if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(85, base);
+    osc.frequency.exponentialRampToValueAtTime(36, base + 0.1);
+    g.gain.setValueAtTime(0.24, base);
+    g.gain.exponentialRampToValueAtTime(0.0001, base + 0.12);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(base);
+    osc.stop(base + 0.14);
+    track(osc);
+  }
+
+  function soundLayerShimmer(now, idx) {
+    if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
+    var freq = (SCALE[idx] || 440) * 2;
+    if (freq > 2600) freq = freq * 0.5;
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, base + 0.015);
+    g.gain.setValueAtTime(0.0001, base);
+    g.gain.exponentialRampToValueAtTime(0.12, base + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, base + 0.2);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(base + 0.015);
+    osc.stop(base + 0.22);
+    track(osc);
+  }
+
+  function soundLayerSaw(now, baseFreq) {
+    if (muted || !ctx) return;
+    var base = Math.max(ctx.currentTime, now || 0);
+    var osc = ctx.createOscillator();
+    var g = ctx.createGain();
+    var bp = ctx.createBiquadFilter();
+    bp.type = 'lowpass';
+    bp.frequency.value = 1800;
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(baseFreq || 523.25, base);
+    g.gain.setValueAtTime(0.0001, base);
+    g.gain.exponentialRampToValueAtTime(0.1, base + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, base + 0.22);
+    osc.connect(bp);
+    bp.connect(g);
+    g.connect(ctx.destination);
+    osc.start(base);
+    osc.stop(base + 0.25);
     track(osc);
   }
 
@@ -2703,15 +2859,42 @@
     }
   }
 
+  /* UI 요소 흔들림 유틸리티 */
+  function applyShake(el, className, duration) {
+    if (reduced || !el) return;
+    el.classList.remove('shake-t1', 'shake-t2', 'shake-t3', 'shake-t4', 'shake');
+    void el.offsetWidth; // 리플로우 강제하여 애니메이션 재시작
+    el.classList.add(className);
+    clearTimeout(el.__shakeTimer);
+    el.__shakeTimer = setTimeout(function () {
+      el.classList.remove(className);
+    }, duration);
+  }
+
+  /* 단계별 UI 흔들림 전파 */
+  function triggerTieredShake(combo) {
+    if (reduced) return;
+    if (combo >= 100) {
+      applyShake(wrapEl || stage, 'shake-t4', 220);
+      applyShake(stage, 'shake-t3', 180);
+      applyShake(resultEl, 'shake-t3', 180);
+    } else if (combo >= 50) {
+      applyShake(resultEl, 'shake-t3', 180);
+      applyShake(stage, 'shake-t3', 180);
+      applyShake(walletEl, 'shake-t2', 150);
+    } else if (combo >= 25) {
+      applyShake(stage, 'shake-t2', 150);
+      applyShake(walletEl, 'shake-t2', 150);
+      applyShake(enterRowEl, 'shake-t1', 120);
+    } else if (combo >= 10) {
+      applyShake(stage, 'shake-t1', 120);
+    }
+  }
+
   /* 화면 흔들림 함수 */
   function triggerScreenShake() {
     if (reduced) return;
-    stage.classList.remove('shake');
-    void stage.offsetWidth; // 리플로우 강제하여 애니메이션 재시작
-    stage.classList.add('shake');
-    setTimeout(function () {
-      stage.classList.remove('shake');
-    }, 160);
+    applyShake(stage, 'shake', 160);
   }
 
   /* 화면 플래시 함수 */
@@ -2725,6 +2908,44 @@
     }, 100);
   }
 
+  /* 복무 진행상황 게이지 서지 & 원복 */
+  function updateProgressSurge(c) {
+    if (!barFill || !pctNum) return;
+    if (c < 3) {
+      resetProgressSurge();
+      return;
+    }
+    var base = currentBasePct || 0;
+    var ratio = Math.min(1, c / 80);
+    var surgePct = base + (100 - base) * ratio;
+    if (base === 0) surgePct = Math.min(100, c * 1.25);
+    surgePct = Math.min(100, Math.round(surgePct * 10) / 10);
+
+    barFill.classList.add('combo-surge');
+    barFill.classList.remove('surge-tier-10', 'surge-tier-25', 'surge-tier-50', 'surge-tier-100');
+
+    if (c >= 100) {
+      barFill.classList.add('surge-tier-100');
+    } else if (c >= 50) {
+      barFill.classList.add('surge-tier-50');
+    } else if (c >= 25) {
+      barFill.classList.add('surge-tier-25');
+    } else if (c >= 10) {
+      barFill.classList.add('surge-tier-10');
+    }
+
+    barFill.style.width = surgePct + '%';
+    pctNum.textContent = surgePct.toFixed(1);
+    if (pctBoxEl) pctBoxEl.classList.add('surge');
+  }
+
+  function resetProgressSurge() {
+    if (!barFill || !pctNum) return;
+    barFill.classList.remove('combo-surge', 'surge-tier-10', 'surge-tier-25', 'surge-tier-50', 'surge-tier-100');
+    if (pctBoxEl) pctBoxEl.classList.remove('surge');
+    render();
+  }
+
   /* 콤보 뱃지 및 단계별 연출 메인 함수 */
   function updateComboState(c) {
     if (!comboBadge || !comboNum) return;
@@ -2732,10 +2953,12 @@
     if (c < 3) {
       comboBadge.className = 'combo-badge';
       plate.classList.remove('singularity');
+      resetProgressSurge();
       return;
     }
 
     comboNum.textContent = String(c);
+    updateProgressSurge(c);
 
     // 단계별 스타일 적용
     if (c >= 100) {
@@ -2759,6 +2982,7 @@
     comboFadeTimer = setTimeout(function () {
       if (comboBadge) comboBadge.className = 'combo-badge';
       if (plate) plate.classList.remove('singularity');
+      resetProgressSurge();
     }, COMBO_RESET_MS + 250);
   }
   function showCombo(c) { updateComboState(c); }
@@ -2842,6 +3066,7 @@
     lastClickTime = now;
     var combo = currentCombo;
     updateComboState(combo);
+    triggerTieredShake(combo);
 
     // Web Audio 초기화 및 사운드 시각 산출
     unlockAudio();

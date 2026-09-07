@@ -605,6 +605,35 @@ test('index.html contains Mobile Safari audio and haptic support', () => {
   assert.match(html, /addEventListener\(['"]visibilitychange['"]/);
 });
 
+test('index.html contains tiered UI shake, progress bar surge, and layered audio implementation', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+
+  // Tiered Shake keyframes and functions
+  assert.match(html, /\.shake-t1\s*\{/);
+  assert.match(html, /\.shake-t2\s*\{/);
+  assert.match(html, /\.shake-t3\s*\{/);
+  assert.match(html, /\.shake-t4\s*\{/);
+  assert.match(html, /function applyShake\s*\(/);
+  assert.match(html, /function triggerTieredShake\s*\(combo\)/);
+  assert.match(html, /triggerTieredShake\s*\(\s*combo\s*\)/);
+
+  // Progress bar surge and reset
+  assert.match(html, /\.bar-fill\.combo-surge/);
+  assert.match(html, /\.surge-tier-10/);
+  assert.match(html, /\.surge-tier-100/);
+  assert.match(html, /function updateProgressSurge\s*\(c\)/);
+  assert.match(html, /function resetProgressSurge\s*\(\)/);
+
+  // Layered audio synthesizers
+  assert.match(html, /function soundLayerSubKick\s*\(now\)/);
+  assert.match(html, /function soundLayerShimmer\s*\(now,\s*idx\)/);
+  assert.match(html, /function soundLayerSaw\s*\(now,\s*baseFreq\)/);
+  assert.match(html, /soundLayerSubKick\s*\(\s*now\s*\)/);
+  assert.match(html, /soundLayerShimmer\s*\(\s*now/);
+  assert.match(html, /soundLayerSaw\s*\(\s*now/);
+});
+
+
 
 
 
