@@ -52,6 +52,7 @@ test('index.html contains PostHog snippet and safe __analytics wrapper', () => {
   assert.match(html, /sessionClicks:\s*0/);
   assert.match(html, /maxCombo:\s*0/);
   assert.match(html, /firstClickFired:\s*false/);
+  assert.match(html, /isLocalhost/);
 });
 
 test('safe __analytics handles missing posthog and runtime errors gracefully', () => {
