@@ -260,6 +260,7 @@
       unit.innerHTML = '<span class="crew-view__avatar" aria-hidden="true">' + characterSvg(meta, direction) + '</span>' +
         '<span class="crew-view__label"><b>' + escapeHtml(name) + '</b><small>' + escapeHtml(meta.rank) + '</small></span>' +
         '<span class="crew-view__details" role="status">' +
+          '<span class="crew-view__close" role="button" tabindex="0" aria-label="닫기">&times;</span>' +
           '<strong>' + escapeHtml(meta.displayName) + '</strong>' +
           '<span>' + formatNumber(days) + '일/회 · ' + escapeHtml(intervalText(interval)) + '</span>' +
           '<em>' + escapeHtml(meta.quote) + '</em>' +
@@ -267,6 +268,17 @@
         '<span class="crew-view__gain" aria-hidden="true"></span>';
       unit.addEventListener('click', function (event) {
         showDetails(unit, item, meta);
+      });
+      var closeBtn = unit.querySelector('.crew-view__close');
+      function collapse(event) {
+        event.stopPropagation();
+        event.preventDefault();
+        unit.classList.remove('is-selected');
+        unit.setAttribute('aria-expanded', 'false');
+      }
+      closeBtn.addEventListener('click', collapse);
+      closeBtn.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') collapse(event);
       });
       return unit;
     }
