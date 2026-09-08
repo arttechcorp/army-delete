@@ -705,12 +705,12 @@ test('buildUtmContent zero-pads post numbers at the 1/9/10/100 boundaries', () =
 
 test('buildUtmUrl assembles a URL for a fixed channel with correct query order', () => {
   const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1 });
-  assert.equal(url, 'https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=army_post01&utm_campaign=launch_202609');
+  assert.equal(url, `https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=army_post01&utm_campaign=${UTM_CAMPAIGN}`);
 });
 
 test('buildUtmUrl assembles a URL for a code-required channel', () => {
   const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'everytime', code: 'Hongik Univ', postNumber: 2 });
-  assert.equal(url, 'https://example.com/?utm_source=everytime&utm_medium=community&utm_content=hongik_univ_post02&utm_campaign=launch_202609');
+  assert.equal(url, `https://example.com/?utm_source=everytime&utm_medium=community&utm_content=hongik_univ_post02&utm_campaign=${UTM_CAMPAIGN}`);
 });
 
 test('buildUtmUrl accepts a custom campaign override', () => {
@@ -725,7 +725,7 @@ test('buildUtmUrl defaults campaign to UTM_CAMPAIGN when omitted', () => {
 
 test('buildUtmUrl strips existing query string and hash from baseUrl', () => {
   const url = buildUtmUrl({ baseUrl: 'https://example.com/path?foo=bar#section', channelId: 'dcinside_army', postNumber: 1 });
-  assert.equal(url, 'https://example.com/path?utm_source=dcinside&utm_medium=community&utm_content=army_post01&utm_campaign=launch_202609');
+  assert.equal(url, `https://example.com/path?utm_source=dcinside&utm_medium=community&utm_content=army_post01&utm_campaign=${UTM_CAMPAIGN}`);
 });
 
 test('buildUtmUrl throws a Korean error for an unknown channelId', () => {
@@ -755,9 +755,9 @@ test('buildUtmUrl throws a Korean error for an invalid baseUrl', () => {
   }, /URL|주소/);
 });
 
-test('UTM_CHANNELS contains all six expected channels in order', () => {
+test('UTM_CHANNELS contains all seven expected channels in order', () => {
   const ids = UTM_CHANNELS.map(function (c) { return c.id; });
-  assert.deepEqual(ids, ['dcinside_army', 'dcinside_navy', 'dcinside_airforce', 'everytime', 'gundori', 'gomsin_cafe']);
+  assert.deepEqual(ids, ['dcinside_army', 'dcinside_navy', 'dcinside_airforce', 'everytime', 'gundori', 'gomsin_cafe', 'referral']);
 });
 
 test('assertPlainSlug rejects Korean and emoji, allows plain ASCII slug characters', () => {
@@ -786,7 +786,7 @@ test('buildUtmContent throws for non-ASCII codes instead of silently colliding',
 
 test('buildUtmUrl falls back to UTM_CAMPAIGN when campaign is whitespace only, not "+++"', () => {
   const url = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_army', postNumber: 1, campaign: '   ' });
-  assert.match(url, /utm_campaign=launch_202609$/);
+  assert.match(url, new RegExp('utm_campaign=' + UTM_CAMPAIGN + '$'));
   assert.doesNotMatch(url, /utm_campaign=\+/);
 });
 
@@ -822,16 +822,23 @@ test('buildUtmContent ignores a passed code for fixed channels', () => {
 
 test('buildUtmUrl assembles URLs for the remaining fixed and code-required channels', () => {
   const navyUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_navy', postNumber: 3 });
-  assert.equal(navyUrl, 'https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=navy_post03&utm_campaign=launch_202609');
+  assert.equal(navyUrl, `https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=navy_post03&utm_campaign=${UTM_CAMPAIGN}`);
 
   const airforceUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'dcinside_airforce', postNumber: 4 });
-  assert.equal(airforceUrl, 'https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=airforce_post04&utm_campaign=launch_202609');
+  assert.equal(airforceUrl, `https://example.com/?utm_source=dcinside&utm_medium=community&utm_content=airforce_post04&utm_campaign=${UTM_CAMPAIGN}`);
 
   const gundoriUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'gundori', code: 'Board-1', postNumber: 5 });
-  assert.equal(gundoriUrl, 'https://example.com/?utm_source=gundori&utm_medium=community&utm_content=board_1_post05&utm_campaign=launch_202609');
+  assert.equal(gundoriUrl, `https://example.com/?utm_source=gundori&utm_medium=community&utm_content=board_1_post05&utm_campaign=${UTM_CAMPAIGN}`);
 
   const gomsinUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'gomsin_cafe', code: 'CafeCode', postNumber: 6 });
-  assert.equal(gomsinUrl, 'https://example.com/?utm_source=gomsin_cafe&utm_medium=community&utm_content=cafecode_post06&utm_campaign=launch_202609');
+  assert.equal(gomsinUrl, `https://example.com/?utm_source=gomsin_cafe&utm_medium=community&utm_content=cafecode_post06&utm_campaign=${UTM_CAMPAIGN}`);
+
+  const referralUrl = buildUtmUrl({ baseUrl: 'https://example.com/', channelId: 'referral', postNumber: 1 });
+  assert.equal(referralUrl, `https://example.com/?utm_source=referral&utm_medium=referral&utm_content=friend_post01&utm_campaign=${UTM_CAMPAIGN}`);
+});
+
+test('UTM_CAMPAIGN follows the yyyymmwN weekly format', () => {
+  assert.match(UTM_CAMPAIGN, /^\d{6}w[1-5]$/);
 });
 
 // ---- scripts/share.js: classic script(ES5, global.__share) 이라 import 불가.

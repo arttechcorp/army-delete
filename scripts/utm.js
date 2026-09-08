@@ -1,4 +1,7 @@
-export const UTM_CAMPAIGN = 'launch_202609';
+// 주차별 캠페인: launch 시기가 끝나 이제 매주 새 캠페인 코드를 쓴다.
+// 월 1~7일이 1주차, 8~14일이 2주차 ... 식으로 날짜에서 그대로 계산한다.
+const now = new Date();
+export const UTM_CAMPAIGN = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0') + 'w' + Math.ceil(now.getDate() / 7);
 
 export const UTM_CHANNELS = [
   { id: 'dcinside_army', label: '디시 육군', source: 'dcinside', medium: 'community', contentBase: 'army', codeLabel: null },
@@ -6,7 +9,8 @@ export const UTM_CHANNELS = [
   { id: 'dcinside_airforce', label: '디시 공군', source: 'dcinside', medium: 'community', contentBase: 'airforce', codeLabel: null },
   { id: 'everytime', label: '에브리타임', source: 'everytime', medium: 'community', contentBase: null, codeLabel: '학교코드' },
   { id: 'gundori', label: '군돌이', source: 'gundori', medium: 'community', contentBase: null, codeLabel: '게시판코드' },
-  { id: 'gomsin_cafe', label: '곰신카페', source: 'gomsin_cafe', medium: 'community', contentBase: null, codeLabel: '카페코드' }
+  { id: 'gomsin_cafe', label: '곰신카페', source: 'gomsin_cafe', medium: 'community', contentBase: null, codeLabel: '카페코드' },
+  { id: 'referral', label: '지인', source: 'referral', medium: 'referral', contentBase: 'friend', codeLabel: null }
 ];
 
 export function findChannel(channelId) {
