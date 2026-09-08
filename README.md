@@ -25,12 +25,15 @@
 | `items.json` | 상점 아이템 정의 — 아이템을 늘릴 때 여기만 고치면 된다 |
 | `ads.txt` | AdSense 게시자 확인용. 도메인 루트에 그대로 서빙되어야 한다 |
 | `privacy.html` | 개인정보처리방침. AdSense 승인 필수 요건이다. **저장 키나 외부로 나가는 요청이 바뀌면 여기도 같이 고쳐야 한다** |
+| `admin.html` | 운영자용 UTM 링크 생성기. 비밀번호 게이트는 SHA-256 비교일 뿐인 눈속임 가림막이다 — 정적 사이트라 우회 가능하므로 **민감한 정보를 두면 안 된다.** `noindex` |
 | `supabase/board.sql` | 계정 저장 + 리더보드 스키마 — 테이블 · RLS · 함수 2개 |
 | `supabase/gift.sql` | 일수 선물하기 스키마 — `gifts` 테이블 · 함수 3개 |
 | `supabase/board_test.sql` | 위 SQL 자체 점검 (assert, 마지막에 rollback) |
 | `.github/workflows/keepalive.yml` | Supabase 무료 프로젝트 정지 방지용 주간 핑 |
 | `scripts/analytics-helper.js` | 분석 도우미 모듈 (마일스톤 판별 및 세션 페이로드 계산) |
+| `scripts/share.js` | 유입 출처(`sid`) 조립·파싱·판정. `index.html`이 classic 스크립트로 로드 |
 | `scripts/test-analytics.js` | 분석 이벤트 및 개인정보처리방침 검증 테스트 |
+| `scripts/utm.js` | 게시판 채널 표와 UTM URL 조립 — `admin.html`이 import |
 
 빌드 도구·의존성이 없습니다. 외부 요청은 Google Fonts, 광고 SDK, PostHog(분석), `items.json`,
 그리고 리더보드를 켰을 때의 Supabase 뿐입니다.
@@ -310,6 +313,14 @@ PostHog 프로젝트 생성 후 발급받은 Project API Key를 다음 두 가�
 | `leaderboard_opened` | 리더보드 모달 오픈 | `is_authenticated` |
 | `login_completed` | Google 계정 로그인 완료 | `has_branch` |
 | `branch_selected` | 군 소속 선택 (육군/해병/해군/공군) | `branch`, `contributed_days` |
+| `gift_opened` | 선물 보내기 모달 오픈 (로그인 상태) | `current_balance` |
+| `gift_created` | 선물 생성 완료 (서버가 토큰 발급) | `days`, `message_length`, `share_id`, `root_source` |
+| `gift_claimed` | 선물 수령 버튼 클릭 후 서버가 성공을 반환 | `days`, `share_id`(랜딩 시점 sid, 있을 때만), `root_source`(있을 때만) |
+| `gift_link_opened` | 선물 링크(`?gift=`)를 열어 수령 화면이 뜸 — 열고 받지 않은 이탈까지 잡는 게 목적 | (없음) |
+| `share_link_created` | 공유 링크 생성 — 공유 부스트 아이템 사용 또는 선물 링크 공유·복사 | `kind`(`boost` 또는 `gift`), `share_id`, `root_source`, `generation` |
+| `referral_landed` | 공유 링크(`?sid=`)로 랜딩 — `index.html` head 스크립트에서 `posthog.capture()`를 직접 호출한다 (`__analytics` 래퍼를 거치지 않음) | `share_id`, `root_source`, `root_content`, `generation` |
+
+모든 이벤트에는 `first_source`, `root_source`, `root_content`, `generation` 4개 속성이 브라우저별 최초 방문 시 한 번 `register_once`로 고정되어 **공통으로 부착됩니다.** 정의와 자세한 설계는 [`docs/attribution-measurement-design.md`](docs/attribution-measurement-design.md) 참고.
 
 ### 사용자 식별 (Identity & Person Properties)
 
@@ -318,16 +329,30 @@ PostHog 프로젝트 생성 후 발급받은 Project API Key를 다음 두 가�
 
 ### UTM 유입 경로 & 대시보드 / 코호트
 
-- **UTM 분석**: PostHog 기본 기능을 통해 유입 URL의 `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` 및 레퍼러가 자동 캡처됩니다.
-- **코호트 (Cohorts)**:
-  - 로그인 유저 vs 비로그인 플레이어
-  - 소속 군별 코호트 (육군, 해병, 해군, 공군)
-  - 하이 인게이지먼트 유저 (1000일 이상 삭제 또는 세션 내 100회 이상 클릭)
-  - 과금/보상형 광고 유저 (보상형 광고 1회 이상 완료)
-- **대시보드 권장 구성**:
-  - **Funnel 분석**: 메인 유입 → 첫 클릭(`first_delete_click`) → 상점 열람(`shop_opened`) → 보상형 광고(`reward_ad_completed`) 또는 아이템 구매(`item_purchased`)
-  - **리텐션(Retention)**: UTM 캠페인별 재방문율 및 세션 참여 지속 시간(`session_duration_seconds`)
-  - **세션 리플레이(Session Replay)**: 인터랙션 지연 분석 및 UI 이상 현상 감지 (민감 정보는 자동 마스킹 처리됨)
+- **PostHog 자동 캡처의 범위와 한계**: PostHog는 유입 URL의 `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` 및 레퍼러를 **그 파라미터가 실려 있던 `$pageview` 이벤트에만** 자동으로 붙입니다. `first_delete_click`, `click_milestone_reached`, `session_engagement` 같은 행동 이벤트에는 유입 출처가 실리지 않아, 이 자동 캡처만으로는 게시판별 전환율을 비교할 수 없습니다.
+- **공통 부착 속성**: 이를 메우기 위해 브라우저별 최초 방문 시 `first_source`, `root_source`, `root_content`, `generation` 4개 속성을 `register_once`로 고정해 **모든 이벤트에** 싣습니다. 공유로 들어온 사람은 `first_source = user_share`지만 `root_source`는 원조 게시판을 그대로 유지합니다 — 이 분리가 없으면 "이 게시판이 만든 확산"을 셀 수 없습니다. 자세한 정의는 [`docs/attribution-measurement-design.md`](docs/attribution-measurement-design.md) 참고.
+- **게시판 링크는 `admin.html` 생성기로만 만듭니다.** 손으로 적지 않습니다 — `utm_content` 오타 하나가 같은 게시판을 서로 다른 두 소스로 갈라놓습니다.
+- **공유 링크**는 `?sid=` 파라미터로 유입 사슬을 나릅니다. 예: `?sid=dcinside.army_post01.a3f9.1` (원조 소스.원조 콘텐츠.공유자 id.세대)
+- **대시보드 인사이트** (`군생활 삭제 — 코어 분석`, `npm run posthog:setup`으로 생성·갱신):
+
+  | 번호 | 이름 | 요약 |
+  | --- | --- | --- |
+  | ⑨ | 게시판별 신규 유입 | `generation = 0` 유입 수 — 모든 비율의 분모 |
+  | ⑩ | 게시판별 핵심 행동 퍼널 | 유입 대비 실제 행동 — 게시판 평가는 유입 수가 아니라 이걸로 |
+  | ⑪ | 확산 세대 분포 | `generation` 값 분포 — `1`이 없으면 공유가 작동하지 않는다는 뜻 |
+  | ⑫ | 공유 생성 vs 공유 유입 | 두 시계열을 나란히 (같은 사람이 아니라 퍼널 아님) |
+  | ⑬ | 선물 발송 퍼널 | 만들어놓고 안 보내는 이탈 |
+  | ⑭ | 선물 수령 퍼널 | 열어놓고 안 받는 이탈 |
+  | ⑮ | 게시판별 확산 계수 | HogQL, `direct / seeded` |
+
+  판단 기준과 측정되지 않는 값(엄밀한 K₇ 아님 등)은 [`docs/attribution-measurement-design.md`](docs/attribution-measurement-design.md) §5·§6 참고.
+
+- **코호트 (Cohorts)** — `scripts/posthog-setup.js` 가 실제로 만드는 5개:
+  - 헤비 유저 (Heavy Deletors) — 누적 삭제 1000일 이상
+  - 라이트 유저 (Casual Deletors) — 누적 삭제 10일 이상 1000일 미만
+  - 이탈·찍먹 유저 (Bouncers) — 누적 삭제 10일 미만
+  - 리더보드 등록 유저 (Leaderboard Active)
+  - 공유로 들어온 유저 (Referred Users) — `first_source = user_share`
 
 ### 검증 테스트
 
