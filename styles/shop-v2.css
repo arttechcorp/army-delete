@@ -1,0 +1,26 @@
+.growth-summary{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin:.5rem 0}
+.leave-total{font-size:.88rem;color:var(--ink);margin:.6rem 0}.leave-total b{font-family:var(--mono);color:var(--accent)}
+.crew-summary{position:relative;font-size:.7rem;color:var(--muted);text-align:center;margin:.35rem 0 0}
+.shop-context{padding:1rem 1.25rem .7rem;border-bottom:1px solid var(--line)}.shop-context strong{font-size:1rem}.shop-context p{font-size:.78rem;color:var(--muted);margin:.4rem 0 0;line-height:1.6}
+.shop-notice{margin:.6rem 1.25rem;padding:.65rem .8rem;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:.4rem;font-size:.78rem;line-height:1.6;background:var(--surface)}
+.item-effect{font-size:.76rem;line-height:1.6;color:var(--ink);margin:.35rem 0 0;font-weight:500}.item.gift-action{border-color:var(--accent)}
+.item-buy .buy-btn{min-height:44px;font-size:.75rem;padding:.55rem .7rem}.item-buy .item-price{font-size:.72rem}
+.legacy-items{margin:1rem;padding:1rem;border:1px solid var(--line);border-radius:.5rem;font-size:.8rem;line-height:1.7}.legacy-items summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.legacy-items p{color:var(--muted)}
+.shop-chips{flex-shrink:0}.shop-context,.shop-notice{flex-shrink:0}.shop-scroll{min-height:0}.foot-row{flex-wrap:wrap}
+@media(max-width:430px){.item{grid-template-columns:36px minmax(0,1fr)}.item .item-buy{grid-column:2;display:flex;justify-content:space-between;align-items:center;gap:.5rem}.item-buy .item-price{white-space:nowrap}.shop-context{padding:.8rem 1rem}.growth-summary{gap:.5rem;font-size:.75rem}}
+@media(prefers-reduced-motion:reduce){.item{transition:none}}
+@media(pointer:coarse){.shop-search,.gift-input,.gift-message{font-size:16px}}
+.motion-reduced .ripple,.motion-reduced .particle,.motion-reduced .screen-flash{display:none!important}.motion-reduced .shake{animation:none!important}
+
+.mult-badge[hidden] { display: none; }
+
+.purchase-feedback::before { display:inline-block; margin-right:.5em; font-size:1.15em; }
+.purchase-feedback[data-feedback="food"]::before { content:"🍫"; animation:supply-in 400ms ease-out; }
+.purchase-feedback[data-feedback="exercise"]::before { content:"💪"; animation:training-up 400ms ease-out; }
+.purchase-feedback[data-feedback="leave"]::before { content:"지급"; padding:.1em .3em; color:var(--accent); border:2px solid currentColor; animation:leave-stamp 400ms ease-out; }
+.purchase-feedback[data-feedback="recruit"]::before { content:"🪖"; animation:supply-in 400ms ease-out; }
+@keyframes supply-in { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+@keyframes training-up { 50% { transform:translateY(-5px) rotate(-12deg); } }
+@keyframes leave-stamp { from { opacity:0; transform:scale(1.6) rotate(-12deg); } to { opacity:1; transform:scale(1) rotate(0); } }
+.motion-reduced .purchase-feedback::before { animation:none; }
+@media(prefers-reduced-motion:reduce) { .purchase-feedback::before { animation:none; } }

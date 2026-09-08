@@ -21,10 +21,18 @@ declare
   base_users int;
   base_navy  bigint;
   rec public.user_records%rowtype;
+  leave_rec public.leave_purchases%rowtype;
+  leave_op uuid;
+  legacy_op uuid;
+  leave_rows int;
+  too_many_ops jsonb;
 begin
   -- 스키마가 뒤처져 있으면 한참 뒤에 42883 으로 죽는다. 먼저 확인하고 말해준다.
   if to_regprocedure('public.sync_my_record(text, bigint, bigint, text[], bigint, bigint)') is null then
     raise exception 'board.sql 을 먼저 (다시) 적용하세요 — 6인자 sync_my_record 가 없습니다.';
+  end if;
+  if to_regprocedure('public.sync_leave_purchases(jsonb)') is null then
+    raise exception 'board.sql 을 먼저 (다시) 적용하세요 — 휴가 영수증 RPC가 없습니다.';
   end if;
 
   -- 0. 실재하는 계정 셋을 고른다. 외래키 때문에 임의 uuid 는 못 쓴다.
@@ -209,6 +217,97 @@ begin
   lb := public.leaderboard();
   assert (lb -> 'branches' -> 'army' ->> 'total_days')::bigint >= 0,
     '군별 합계는 음수가 되지 않아야 한다';
+
+  -- 16. 휴가 영수증은 product/version만 받고 서버 가격표로 확정한다.
+  leave_op := overlay(overlay(test_uid::text placing '6' from 15 for 1) placing '8' from 20 for 1)::uuid;
+  select count(*) into leave_rows from public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+    'operation_id', leave_op, 'product_id', 'leave-annual', 'catalog_version', 1
+  )));
+  assert leave_rows = 1, '새 휴가 영수증은 한 건을 반환해야 한다';
+  select * into leave_rec from public.leave_purchases where operation_id = leave_op;
+  assert leave_rec.user_id = test_uid and leave_rec.cost = 1000 and leave_rec.leave_kind = 'annual' and leave_rec.leave_days = 1,
+    '서버 가격표가 연가 영수증의 비용과 지급량을 정해야 한다';
+
+  -- 응답이 유실되어 같은 operation을 재전송해도 한 장만 남는다.
+  perform public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+    'operation_id', leave_op, 'product_id', 'leave-annual', 'catalog_version', 1
+  )));
+  assert (select count(*) from public.leave_purchases where operation_id = leave_op) = 1,
+    '같은 operation 재시도는 중복 영수증을 만들면 안 된다';
+
+  -- operation ID를 다른 상품이나 숫자에 재사용하면 회계가 바뀌면 안 된다.
+  begin
+    perform public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+      'operation_id', leave_op, 'product_id', 'leave-reward', 'catalog_version', 1
+    )));
+    assert false, '같은 operation ID의 다른 상품은 거부되어야 한다';
+  exception when raise_exception then null;
+  end;
+  begin
+    perform public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+      'operation_id', overlay(overlay(test_uid::text placing '7' from 15 for 1) placing '8' from 20 for 1)::uuid,
+      'product_id', 'leave-annual', 'catalog_version', 1, 'cost', 1
+    )));
+    assert false, '클라이언트 가격 필드는 거부되어야 한다';
+  exception when raise_exception then null;
+  end;
+
+  -- 구 위로휴가는 long-leave 보유자가 자기 결정 UUID로 요청할 때만 정확히 7일이다.
+  legacy_op := overlay(overlay(test_uid::text placing '5' from 15 for 1) placing '8' from 20 for 1)::uuid;
+  begin
+    perform public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+      'operation_id', legacy_op, 'product_id', 'legacy-long-leave', 'catalog_version', 1
+    )));
+    assert false, '구 위로휴가 보유 기록 없이는 이관되면 안 된다';
+  exception when raise_exception then null;
+  end;
+  update public.user_records set owned = array_append(owned, 'long-leave') where user_id = test_uid;
+  perform public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+    'operation_id', legacy_op, 'product_id', 'legacy-long-leave', 'catalog_version', 1
+  )));
+  select * into leave_rec from public.leave_purchases where operation_id = legacy_op;
+  assert leave_rec.cost = 0 and leave_rec.leave_kind = 'comfort' and leave_rec.leave_days = 7 and leave_rec.source = 'legacy_migration',
+    '구 위로휴가는 0 비용 comfort 7일 한 건으로만 이관되어야 한다';
+
+  -- 다른 계정은 전역 operation ID를 자기 것으로 재사용할 수 없다.
+  perform set_config('request.jwt.claims', json_build_object('sub', other_uid::text)::text, true);
+  begin
+    perform public.sync_leave_purchases(jsonb_build_array(jsonb_build_object(
+      'operation_id', leave_op, 'product_id', 'leave-annual', 'catalog_version', 1
+    )));
+    assert false, '다른 계정의 operation ID는 거부되어야 한다';
+  exception when raise_exception then null;
+  end;
+  perform set_config('request.jwt.claims', json_build_object('sub', test_uid::text)::text, true);
+
+  -- 직접 DML은 막고, 로그인 본인 조회/커서 페이지와 RPC만 남긴다.
+  assert not has_table_privilege('authenticated', 'public.leave_purchases', 'INSERT') and
+         not has_table_privilege('authenticated', 'public.leave_purchases', 'UPDATE') and
+         not has_table_privilege('authenticated', 'public.leave_purchases', 'DELETE'),
+    'authenticated 에게 휴가 영수증 직접 DML 권한이 없어야 한다';
+  assert has_table_privilege('authenticated', 'public.leave_purchases', 'SELECT'),
+    '로그인한 사용자는 자기 휴가 영수증을 읽을 수 있어야 한다';
+  assert has_function_privilege('authenticated', 'public.sync_leave_purchases(jsonb)', 'EXECUTE') and
+         not has_function_privilege('anon', 'public.sync_leave_purchases(jsonb)', 'EXECUTE'),
+    '휴가 동기화 RPC는 authenticated 에게만 열려야 한다';
+  assert (select count(*) from public.my_leave_purchases(null, null, 1)) = 1,
+    '커서 페이지는 요청한 크기만큼 본인 영수증을 반환해야 한다';
+
+  begin
+    perform public.sync_leave_purchases(null);
+    assert false, 'null 휴가 operation 목록은 거부되어야 한다';
+  exception when raise_exception then null;
+  end;
+
+  select jsonb_agg(jsonb_build_object(
+    'operation_id', ('00000000-0000-4000-8000-' || lpad(g::text, 12, '0'))::uuid,
+    'product_id', 'leave-annual', 'catalog_version', 1
+  )) into too_many_ops from generate_series(1, 101) g;
+  begin
+    perform public.sync_leave_purchases(too_many_ops);
+    assert false, '휴가 operation 101건은 거부되어야 한다';
+  exception when raise_exception then null;
+  end;
 end $$;
 
 rollback;

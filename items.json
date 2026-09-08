@@ -1,119 +1,56 @@
 {
-  "version": 1,
+  "version": 2,
   "currency": "일",
-
-  "//reward": "보상형 광고 1회 시청 보상. days 는 고정액이라 배수 아이템의 영향을 받지 않는다.",
   "reward": { "days": 100, "cooldownSec": 300 },
-
   "items": [
-    {
-      "id": "long-leave",
-      "name": "위로휴가 일주일",
-      "price": 1000,
-      "icon": "✈️",
-      "category": "휴가",
-      "description": "달력에 동그라미를 치게 된다."
-    },
-    {
-      "id": "early-discharge",
-      "name": "조기 전역",
-      "price": 9999,
-      "icon": "🕊️",
-      "category": "전설",
-      "description": "존재한다는 소문만 무성하다."
-    },
+    { "id": "rank-pvt", "name": "신병 이병", "price": 200, "icon": "🌱", "category": "생활관", "description": "이거 누르면 됩니까?", "effect": { "type": "auto", "intervalMs": 13333 } },
+    { "id": "rank-pfc", "name": "일잘알 일병", "price": 500, "icon": "🔧", "category": "생활관", "description": "이거 끝나고 피엑스 가실 분?", "effect": { "type": "auto", "intervalMs": 6667 } },
+    { "id": "rank-cpl", "name": "체단실 상병", "price": 800, "icon": "🛠️", "category": "생활관", "description": "이것도 전완근 먹네.", "effect": { "type": "auto", "intervalMs": 4445 } },
+    { "id": "rank-squad", "name": "분대장 상병", "price": 1200, "icon": "📓", "category": "생활관", "description": "다 왔지? 누르고 쉬자.", "effect": { "type": "auto", "intervalMs": 3333 } },
+    { "id": "rank-sgt", "name": "누워 있는 병장", "price": 1800, "icon": "😎", "category": "생활관", "description": "어, 눌렀어.", "effect": { "type": "auto", "intervalMs": 2222 } },
+    { "id": "rank-shorttimer", "name": "말출 앞둔 병장", "price": 3000, "icon": "📅", "category": "생활관", "description": "나 말출 전까지만 한다.", "effect": { "type": "auto", "intervalMs": 1111 } },
 
-    {
-      "id": "share-link",
-      "name": "소문내기",
-      "price": 0,
-      "icon": "🔗",
-      "category": "공유",
-      "description": "링크를 퍼뜨리면 30분간 3배로 눌린다.",
-      "effect": { "type": "share", "value": 3, "durationMs": 1800000 }
-    },
+    { "id": "exercise-pushup", "name": "팔굽혀펴기부터", "price": 150, "icon": "💪", "category": "체단실", "description": "정자세로 열 개만. 일단 열 개만.", "effect": { "type": "manual_add", "value": 1 } },
+    { "id": "exercise-dumbbell", "name": "덤벨 한 세트", "price": 500, "icon": "🏋️", "category": "체단실", "description": "이거 쓰십니까? 안 쓰시면 제가 좀.", "effect": { "type": "manual_add", "value": 2 } },
+    { "id": "exercise-bench", "name": "벤치 보조 좀", "price": 1500, "icon": "🛋️", "category": "체단실", "description": "안 들었어. 너 혼자 든 거야.", "effect": { "type": "manual_add", "value": 4 } },
+    { "id": "exercise-leg", "name": "오늘 하체하는 날", "price": 4000, "icon": "🦵", "category": "체단실", "description": "내일 계단은 내일 생각하자.", "effect": { "type": "manual_add", "value": 8 } },
 
-    {
-      "id": "work-detail",
-      "name": "작업 나가기",
-      "price": 500,
-      "icon": "⛏️",
-      "category": "배수",
-      "description": "일을 하다보니 시간이 빨리간다….",
-      "effect": { "type": "multiplier", "value": 2 }
-    },
-    {
-      "id": "genie-tv",
-      "name": "지니티비",
-      "price": 1000,
-      "icon": "📺",
-      "category": "배수",
-      "description": "티비와 함께하니 군생활이 녹는다!",
-      "effect": { "type": "multiplier", "value": 3 }
-    },
+    { "id": "food-choco", "name": "초코파이 한 상자", "price": 50, "icon": "🥧", "category": "P.X", "description": "하나씩 가져가. 내 것도 남겨 놓고.", "effect": { "type": "crew_power", "value": 1 } },
+    { "id": "food-pizza", "name": "냉동 피자", "price": 300, "icon": "🍕", "category": "P.X", "description": "전자레인지 누가 쓰냐. 나 다음.", "effect": { "type": "crew_speed", "value": 10 } },
+    { "id": "food-chicken", "name": "냉동 치킨", "price": 800, "icon": "🍗", "category": "P.X", "description": "가운데 아직 차갑다. 좀 더 돌려.", "effect": { "type": "crew_power", "value": 2 } },
+    { "id": "food-noodles", "name": "공화춘 + 간짬뽕", "price": 1500, "icon": "🍜", "category": "P.X", "description": "물 다 버리지 마. 섞어야 돼.", "effect": { "type": "crew_speed", "value": 20 } },
+    { "id": "food-feast", "name": "냉동 풀코스", "price": 3000, "icon": "🍱", "category": "P.X", "description": "오늘 월급 들어왔다. 먹고 싶은 거 골라.", "effect": { "type": "crew_power", "value": 4 } },
 
-    {
-      "id": "rank-pvt",
-      "name": "이병",
-      "price": 200,
-      "icon": "🌱",
-      "category": "자동",
-      "description": "짬으로 첫 후임을 샀다! 어… 근데 상태가..?(약 13.3초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 13333 }
-    },
-    {
-      "id": "rank-pfc",
-      "name": "일병",
-      "price": 500,
-      "icon": "🔧",
-      "category": "자동",
-      "description": "나도 드디어 상병! 어이. 일병. 일해라.(약 6.7초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 6667 }
-    },
-    {
-      "id": "rank-cpl",
-      "name": "상병",
-      "price": 800,
-      "icon": "🛠️",
-      "category": "자동",
-      "description": "나도 드디어 병장….? 상병아 일해라!(약 4.4초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 4445 }
-    },
-    {
-      "id": "rank-sgt",
-      "name": "병장",
-      "price": 1000,
-      "icon": "😎",
-      "category": "자동",
-      "description": "어 그래 알아 잘하고, 난 쇼미나 볼게(약 2.2초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 2222 }
-    },
-    {
-      "id": "rank-ssgt",
-      "name": "하사",
-      "price": 1500,
-      "icon": "😰",
-      "category": "자동",
-      "description": "나….분명 전역했어야 했는데…..?(약 1.1초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 1111 }
-    },
-    {
-      "id": "rank-sfc",
-      "name": "중사",
-      "price": 2500,
-      "icon": "🪖",
-      "category": "자동",
-      "description": "삽 좀 가져와봐(약 0.22초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 222 }
-    },
-    {
-      "id": "rank-msg",
-      "name": "상사",
-      "price": 3500,
-      "icon": "🎗️",
-      "category": "자동",
-      "description": "장기는 에바야(약 0.11초 단위로 버튼을 눌러줍니다.)",
-      "effect": { "type": "auto", "intervalMs": 111 }
-    }
+    { "id": "leave-annual", "name": "연가 1일", "price": 1000, "icon": "📄", "category": "행정반", "description": "하루만 붙이면 주말까지 나갑니다.", "effect": { "type": "leave", "kind": "annual", "days": 1 } },
+    { "id": "leave-reward", "name": "포상휴가 3일", "price": 2800, "icon": "🏅", "category": "행정반", "description": "이거 휴가 나오는 거 맞죠?", "effect": { "type": "leave", "kind": "reward", "days": 3 } },
+    { "id": "leave-comfort", "name": "위로휴가 5일", "price": 4500, "icon": "✈️", "category": "행정반", "description": "고생했다는 말보다 이게 좋습니다.", "effect": { "type": "leave", "kind": "comfort", "days": 5 } },
+
+    { "id": "gift-days", "name": "일수 선물하기", "price": 0, "icon": "🎁", "category": "위병소", "description": "너도 며칠 가져가. 같이 전역하자.", "action": "gift" },
+    { "id": "share-link", "name": "소문내기", "price": 0, "icon": "🔗", "category": "위병소", "description": "야, 이거 누르고 있으면 시간은 간다.", "effect": { "type": "share", "value": 3, "durationMs": 1800000 } },
+    { "id": "boot-buddy", "name": "훈련소 동기", "price": 200, "icon": "🤝", "category": "위병소", "description": "야, 너 자대 어디 갔냐?" },
+    { "id": "visitation", "name": "면회", "price": 400, "icon": "👨‍👩‍👦", "category": "위병소", "description": "올 때 햄버거 좀. 아니, 두 개." },
+    { "id": "overnight-pass", "name": "외박증", "price": 900, "icon": "🎟️", "category": "위병소", "description": "밖에 나왔는데 왜 여섯 시에 깨냐." }
+  ],
+  "legacyItems": [
+    { "id": "blanket-fold", "name": "모포 각 잡기", "price": 150, "icon": "🛏️", "category": "생활관", "description": "각이 안 서면 밤도 안 간다." },
+    { "id": "rank-ssgt", "name": "하사", "price": 1500, "icon": "😰", "category": "생활관", "description": "나….분명 전역했어야 했는데…..?", "effect": { "type": "auto", "intervalMs": 1111 } },
+    { "id": "rank-sfc", "name": "중사", "price": 2500, "icon": "🪖", "category": "생활관", "description": "삽 좀 가져와봐", "effect": { "type": "auto", "intervalMs": 222 } },
+    { "id": "rank-msg", "name": "상사", "price": 3500, "icon": "🎗️", "category": "생활관", "description": "장기는 에바야", "effect": { "type": "auto", "intervalMs": 111 } },
+    { "id": "seniority", "name": "짬", "price": 2000, "icon": "🍚", "category": "생활관", "description": "계급장보다 무섭다.", "effect": { "type": "senior", "value": 5 } },
+    { "id": "work-detail", "name": "작업 나가기", "price": 500, "icon": "⛏️", "category": "연병장", "description": "일을 하다보니 시간이 빨리간다….", "effect": { "type": "multiplier", "value": 2 } },
+    { "id": "snow-detail", "name": "제설작전", "price": 1200, "icon": "❄️", "category": "연병장", "description": "눈은 하늘에서 내려오는 작업 지시다.", "effect": { "type": "auto", "intervalMs": 3000 } },
+    { "id": "mowing", "name": "예초 작업", "price": 2000, "icon": "🌿", "category": "연병장", "description": "풀은 자란다. 나만 안 자란다.", "effect": { "type": "auto", "intervalMs": 1500 } },
+    { "id": "full-march", "name": "완전군장 구보", "price": 4000, "icon": "🎒", "category": "연병장", "description": "군장 무게만큼 시간이 빨리 간다.", "effect": { "type": "auto", "intervalMs": 800 } },
+    { "id": "choco-pie", "name": "초코파이", "price": 50, "icon": "🥧", "category": "P.X", "description": "종교는 초코파이 개수로 정했다." },
+    { "id": "genie-tv", "name": "지니티비", "price": 1000, "icon": "📺", "category": "P.X", "description": "티비와 함께하니 군생활이 녹는다!", "effect": { "type": "multiplier", "value": 4 } },
+    { "id": "frozen-pizza", "name": "냉동 피자", "price": 2500, "icon": "🍕", "category": "P.X", "description": "전자레인지 앞에 줄 서는 것도 대기시간이다.", "effect": { "type": "multiplier", "value": 5 } },
+    { "id": "matdasi", "name": "맛다시 계란", "price": 4500, "icon": "🥚", "category": "P.X", "description": "맛다시 없으면 계란도 그냥 계란.", "effect": { "type": "multiplier", "value": 6 } },
+    { "id": "bacchus", "name": "박카스", "price": 8000, "icon": "🧃", "category": "P.X", "description": "몸은 그대로인데 기분만 낫는다.", "effect": { "type": "multiplier", "value": 8 } },
+    { "id": "leave-roll", "name": "포상휴가 룰렛", "price": 800, "icon": "🎰", "category": "행정반", "description": "누가 받는지는 아무도 모른다.", "effect": { "type": "roll", "table": [0, 100, 300, 600, 2000] } },
+    { "id": "long-leave", "name": "위로휴가 일주일", "price": 1000, "icon": "✈️", "category": "행정반", "description": "달력에 동그라미를 치게 된다." },
+    { "id": "promotion-order", "name": "병장 진급 명령지", "price": 1500, "icon": "📜", "category": "행정반", "description": "종이 한 장에 사람이 달라진다." },
+    { "id": "mnd-clock", "name": "국방부 시계", "price": 3000, "icon": "⏰", "category": "행정반", "description": "국방부 시계는 꺼놔도 돈다.", "effect": { "type": "offline", "capMs": 28800000 } },
+    { "id": "early-discharge", "name": "조기 전역", "price": 9999, "icon": "🕊️", "category": "행정반", "description": "존재한다는 소문만 무성하다." },
+    { "id": "discharge-cert", "name": "전역증", "price": 20000, "icon": "🎫", "category": "행정반", "description": "지갑에 넣고 다니지만 아무도 안 보여달라고 한다." }
   ]
 }

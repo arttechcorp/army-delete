@@ -1832,6 +1832,8 @@
     *{animation-duration:.001ms !important;transition-duration:.001ms !important}
   }
 </style>
+<link rel="stylesheet" href="/styles/crew-view.css">
+<link rel="stylesheet" href="/styles/shop-v2.css">
 </head>
 <body>
 
@@ -1895,13 +1897,16 @@
       <span class="screw e"></span>
       <button id="deleteBtn" type="button" aria-label="군생활 삭제">삭제</button>
     </div>
-    <div class="crew" id="crew" aria-hidden="true"></div>
+    <div class="crew" id="crew" aria-label="함께 누르는 병사"></div>
     <p class="warn">누르지 마시오</p>
+    <p class="crew-summary" id="crewSummary"></p>
   </div>
 
   <div class="wallet" aria-label="삭제 일수 지갑">
     <div class="wallet-label">사용 가능한 삭제 일수</div>
     <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 보유</span><span class="mult-badge" id="multBadge" hidden></span></p>
+    <p class="growth-summary"><span id="manualStat">내 클릭 1일/회</span><span id="autoStat">병사 자동 0일/초</span></p>
+    <p class="leave-total">누적 휴가 <b id="leaveTotal">0</b>일</p>
     <p class="wallet-sub">누적 삭제 기록 <span id="totalNum">0</span>일 · 상점에서 사용해도 누적 기록은 보존됩니다</p>
   </div>
 
@@ -1915,12 +1920,9 @@
       <span>리더보드</span>
     </button>
   </div>
-  <button class="shop-enter" id="giftOpen" type="button">
-    <svg class="svg-ic" viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-    <span>일수 선물하기</span>
-  </button>
 
   <div class="foot-row">
+    <button class="icon-btn" id="motionBtn" type="button" aria-pressed="false">동작 줄이기</button>
     <button class="icon-btn" id="themeBtn" type="button" aria-label="화면 모드 전환">
       <svg class="svg-ic" id="themeSvg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
       <span id="themeLabel">라이트 모드</span>
@@ -1933,8 +1935,8 @@
 
   <footer>
     실제 복무 기간은 변하지 않습니다.<br>
-    입력한 날짜와 누른 횟수는 이 브라우저에만 저장됩니다.<br>
-    리더보드에는 소속과 삭제한 일수만 전송됩니다.<br>
+    입력한 날짜는 이 브라우저에 저장됩니다.<br>
+    로그인하면 삭제 기록·보유품·휴가가 계정에 저장됩니다.<br>
     <a href="privacy.html">개인정보처리방침</a>
   </footer>
 </div>
@@ -1963,10 +1965,14 @@
     </div>
     <div class="shop-chips" id="shopChips" role="tablist" aria-label="아이템 분류">
       <button type="button" class="shop-chip active" data-cat="all" role="tab" aria-selected="true">전체</button>
-      <button type="button" class="shop-chip" data-cat="자동" role="tab" aria-selected="false">자동 대원</button>
-      <button type="button" class="shop-chip" data-cat="배수" role="tab" aria-selected="false">배수 아이템</button>
-      <button type="button" class="shop-chip" data-cat="특수" role="tab" aria-selected="false">특수/휴가</button>
+      <button type="button" class="shop-chip" data-cat="생활관" role="tab" aria-selected="false">생활관</button>
+      <button type="button" class="shop-chip" data-cat="체단실" role="tab" aria-selected="false">체단실</button>
+      <button type="button" class="shop-chip" data-cat="P.X" role="tab" aria-selected="false">P.X</button>
+      <button type="button" class="shop-chip" data-cat="행정반" role="tab" aria-selected="false">행정반</button>
+      <button type="button" class="shop-chip" data-cat="위병소" role="tab" aria-selected="false">위병소</button>
     </div>
+    <div class="shop-context" id="shopContext"></div>
+    <p class="shop-notice" id="shopNotice" role="status" hidden></p>
     <div class="shop-scroll">
       <div class="reward-row" id="rewardRow" hidden>
         <div class="reward-icon" aria-hidden="true"><svg class="svg-ic" style="width:22px;height:22px" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg></div>
@@ -2085,6 +2091,9 @@
 <input type="checkbox" switch id="hapticSwitch" class="haptic-switch" aria-hidden="true" tabindex="-1">
 <label for="hapticSwitch" id="hapticLabel" class="haptic-label" aria-hidden="true"></label>
 
+<script src="/scripts/shop-engine.js"></script>
+<script src="/scripts/leave-ledger.js"></script>
+<script src="/scripts/crew-view.js"></script>
 <script>
 (function () {
   'use strict';
@@ -2156,6 +2165,8 @@
     acct: 'ad.acct',          // 이 브라우저가 이미 합쳐 넣은 계정 id (아래 pullAccount)
     rewardAt: 'ad.rewardAt',  // 마지막 보상 수령 시각 (쿨다운 — 새로고침으로 우회 못 하게)
     boost: 'ad.boostUntil',   // 공유 배수가 끝나는 시각
+    seenAt: 'ad.seenAt',      // 마지막으로 페이지를 보고 있던 시각 (국방부 시계 정산 기준)
+    offline: 'ad.offlineV2', motion: 'ad.reducedMotion',
     legacy: 'ad.count',       // 지갑 도입 전 카운터 (마이그레이션용)
     sid: 'ad.sid',            // 이 브라우저의 공유자 id (scripts/share.js 발급)
     attr: 'ad.attr'           // 고정된 최초 유입(first-touch) 정보
@@ -2225,8 +2236,8 @@
       session_clicks: __analytics.session.sessionClicks,
       max_combo: __analytics.session.maxCombo,
       total_days_deleted: Math.max(0, total + gifted - gsent),
-      spent_days: spent,
-      balance: Math.max(0, total + gifted - spent),
+      spent_days: spent + leaveCost,
+      balance: Math.max(0, total + gifted - spent - leaveCost),
       session_duration_seconds: Math.max(0, Math.round((Date.now() - __analytics.session.startTime) / 1000))
     });
   }
@@ -2800,6 +2811,16 @@
   }
 
   // 지갑 도입 전에는 클릭 수가 ad.count 하나에만 있었다. 그 값을 누적으로 넘긴다.
+  var activeWalletOwner = load('ad.walletOwner') || load(LS.acct) || '';
+  store('ad.walletOwner', activeWalletOwner);
+  var walletChanged = false;
+  function walletMatches() {
+    if (walletChanged) return false;
+    if ((load('ad.walletOwner') || '') === activeWalletOwner) return true;
+    walletChanged = true; accountReady = false;
+    window.location.reload();
+    return false;
+  }
   var total = readInt(LS.total) || readInt(LS.legacy);
   var spent = readInt(LS.spent);
   var gifted = readInt(LS.gifted);
@@ -2812,11 +2833,18 @@
     return [];
   }
   var owned = readOwned();
+  var leaveLedger = null, leaveCost = 0;
+  var leaveTotals = { annual: 0, reward: 0, comfort: 0, total: 0 };
+  var ledgerError = '', accountReady = !supabaseClient, authResolved = !supabaseClient;
+  var spending = false;
+  try {
+    leaveLedger = LeaveLedger.create({ storage: window.localStorage, getBalance: balance });
+  } catch (e) { ledgerError = '휴가 기록을 읽을 수 없습니다. 저장 공간을 확인하고 새로고침해 주세요.'; }
 
   function loadOwned() { return owned; }
 
   // spent 는 상점 구매와 선물 발신을 함께 센다. 잔액은 그 둘을 다 빼야 한다.
-  function balance() { return Math.max(0, total + gifted - spent); }
+  function balance() { return Math.max(0, total + gifted - spent - leaveCost); }
 
   // 화면과 리더보드에 쓰는 "누적 삭제한 일수". 선물은 일수를 새로 만들지 않고
   // 사람 사이에서 옮기기만 한다 — 받은 쪽이 늘면 보낸 쪽이 그만큼 줄어야
@@ -2831,9 +2859,12 @@
     balanceNum.textContent = balance().toLocaleString('ko-KR');
     totalNum.textContent = netTotal().toLocaleString('ko-KR');
     shopBalance.textContent = balance().toLocaleString('ko-KR');
-    var m = multiplier();
-    multBadge.hidden = m <= 1;
-    multBadge.textContent = '×' + m;
+    var stats = currentStats();
+    multBadge.hidden = boostLeft() <= 0;
+    multBadge.textContent = '공유 ×3';
+    $('manualStat').textContent = '내 클릭 ' + stats.manualDays + '일/회';
+    $('autoStat').textContent = '병사 자동 ' + stats.autoPerSecond.toFixed(1) + '일/초';
+    $('leaveTotal').textContent = leaveTotals.total.toLocaleString('ko-KR');
   }
 
   // 한 번 누를 때 올라가는 일수. 자동 클릭에도 똑같이 적용된다.
@@ -2842,6 +2873,7 @@
   // 열어두면 각 탭이 제 값을 들고 있어서, 한쪽이 누르는 순간 다른 탭이 번
   // 일수가 통째로 사라진다. 늘릴 때는 항상 저장된 값을 다시 읽는다.
   function addDays(n) {
+    if (!walletMatches()) return;
     total = readInt(LS.total) + n;
     store(LS.total, String(total));
     renderWallet();
@@ -2850,6 +2882,7 @@
 
   // 선물 수령 전용. addDays 와 달리 누적 삭제 일수를 건드리지 않는다.
   function addGifted(n) {
+    if (!walletMatches()) return;
     gifted = readInt(LS.gifted) + n;
     store(LS.gifted, String(gifted));
     renderWallet();
@@ -2890,7 +2923,8 @@
     }, 800);
   }
 
-  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var motionQuery = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  var reduced = !!(motionQuery && motionQuery.matches) || load(LS.motion) === '1';
   var currentCombo = 0;
   var lastClickTime = 0;
   var comboFadeTimer = null;
@@ -3097,9 +3131,10 @@
   }
 
   var milestoneTimer = null;
-  function showMilestoneCelebration(m) {
+  // 토스트는 한 벌뿐이다. 마일스톤·국방부 시계·룰렛이 같은 자리를 돌려 쓴다.
+  function showToast(text) {
     if (!milestoneToast) return;
-    milestoneToast.textContent = '🎉 ' + m.toLocaleString('ko-KR') + '일 삭제 돌파! 군생활이 녹아내리는 중!';
+    milestoneToast.textContent = text;
     milestoneToast.classList.add('show');
     triggerHaptic([35, 60, 35]);
     clearTimeout(milestoneTimer);
@@ -3108,7 +3143,12 @@
     }, 3200);
   }
 
+  function showMilestoneCelebration(m) {
+    showToast('🎉 ' + m.toLocaleString('ko-KR') + '일 삭제 돌파! 군생활이 녹아내리는 중!');
+  }
+
   btn.addEventListener('click', function () {
+    if (!walletMatches()) return;
     if (!__analytics.session.firstClickFired) {
       __analytics.session.firstClickFired = true;
       var currentCalc = calcService(startEl.value, endEl.value, midnightToday());
@@ -3169,6 +3209,11 @@
   /* ══════════════════════════════════════════
      상점
      ══════════════════════════════════════════ */
+  var catalog = null;
+  var economy = null;
+  var crewView = null;
+  var autoSignature = '';
+  var adPaused = false;
   var items = null;          // null = 아직 안 불러옴
   var itemsError = '';
   var lastFocus = null;
@@ -3177,9 +3222,76 @@
      multiplier: 한 번 누를 때 올라가는 일수 배수. 겹치지 않고 가장 높은 것만 적용된다.
      auto:       제 주기마다 알아서 버튼을 눌러주는 대원. 산 만큼 늘어난다. */
 
+  function updateMotion() {
+    reduced = !!(motionQuery && motionQuery.matches) || load(LS.motion) === '1';
+    $('motionBtn').setAttribute('aria-pressed', reduced ? 'true' : 'false');
+    $('motionBtn').textContent = reduced ? '동작 줄이기 켬' : '동작 줄이기';
+    if (crewView) crewView.setReduced(reduced);
+    document.documentElement.classList.toggle('motion-reduced', reduced);
+  }
+  $('motionBtn').addEventListener('click', function () { store(LS.motion, load(LS.motion) === '1' ? '0' : '1'); updateMotion(); });
+  if (motionQuery && motionQuery.addEventListener) motionQuery.addEventListener('change', updateMotion);
+
+  function currentStats() {
+    if (!catalog || !window.ShopEngine) return { manualDays: 1, crewDays: 1, speedPercent: 100, autoPerSecond: 0, autos: [] };
+    return ShopEngine.stats(catalog, owned, serviceProgress(), boostLeft() > 0);
+  }
+
+  function shopMessage(message, feedback) {
+    var notice = $('shopNotice');
+    notice.textContent = message || ''; notice.hidden = !message;
+    notice.classList.remove('purchase-feedback');
+    notice.removeAttribute('data-feedback');
+    if (feedback) { notice.setAttribute('data-feedback', feedback); void notice.offsetWidth; notice.classList.add('purchase-feedback'); }
+  }
+
+  function refreshLeave() {
+    if (!leaveLedger) return;
+    try { leaveTotals = leaveLedger.totals(); leaveCost = leaveLedger.cost(); ledgerError = ''; }
+    catch (e) { ledgerError = '휴가 기록을 확인하지 못했습니다. 구매를 멈췄습니다. 새로고침해 주세요.'; }
+    if (ledgerError) shopMessage(ledgerError);
+  }
+
+  function initializeLeave() {
+    if (!leaveLedger) return;
+    try {
+      if (!currentUser && authResolved) leaveLedger.initializeLegacy(owned.indexOf('long-leave') > -1);
+      refreshLeave();
+    } catch (e) { ledgerError = '기존 휴가 기록을 복원하지 못했습니다. 새로고침해 주세요.'; }
+  }
+
+  function settleOfflineV2() {
+    var raw = load(LS.offline), saved;
+    var seen = readInt(LS.seenAt);
+    try { saved = raw ? JSON.parse(raw) : null; } catch (e) { saved = null; }
+    var now = Date.now();
+    // 같은 구간은 한 번만 소비한다. 저장 실패 때에는 지급하지 않는다.
+    try { localStorage.removeItem(LS.offline); localStorage.setItem(LS.seenAt, String(now)); }
+    catch (e) { return; }
+    var stats = saved && saved.stats;
+    if (!stats && seen > 0) stats = currentStats();
+    var at = saved ? saved.at : seen;
+    if (!stats || !at) return;
+    var days = ShopEngine.offlineDays(stats, Math.max(0, now - at), saved ? saved.boostRemainingMs : 0);
+    if (days > 0) { addDays(days); showToast('국방부 시계: 자리 비운 동안 ' + days.toLocaleString('ko-KR') + '일 삭제'); }
+  }
+
+  function selectShopCategory(category) {
+    activeShopCat = category;
+    Array.prototype.forEach.call(shopChips.querySelectorAll('.shop-chip'), function (c) {
+      var selected = c.getAttribute('data-cat') === category;
+      c.classList.toggle('active', selected); c.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+  }
+
+  function openGiftFromShop() {
+    giftOrigin = 'shop'; closeShop(); openGift();
+  }
+
   function ownedItems() {
     if (!items) return [];
-    return items.filter(function (it) { return owned.indexOf(it.id) > -1; });
+    var list = catalog ? ShopEngine.allItems(catalog) : items;
+    return list.filter(function (it) { return owned.indexOf(it.id) > -1; });
   }
 
   // 공유로 켠 한시적 배수. 남은 시간(ms) — 0 이면 꺼진 것.
@@ -3194,64 +3306,112 @@
     })[0];
   }
 
+  // 짬 배수용 복무 진행률(0~1). calcService 는 날짜 미입력('empty')·역순 날짜('invalid')·
+  // 입대 전('before') 이면 progress 프로퍼티를 아예 안 준다 — 그대로 곱하면 NaN 이 되어
+  // 클릭당 일수가 통째로 깨진다. progress 가 있는 'active'·'done' 에서만 값을 쓴다.
+  function serviceProgress() {
+    var r = calcService(startEl.value, endEl.value, midnightToday());
+    if (r.state !== 'active' && r.state !== 'done') return 0;
+    var p = r.progress;
+    if (typeof p !== 'number' || !isFinite(p)) return 0;
+    return Math.max(0, Math.min(1, p));
+  }
+
   function multiplier() {
+    if (typeof catalog !== 'undefined' && catalog && typeof ShopEngine !== 'undefined') return currentStats().manualDays;
     var boosted = boostLeft() > 0 && shareItem();
     var m = boosted ? boosted.effect.value : 1;
+    var progress = -1;   // 매 클릭마다 도는 함수다. 짬 아이템이 있을 때만 날짜를 계산한다.
     ownedItems().forEach(function (it) {
-      if (it.effect && it.effect.type === 'multiplier') m = Math.max(m, it.effect.value);
+      if (!it.effect) return;
+      if (it.effect.type === 'multiplier') {
+        m = Math.max(m, it.effect.value);
+      } else if (it.effect.type === 'senior') {
+        // 짬은 못 이긴다 — 진행률이 높을수록 배수가 커진다.
+        if (progress < 0) progress = serviceProgress();
+        m = Math.max(m, 1 + progress * it.effect.value);
+      }
     });
-    return m;
+    // 일수는 정수로만 센다. 짬은 1+진행률×value 라 소수가 나오는데, 그대로 두면
+    // 배지·팝업은 '×3.5'·'-3.5일' 로 보이는데 실제로는 3 만 들어가 화면과 회계가 어긋난다.
+    // (부동소수점 탓에 '-3.5000000000000004일' 이 찍히기도 한다.) 여기서 한 번 자르면
+    // 배지·팝업·가산이 전부 같은 값을 쓴다.
+    return Math.floor(m);
   }
 
   var autoTimers = [];
-  var lastAutoPunch = 0;
 
   function autoTick(item) {
-    addDays(multiplier());
-    flashCrew(item.id);
-    // 상사까지 다 사면 초당 14번이다. 그대로 punch 하면 눌린 채로 멈춘 것처럼 보인다.
-    var now = Date.now();
-    if (now - lastAutoPunch > 130) { lastAutoPunch = now; punch(); }
+    if (!walletMatches()) return;
+    if (adPaused || document.hidden) return;
+    var live = currentStats().autos.filter(function (a) { return a.id === item.id; })[0];
+    if (!live) return;
+    addDays(live.days);
+    if (!document.hidden && !shopScrim.classList.contains('on') && crewView && !live.legacy) crewView.tick(live.id, live.days);
   }
+
+  // 국방부 시계는 거꾸로 매달아도 돈다 — 꺼둔 동안에도 자동 대원이 일한 것으로 친다.
+  // 부팅 때 1회만 정산한다(아이템을 다 읽은 뒤에 불러야 한다).
+  function settleOffline() {
+    if (typeof catalog !== 'undefined' && catalog) { settleOfflineV2(); return; }
+    var now = Date.now();
+    var seen = parseInt(load(LS.seenAt) || '0', 10);
+    store(LS.seenAt, String(now));                 // 지급 여부와 무관하게 기준점은 항상 갱신
+
+    var clock = ownedItems().filter(function (it) {
+      return it.effect && it.effect.type === 'offline' && it.effect.capMs > 0;
+    })[0];
+    if (!clock) return;                            // 안 샀으면 0일
+    if (!isFinite(seen) || seen <= 0) return;      // 첫 방문 — 기준 시각만 남기고 끝
+
+    // 기기 시계는 사용자가 마음대로 돌린다. 뒤로 돌리면 경과가 음수가 되고,
+    // 앞으로 돌리면 무한 획득 벡터가 된다 — 0 이상 capMs 이하로 잘라 쓴다.
+    var elapsed = Math.max(0, Math.min(now - seen, clock.effect.capMs));
+    if (elapsed <= 0) return;
+
+    // 평소 autoTick 이 하는 계산과 같다: 대원마다 눌린 횟수를 세고 배수를 곱한다.
+    var ticks = 0;
+    ownedItems().forEach(function (it) {
+      if (it.effect && it.effect.type === 'auto' && it.effect.intervalMs > 0) {
+        ticks += Math.floor(elapsed / it.effect.intervalMs);
+      }
+    });
+    var days = Math.floor(ticks * multiplier());
+    if (days <= 0) return;
+
+    addDays(days);
+    showToast('⏰ 국방부 시계: 자는 동안 ' + days.toLocaleString('ko-KR') + '일 삭제됨');
+  }
+
+  // 떠날 때 기준 시각을 남긴다. 이 파일이 이미 쓰는 두 이벤트를 그대로 따른다.
+  function markSeen() {
+    if (!walletMatches()) return;
+    if (document.hidden && load(LS.offline)) return;
+    store(LS.seenAt, String(Date.now()));
+    if (!catalog || adPaused) return;
+    try { localStorage.setItem(LS.offline, JSON.stringify({ at: Date.now(), stats: currentStats(), boostRemainingMs: boostLeft() })); } catch (e) {}
+  }
+  window.addEventListener('pagehide', markSeen);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') markSeen();
+  });
 
   function applyEffects() {
-    autoTimers.forEach(clearInterval);
-    autoTimers = [];
-
-    var autos = ownedItems().filter(function (it) {
-      return it.effect && it.effect.type === 'auto' && it.effect.intervalMs > 0;
-    });
-
-    autos.forEach(function (it) {
-      autoTimers.push(setInterval(function () { autoTick(it); }, it.effect.intervalMs));
-    });
-
-    var RANK_BADGES = {
-      'rank-pvt': '<svg viewBox="0 0 24 18" aria-hidden="true"><rect x="2" y="7.5" width="20" height="3" rx="1.5" fill="currentColor"/></svg>',
-      'rank-pfc': '<svg viewBox="0 0 24 18" aria-hidden="true"><rect x="2" y="4.5" width="20" height="3" rx="1.5" fill="currentColor"/><rect x="2" y="10.5" width="20" height="3" rx="1.5" fill="currentColor"/></svg>',
-      'rank-cpl': '<svg viewBox="0 0 24 18" aria-hidden="true"><rect x="2" y="2.7" width="20" height="2.6" rx="1.3" fill="currentColor"/><rect x="2" y="7.7" width="20" height="2.6" rx="1.3" fill="currentColor"/><rect x="2" y="12.7" width="20" height="2.6" rx="1.3" fill="currentColor"/></svg>',
-      'rank-sgt': '<svg viewBox="0 0 24 18" aria-hidden="true"><rect x="2" y="1.9" width="20" height="2.2" rx="1.1" fill="currentColor"/><rect x="2" y="5.9" width="20" height="2.2" rx="1.1" fill="currentColor"/><rect x="2" y="9.9" width="20" height="2.2" rx="1.1" fill="currentColor"/><rect x="2" y="13.9" width="20" height="2.2" rx="1.1" fill="currentColor"/></svg>',
-      'rank-ssgt': '<svg viewBox="0 0 24 18" aria-hidden="true"><path d="M4 6 L12 13 L20 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      'rank-sfc': '<svg viewBox="0 0 24 18" aria-hidden="true"><path d="M4 3.5 L12 10.5 L20 3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 8.5 L12 15.5 L20 8.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-      'rank-msg': '<svg viewBox="0 0 24 18" aria-hidden="true"><path d="M4 2 L12 8 L20 2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 6.5 L12 12.5 L20 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 11 L12 17 L20 11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-    };
-
-    crew.innerHTML = autos.map(function (it) {
-      var badge = RANK_BADGES[it.id] || '<svg viewBox="0 0 24 18" aria-hidden="true"><polygon points="12,2 15,8 22,9 17,14 18.5,21 12,17.5 5.5,21 7,14 2,9 9,8" fill="currentColor"/></svg>';
-      return '<div class="crew-unit" data-id="' + esc(it.id) + '" title="' + esc(it.name) + '">' +
-             '<span class="crew-badge" aria-hidden="true">' + badge + '</span>' +
-             '<span class="crew-name">' + esc(it.name) + '</span></div>';
-    }).join('');
-
-    renderWallet();
-    renderReward();          // 보상 설정도 items.json 에서 같이 오므로 여기서 갱신
-  }
-
-  function flashCrew(id) {
-    var el = crew.querySelector('[data-id="' + id + '"]');
-    if (!el) return;
-    el.classList.add('tick');
-    setTimeout(function () { el.classList.remove('tick'); }, 160);
+    if (!catalog) { renderWallet(); return; }
+    economy = currentStats();
+    if (!crewView && window.CrewView) crewView = CrewView.create({ container: crew, button: btn, stage: stage });
+    if (crewView) { crewView.setReduced(reduced); crewView.render(economy.autos.filter(function (a) { return !a.legacy; })); }
+    var signature = economy.autos.map(function (a) { return a.id + ':' + a.intervalMs; }).join('|');
+    if (signature !== autoSignature) {
+      autoTimers.forEach(clearInterval); autoTimers = [];
+      autoSignature = signature;
+      if (!adPaused && !document.hidden) economy.autos.forEach(function (a) {
+        autoTimers.push(setInterval(function () { autoTick(a); }, a.intervalMs));
+      });
+    }
+    var legacy = economy.autos.filter(function (a) { return a.legacy; });
+    $('crewSummary').textContent = legacy.length ? '이전 부대 지원 ' + legacy.length + '종 · 기존 자동 효과 유지 중' : '';
+    renderWallet(); renderReward();
   }
 
   /* ══════════════════════════════════════════
@@ -3307,8 +3467,12 @@
     if (ctx && ctx.state === 'running') ctx.suspend();
     autoTimers.forEach(clearInterval);
     autoTimers = [];
+    autoSignature = ''; adPaused = true;
+    store(LS.seenAt, String(Date.now()));
+    try { localStorage.removeItem(LS.offline); } catch (e) {}
   }
   function resumeAfterAd() {
+    adPaused = false;
     if (ctx && ctx.state === 'suspended' && !muted) ctx.resume();
     applyEffects();          // 타이머를 원래대로 재구성 (idempotent)
   }
@@ -3438,7 +3602,10 @@
   function loadItems() {
     // 아이템과 보상 설정을 같은 파일에서 함께 읽는다
     function take(data) {
-      items = data.items || [];
+      ShopEngine.validateCatalog(data);
+      if (data.version !== 2) throw new Error('상점 데이터 버전이 다릅니다. 새로고침해 주세요.');
+      catalog = data; items = data.items;
+      initializeLeave();
       if (data.reward && data.reward.days > 0) rewardCfg = data.reward;
     }
 
@@ -3452,7 +3619,7 @@
         return Promise.resolve();
       }
     }
-    return fetch('items.json')
+    return fetch('items.json', { cache: 'no-store' })
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -3468,57 +3635,117 @@
 
   var activeShopCat = 'all';
 
+  // 한 장소에 여러 효과가 섞이므로 효과 타입이 아니라 category 를 그대로 비교한다.
   function itemMatches(item, q) {
-    if (activeShopCat === 'auto' || activeShopCat === '자동') {
-      if (!item.effect || item.effect.type !== 'auto') return false;
-    } else if (activeShopCat === 'mult' || activeShopCat === '배수') {
-      if (!item.effect || item.effect.type !== 'multiplier') return false;
-    } else if (activeShopCat === 'special' || activeShopCat === '특수') {
-      if (item.effect && (item.effect.type === 'auto' || item.effect.type === 'multiplier')) return false;
-    }
+    if (activeShopCat !== 'all' && item.category !== activeShopCat) return false;
     if (!q) return true;
     return (item.name + ' ' + (item.description || '') + ' ' + (item.category || ''))
       .toLowerCase().indexOf(q) > -1;
   }
 
-  function renderShop() {
-    if (itemsError) { shopBody.innerHTML = '<p class="shop-msg">' + itemsError + '</p>'; return; }
-    if (items === null) { shopBody.innerHTML = '<p class="shop-msg">불러오는 중…</p>'; return; }
+  function itemEffectLabel(item, stats, has) {
+    var effect = item.effect || {}, type = effect.type;
+    if (item.action === 'gift') return '보유 일수로 편지 보내기 · 발신은 로그인 필요';
+    if (type === 'share') return '직접·자동 ×3 · 30분';
+    if (type === 'leave') return '누적 휴가 +' + effect.days + '일 · 여러 번 구매 가능';
+    if (type === 'auto') {
+      var interval = effect.intervalMs / (stats.speedPercent / 100);
+      return '약 ' + (interval / 1000).toFixed(1) + '초마다 ' + stats.crewDays + '일 삭제';
+    }
+    var next = has ? stats : ShopEngine.stats(catalog, owned.concat([item.id]), serviceProgress(), boostLeft() > 0);
+    if (type === 'manual_add') return '내 클릭 ' + stats.manualDays + (has ? '' : ' → ' + next.manualDays) + '일/회';
+    var empty = !stats.autos.some(function (a) { return !a.legacy; }) ? ' · 충원 후 적용 (병사 0명)' : '';
+    if (type === 'crew_power') return '전체 병사 ' + stats.crewDays + (has ? '' : ' → ' + next.crewDays) + '일/회' + empty;
+    if (type === 'crew_speed') return '자동 속도 ' + stats.speedPercent + (has ? '' : ' → ' + next.speedPercent) + '%' + empty;
+    return '수집용 · 능력치 변화 없음';
+  }
 
+  function readWallet() {
+    if (!walletMatches()) throw new Error('다른 탭에서 계정이 바뀌어 다시 불러옵니다.');
+    total = readInt(LS.total); spent = readInt(LS.spent);
+    gifted = readInt(LS.gifted); gsent = readInt(LS.gsent); owned = readOwned();
+    refreshLeave();
+  }
+
+  // 새 탭끼리 잔액 확인과 지출을 직렬화한다. 이전 버전 탭과 다른 기기의 지출은 별개다.
+  function withSpendLock(action) {
+    if (spending) return Promise.resolve();
+    spending = true;
+    function execute() {
+      readWallet();
+      if (!accountReady || ledgerError) throw new Error(ledgerError || '기록을 불러온 뒤 다시 시도해 주세요.');
+      return action();
+    }
+    var work;
+    if (navigator.locks && navigator.locks.request) work = navigator.locks.request('army-shop-spend-v2', execute);
+    else work = singleTabSpend(execute);
+    return Promise.resolve(work).catch(function (e) { var message = e.message || '구매하지 못했습니다. 다시 시도해 주세요.'; shopMessage(message); if (giftScrim.classList.contains('on')) giftErr2.textContent = message; })
+      .then(function () { spending = false; refreshLeave(); renderWallet(); if (shopScrim.classList.contains('on')) renderShop(); });
+  }
+
+  function singleTabSpend(action) {
+    var key = 'ad.spendLease', id = String(Date.now()) + '-' + Math.random(), now = Date.now(), held;
+    try {
+      held = JSON.parse(load(key) || 'null');
+      if (held && held.until > now) return Promise.reject(new Error('다른 탭에서 구매 중입니다. 잠시 후 다시 시도해 주세요.'));
+      localStorage.setItem(key, JSON.stringify({ id: id, until: now + 30000 }));
+    } catch (e) { return Promise.reject(new Error('저장 공간을 사용할 수 없어 구매하지 않았습니다.')); }
+    return new Promise(function (resolve, reject) {
+      setTimeout(function () {
+        try {
+          var owner = JSON.parse(load(key) || 'null');
+          if (!owner || owner.id !== id) throw new Error('구매는 한 탭에서 진행해 주세요.');
+          var heartbeat = setInterval(function () { try { localStorage.setItem(key, JSON.stringify({ id: id, until: Date.now() + 30000 })); } catch (e) {} }, 5000);
+          Promise.resolve().then(action).then(function (v) { clearInterval(heartbeat); release(); resolve(v); }, function (e) { clearInterval(heartbeat); release(); reject(e); });
+        } catch (e) { release(); reject(e); }
+      }, 100);
+    });
+    function release() { try { var owner = JSON.parse(load(key) || 'null'); if (owner && owner.id === id) localStorage.removeItem(key); } catch (e) {} }
+  }
+
+  function renderShop() {
+    if (itemsError) { shopBody.innerHTML = '<p class="shop-msg">' + esc(itemsError) + '</p>'; return; }
+    if (items === null) { shopBody.innerHTML = '<p class="shop-msg">불러오는 중…</p>'; return; }
+    var focused = document.activeElement && document.activeElement.getAttribute('data-id');
     var q = shopSearch.value.trim().toLowerCase();
     var list = items.filter(function (it) { return itemMatches(it, q); });
-
-    if (!list.length) {
-      shopBody.innerHTML = '<p class="shop-msg">' +
-        (q ? '"' + esc(q) + '" 에 맞는 아이템이 없습니다.' : '해당 카테고리에 아이템이 없습니다.') + '</p>';
-      return;
-    }
-
-    var bal = balance();
+    var stats = currentStats(), bal = balance();
+    var places = {
+      'all': ['부대 안 상점', '직접 누르고, 같이 먹고, 휴가를 모읍니다.'],
+      '생활관': ['신병 왔습니다!', '병사를 충원하면 함께 버튼을 누릅니다.'],
+      '체단실': ['한 세트만 더 하고 씻자.', '내 클릭 ' + stats.manualDays + '일/회 · 직접 클릭만 강화'],
+      'P.X': ['냉동 돌릴 건데 같이 먹을 사람?', '병사 ' + stats.crewDays + '일/회 · 자동 속도 ' + stats.speedPercent + '%'],
+      '행정반': ['누적 휴가 ' + leaveTotals.total + '일', '연가 ' + leaveTotals.annual + '일 · 포상휴가 ' + leaveTotals.reward + '일 · 위로휴가 ' + leaveTotals.comfort + '일'],
+      '위병소': ['나갈 때가 제일 빠르다.', '동기에게 일수를 보내고, 같이 군생활을 삭제합니다.']
+    };
+    var heading = places[activeShopCat] || places.all;
+    $('shopContext').innerHTML = '<strong>' + esc(heading[0]) + '</strong><p>' + esc(heading[1]) + '</p>';
+    if (ledgerError) shopMessage(ledgerError);
+    else if (!accountReady) shopMessage('저장된 기록을 확인하고 있습니다. 잠시 뒤 다시 열어 주세요.');
+    var blocked = !accountReady || !!ledgerError || spending;
     shopBody.innerHTML = list.map(function (it) {
-      var isShare = it.effect && it.effect.type === 'share';
-      var left = isShare ? boostLeft() : 0;
-      var has = !isShare && owned.indexOf(it.id) > -1;
-      var short = !isShare && !has && bal < it.price;
-      var affordable = !isShare && !has && !short;
-      var label = isShare
-        ? (left > 0 ? mmss(Math.ceil(left / 1000)) + ' 남음' : '공유하기')
-        : (has ? '보유 중' : (short ? '부족' : '구매'));
-      return '<article class="item' + (has || left > 0 ? ' owned' : '') + (short ? ' short' : '') + (affordable ? ' affordable' : '') + '">' +
-        '<div class="item-icon" aria-hidden="true">' + esc(it.icon || '📦') + '</div>' +
-        '<div>' +
-          '<div class="item-cat">' + esc(it.category || '') + '</div>' +
-          '<h3 class="item-name">' + esc(it.name) + '</h3>' +
-          '<p class="item-desc">' + esc(it.description || '') + '</p>' +
-        '</div>' +
-        '<div class="item-buy">' +
-          '<div class="item-price">' +
-            (isShare ? '무료' : it.price.toLocaleString('ko-KR') + '일') + '</div>' +
-          '<button class="buy-btn" type="button" data-id="' + esc(it.id) + '"' +
-            (has || short || left > 0 ? ' disabled' : '') + '>' + label + '</button>' +
-        '</div>' +
-      '</article>';
+      var type = it.effect && it.effect.type;
+      var gift = it.action === 'gift', share = type === 'share', leave = type === 'leave';
+      var left = share ? boostLeft() : 0;
+      var has = !gift && !share && !leave && owned.indexOf(it.id) > -1;
+      var short = !gift && !share && !has && bal < it.price;
+      var label = gift ? '일수 선물하기' : share ? (left > 0 ? mmss(Math.ceil(left / 1000)) + ' 남음' : '공유하기') : has ? (type === 'auto' ? '함께 복무 중' : /^crew_/.test(type) ? '보급 중' : '보유 중') : short ? (it.price - bal).toLocaleString('ko-KR') + '일 부족' : type === 'auto' ? '충원하기' : leave ? it.price.toLocaleString('ko-KR') + '일로 구매' : '구매하기';
+      var effect = itemEffectLabel(it, stats, has);
+      return '<article class="item' + (has || left > 0 ? ' owned' : '') + (short ? ' short' : '') + (gift ? ' gift-action' : '') + '">' +
+        '<div class="item-icon" aria-hidden="true">' + esc(it.icon || '📦') + '</div><div>' +
+        '<div class="item-cat">' + esc(it.category) + '</div><h3 class="item-name">' + esc(it.name) + '</h3>' +
+        '<p class="item-desc">' + esc(it.description) + '</p><p class="item-effect">' + esc(effect) + '</p></div>' +
+        '<div class="item-buy"><div class="item-price">' + (gift ? '보낼 일수 직접 입력' : share ? '무료' : it.price.toLocaleString('ko-KR') + '일') + '</div>' +
+        '<button class="buy-btn" type="button" data-id="' + esc(it.id) + '"' +
+        (has || short || left > 0 || (!gift && !share && blocked) ? ' disabled' : '') + '>' + esc(label) + '</button></div></article>';
     }).join('');
+    if (!list.length) shopBody.innerHTML = '<p class="shop-msg">' + (q ? '검색 결과가 없습니다.' : '아직 들어온 물품이 없습니다.') + '</p>';
+    var old = (catalog.legacyItems || []).filter(function (it) { return owned.indexOf(it.id) > -1; });
+    if (old.length && activeShopCat === 'all' && !q) shopBody.innerHTML += '<details class="legacy-items"><summary>기존 보유품 ' + old.length + '종 · 효과 유지</summary><p>' + old.map(function (it) { return esc(it.name); }).join(' · ') + '</p></details>';
+    if (focused) {
+      var replacement = shopBody.querySelector('[data-id="' + focused + '"]');
+      if (replacement && !replacement.disabled) replacement.focus({ preventScroll: true });
+    }
   }
 
   // 자동 클릭이 초당 여러 번 돌아가므로 그때마다 카드를 다시 그리면 낭비다.
@@ -3539,39 +3766,33 @@
   function buy(id) {
     var item = items && items.filter(function (it) { return it.id === id; })[0];
     if (!item) return;
-    if (item.effect && item.effect.type === 'share') {
-      __analytics.track('share_boost_activated', {
-        method: (navigator.share && window.isSecureContext) ? 'navigator.share' : 'clipboard',
-        boost_multiplier: item.effect.value,
-        boost_duration_ms: item.effect.durationMs
-      });
-      shareLink(item);
-      return;
-    }
-
-    // 다른 탭이 그새 벌었거나 사뒀을 수 있다 — 저장된 값으로 다시 판단한다
-    total = readInt(LS.total) || total;
-    spent = readInt(LS.spent);
-    gifted = readInt(LS.gifted);
-    gsent = readInt(LS.gsent);
-    owned = readOwned();
-
-    if (owned.indexOf(id) > -1) return;      // 이미 보유
-    if (balance() < item.price) return;      // 잔액 부족 — 버튼도 비활성이지만 한 번 더 막는다
-
-    spent += item.price;
-    owned.push(id);
-    store(LS.spent, String(spent));
-    store(LS.owned, JSON.stringify(owned));
-    __analytics.track('item_purchased', {
-      item_id: item.id,
-      item_name: item.name,
-      price: item.price,
-      item_type: item.effect ? item.effect.type : 'collectible',
-      remaining_balance: balance()
+    if (item.action === 'gift') { openGiftFromShop(); return; }
+    if (item.effect && item.effect.type === 'share') { shareLink(item); return; }
+    return withSpendLock(function () {
+      var type = item.effect && item.effect.type;
+      if (type !== 'leave' && owned.indexOf(id) > -1) return;
+      if (balance() < item.price) throw new Error((item.price - balance()) + '일 부족합니다.');
+      if (type === 'leave') {
+        leaveLedger.purchase(id); refreshLeave();
+        shopMessage(item.name + ' 지급 · 누적 휴가 ' + leaveTotals.total + '일', 'leave');
+        if (crewView && crewView.celebrate) crewView.celebrate('leave');
+      } else {
+        var beforeOwned = load(LS.owned), beforeSpent = load(LS.spent);
+        try {
+          localStorage.setItem(LS.owned, JSON.stringify(owned.concat([id])));
+          localStorage.setItem(LS.spent, String(spent + item.price));
+        } catch (e) {
+          try { if (beforeOwned === null) localStorage.removeItem(LS.owned); else localStorage.setItem(LS.owned, beforeOwned); if (beforeSpent === null) localStorage.removeItem(LS.spent); else localStorage.setItem(LS.spent, beforeSpent); } catch (ignored) {}
+          throw new Error('저장하지 못해 구매를 취소했습니다. 저장 공간을 확인해 주세요.');
+        }
+        spent += item.price; owned.push(id);
+        shopMessage(type === 'auto' ? item.name + ' 합류! 함께 누릅니다.' : item.name + ' 구매 완료 · ' + itemEffectLabel(item, currentStats(), true), type === 'manual_add' ? 'exercise' : /^crew_/.test(type) ? 'food' : 'recruit');
+        applyEffects();
+        if (crewView && crewView.celebrate) crewView.celebrate(type === 'manual_add' ? 'exercise' : /^crew_/.test(type) ? 'food' : 'recruit');
+      }
+      __analytics.track('item_purchased', { item_id: item.id, item_name: item.name, price: item.price, item_type: type || 'collectible', remaining_balance: balance() });
+      syncUserRecord(); syncLeave();
     });
-    applyEffects();          // 산 즉시 배수·자동 대원이 붙는다
-    renderShop();
   }
 
   shopBody.addEventListener('click', function (e) {
@@ -3581,6 +3802,7 @@
 
   // 공유 여부는 어차피 확인할 수 없다. 공유창을 띄웠거나 링크를 복사했으면 준다.
   function shareLink(item) {
+    if (boostLeft() > 0) return;
     // location.href 를 그대로 쓰면 내가 타고 들어온 utm 이 그대로 퍼져 나가
     // 다음 사람의 유입 데이터가 오염된다. sid 를 새로 조립해 붙인다.
     // 폴백(__share 없음/try 실패)도 절대 location.href 를 쓰지 않는다 —
@@ -3603,18 +3825,17 @@
         });
       }
     } catch (e) {}
-    function grant() {
+    function grant(method) {
+      if (boostLeft() > 0) return;
       store(LS.boost, String(Date.now() + item.effect.durationMs));
-      renderWallet();
-      renderShop();
-      watchBoost();
+      __analytics.track('share_boost_activated', { method: method, boost_multiplier: item.effect.value, boost_duration_ms: item.effect.durationMs });
+      applyEffects(); renderShop(); watchBoost(); shopMessage('30분간 직접·자동 획득량 3배!');
     }
     function copy() {
-      if (navigator.clipboard) navigator.clipboard.writeText(url).then(grant, grant);
-      else grant();
+      if (!navigator.clipboard || !navigator.clipboard.writeText) { shopMessage('링크를 복사하지 못했습니다. 공유 권한을 확인해 주세요.'); return; }
+      return navigator.clipboard.writeText(url).then(function () { grant('clipboard'); }, function () { shopMessage('복사가 취소되어 보상을 지급하지 않았습니다.'); });
     }
-    // 공유창을 닫았거나 iframe 이 막으면 복사로 넘어간다
-    if (navigator.share) navigator.share({ title: document.title, url: url }).then(grant, copy);
+    if (navigator.share) navigator.share({ title: document.title, url: url }).then(function () { grant('navigator.share'); }, function (error) { if (error && error.name === 'AbortError') shopMessage('공유를 취소했습니다.'); else copy(); });
     else copy();
   }
 
@@ -3628,7 +3849,7 @@
     if (boostLeft() <= 0) return;
     boostTimer = setInterval(function () {
       var over = boostLeft() <= 0;
-      if (over) { clearInterval(boostTimer); renderWallet(); }   // 배지도 ×1 로 돌린다
+      if (over) { clearInterval(boostTimer); applyEffects(); }   // 배지도 ×1 로 돌린다
       if (shopScrim.classList.contains('on')) renderShop();
     }, 1000);
   }
@@ -3664,7 +3885,8 @@
     scrim.classList.remove('on');
     // 모달 안에 있던 요소로는 돌려보내지 않는다 — 이제 화면에 없다
     var back = (lastFocus && lastFocus.focus && !scrim.contains(lastFocus)) ? lastFocus : fallback;
-    back.focus();
+    if (back && document.documentElement.contains(back) && back.offsetParent !== null) back.focus();
+    else if (fallback) fallback.focus();
   }
 
   function openShop() {
@@ -3694,6 +3916,15 @@
     if (e.target === shopScrim) closeShop();      // 바깥 클릭으로 닫기
   });
   document.addEventListener('keydown', function (e) {
+    if (e.key === 'Tab') {
+      var modal = giftScrim.classList.contains('on') ? giftScrim : shopScrim.classList.contains('on') ? shopScrim : lbScrim.classList.contains('on') ? lbScrim : null;
+      if (modal) {
+        var focusable = Array.prototype.filter.call(modal.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]'), function (el) { return el.offsetParent !== null; });
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (first && e.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+        else if (first && !e.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+      }
+    }
     if (e.key !== 'Escape') return;
     // 보상 광고가 위에 떠 있으면 뒤의 모달을 닫지 않는다. 광고는 제 버튼으로만 닫힌다.
     if (adScrim.classList.contains('on')) return;
@@ -3815,23 +4046,108 @@
   /* 계정 불러오기 — 로그인 직후 내보내기보다 먼저 돌아야 한다.
      순서가 뒤집히면 빈 로컬 상태를 서버에 밀어 넣고 그 다음에 읽어온다. */
   var pulledFor = '';
+  var accountPull = null, leaveSyncPromise = null, leaveSyncOwner = '';
+
+  function activateWallet(userId) {
+    if (!walletMatches()) throw new Error('계정 변경 중입니다.');
+    activeWalletOwner = userId;
+    localStorage.setItem('ad.walletOwner', userId);
+    var previous = load(LS.acct);
+    if (!previous || previous === userId) return;
+    localStorage.removeItem(LS.offline);
+    localStorage.setItem(LS.seenAt, String(Date.now()));
+    localStorage.removeItem(LS.boost);
+    var save = { total: readInt(LS.total), spent: readInt(LS.spent), gifted: readInt(LS.gifted), gsent: readInt(LS.gsent), owned: readOwned(), branch: branch };
+    localStorage.setItem('ad.wallet.' + previous, JSON.stringify(save));
+    var raw = load('ad.wallet.' + userId), target = raw ? JSON.parse(raw) : { total: 0, spent: 0, gifted: 0, gsent: 0, owned: [] };
+    ['total', 'spent', 'gifted', 'gsent'].forEach(function (key) {
+      if (!isFinite(target[key]) || target[key] < 0 || Math.floor(target[key]) !== target[key]) throw new Error('지갑 기록이 손상되었습니다.');
+    });
+    if (Object.prototype.toString.call(target.owned) !== '[object Array]') throw new Error('보유 기록이 손상되었습니다.');
+    localStorage.setItem(LS.total, String(target.total)); localStorage.setItem(LS.spent, String(target.spent));
+    localStorage.setItem(LS.gifted, String(target.gifted)); localStorage.setItem(LS.gsent, String(target.gsent));
+    localStorage.setItem(LS.owned, JSON.stringify(target.owned));
+    if (raw) localStorage.setItem(LS.acct, userId); else localStorage.removeItem(LS.acct);
+    branch = typeof target.branch === 'string' ? target.branch : '';
+    store(LS.branch, branch);
+    readWallet();
+  }
+
+  function syncLeave() {
+    if (!currentUser || !supabaseClient || !leaveLedger) return Promise.resolve();
+    var userId = currentUser.id;
+    if (leaveSyncPromise && leaveSyncOwner === userId) return leaveSyncPromise;
+    leaveSyncOwner = userId;
+    function stillCurrent() { return currentUser && currentUser.id === userId; }
+    function pages(at, id) {
+      return supabaseClient.rpc('my_leave_purchases', { p_after_created_at: at || null, p_after_operation_id: id || null, p_limit: 100 }).then(function (res) {
+        if (!stillCurrent()) return;
+        if (res.error || !Array.isArray(res.data)) throw new Error('휴가 기록 조회 실패');
+        leaveLedger.mergeServer(res.data);
+        if (res.data.length === 100) {
+          var last = res.data[99];
+          if (last.created_at === at && last.operation_id === id) throw new Error('휴가 기록 커서 오류');
+          return pages(last.created_at, last.operation_id);
+        }
+      });
+    }
+    function upload() {
+      if (!stillCurrent()) return;
+      var ops = leaveLedger.pending();
+      if (!ops.length) return;
+      return supabaseClient.rpc('sync_leave_purchases', { p_operations: ops }).then(function (res) {
+        if (!stillCurrent()) return;
+        if (res.error || !Array.isArray(res.data) || res.data.length !== ops.length) throw new Error('휴가 기록 동기화 실패');
+        leaveLedger.mergeServer(res.data);
+        return upload();
+      });
+    }
+    leaveSyncPromise = pages().then(upload).then(function () {
+      if (!stillCurrent()) return;
+      var wasWaiting = !accountReady;
+      accountReady = true; refreshLeave(); renderWallet();
+      if (wasWaiting) shopMessage(''); if (shopScrim.classList.contains('on')) renderShop();
+      resumeGiftAfterLogin();
+    }).catch(function () {
+      if (stillCurrent()) { accountReady = false; shopMessage('휴가 기록을 동기화하지 못했습니다. 연결을 확인하면 다시 시도합니다.'); }
+    }).then(function () { if (leaveSyncOwner === userId) { leaveSyncPromise = null; leaveSyncOwner = ''; } });
+    return leaveSyncPromise;
+  }
+
+  function loadSessionGiftReturn() { try { return sessionStorage.getItem('ad.giftReturn') === '1'; } catch (e) { return false; } }
+
+  function resumeGiftAfterLogin() {
+    var returning = false;
+    try { returning = sessionStorage.getItem('ad.giftReturn') === '1'; if (returning) sessionStorage.removeItem('ad.giftReturn'); } catch (e) {}
+    if (returning && currentUser && accountReady) { giftOrigin = 'shop'; if (lbScrim.classList.contains('on')) closeLb(); if (shopScrim.classList.contains('on')) closeShop(); openGift(); }
+  }
 
   function pullAccount() {
     if (!supabaseClient || !currentUser) return Promise.resolve();
-    if (pulledFor === currentUser.id) return Promise.resolve();   // 토큰 갱신마다 다시 읽지 않는다
-    pulledFor = currentUser.id;
-
-    return supabaseClient.from('user_records')
-      .select('branch,total_days,spent,gifted,sent,owned')
-      .eq('user_id', currentUser.id)
-      .maybeSingle()
-      .then(function (res) {
-        if (res.error) { pulledFor = ''; console.warn('Account load failed:', res.error); return; }
-        mergeAccount(res.data);
-      }, function (err) {
-        pulledFor = '';
-        console.warn('Account load error:', err);
+    var userId = currentUser.id;
+    if (pulledFor === userId) return accountPull || Promise.resolve();
+    pulledFor = userId; accountReady = false;
+    accountPull = Promise.resolve().then(function () {
+      activateWallet(userId);
+      leaveLedger.setAccount(userId); refreshLeave();
+      return supabaseClient.from('user_records').select('branch,total_days,spent,gifted,sent,owned').eq('user_id', userId).maybeSingle();
+    }).then(function (res) {
+      if (!currentUser || currentUser.id !== userId) return;
+      if (res.error) throw res.error;
+      mergeAccount(res.data);
+      return syncUserRecord().then(function (ok) {
+        if (!currentUser || currentUser.id !== userId) return;
+        if (!ok) throw new Error('기본 기록 동기화 실패');
+        leaveLedger.initializeLegacy(owned.indexOf('long-leave') > -1);
+        return syncLeave();
       });
+    }).catch(function (e) {
+      if (currentUser && currentUser.id === userId) {
+        pulledFor = ''; accountReady = false;
+        shopMessage('계정 기록을 불러오지 못했습니다. 연결을 확인하면 다시 시도합니다.');
+      }
+    });
+    return accountPull;
   }
 
   // 이미 연결된 계정이면 큰 쪽을 취하고, 처음 연결하는 기기면 한 번만 합친다.
@@ -3873,6 +4189,7 @@
     store(LS.gsent, String(gsent));
     store(LS.owned, JSON.stringify(owned));
 
+    refreshLeave();
     lastSynced = '';                     // 병합 결과를 서버에도 올려야 한다
     applyEffects();                      // 불러온 아이템의 효과를 켠다 (renderWallet 포함)
     if (shopScrim.classList.contains('on')) renderShop();
@@ -3882,20 +4199,22 @@
   var syncing = false;
   var lastSynced = '';
 
-  function syncSig() { return [total, spent, gifted, gsent, branch, owned.join(',')].join('|'); }
+  function syncSig() { return [currentUser && currentUser.id, total, spent, gifted, gsent, branch, owned.join(',')].join('|'); }
 
   function syncUserRecord(unloading) {
-    if (!supabaseClient || !currentUser || syncing) return Promise.resolve();
+    if (!supabaseClient || !currentUser || !walletMatches()) return Promise.resolve(false);
+    if (syncing) return Promise.resolve(false);
 
+    var owner = currentUser.id;
     var sig = syncSig();
-    if (sig === lastSynced) return Promise.resolve();
+    if (sig === lastSynced) return Promise.resolve(true);
 
     if (unloading) {
       var body = JSON.stringify(payload());
       try {
         supabaseClient.auth.getSession().then(function (res) {
           var token = res && res.data && res.data.session && res.data.session.access_token;
-          if (!token) return;
+          if (!token || !currentUser || currentUser.id !== owner || !res.data.session.user || res.data.session.user.id !== owner) return;
           fetch(SB_URL + '/rest/v1/rpc/sync_my_record', {
             method: 'POST',
             headers: {
@@ -3914,11 +4233,14 @@
     syncing = true;
     return supabaseClient.rpc('sync_my_record', payload()).then(function (res) {
       syncing = false;
+      if (!currentUser || currentUser.id !== owner) return false;
       if (!res.error) lastSynced = sig;
       else console.warn('Sync failed:', res.error);
+      return !res.error;
     }, function (err) {
       syncing = false;
       console.warn('Sync error:', err);
+      return false;
     });
   }
 
@@ -4085,7 +4407,7 @@
           currentUser = res.data.session.user;
           identifyUserSession();
           renderBoard();
-          syncUserRecord().then(refreshBoard);
+          pullAccount().then(refreshBoard);
           lbTimer = setInterval(refreshBoard, 15000);
         }
       });
@@ -4123,7 +4445,8 @@
   var GIFT_MSG_MAX = 200;
   var GIFT_PANES = ['giftGate', 'giftStep1', 'giftStep2', 'giftShare', 'giftClaim'];
 
-  var giftScrim = $('giftScrim'), giftOpen = $('giftOpen'), giftClose = $('giftClose');
+  var giftScrim = $('giftScrim'), giftClose = $('giftClose');
+  var giftOrigin = 'main', giftLinkReady = false;
   var giftDaysEl = $('giftDays'), giftHave = $('giftHave'), giftChips = $('giftChips');
   var giftErr = $('giftErr'), giftErr2 = $('giftErr2'), giftErr3 = $('giftErr3');
   var giftMsg = $('giftMsg'), giftCount = $('giftCount');
@@ -4149,14 +4472,14 @@
   }
 
   function renderGiftStep1() {
-    var max = balance();
-    giftHave.textContent = max.toLocaleString('ko-KR');
+    var max = Math.min(balance(), 1000000);
+    giftHave.textContent = balance().toLocaleString('ko-KR');
     giftDaysEl.max = max;
     giftErr.textContent = '';
 
     var chips = [10, 50, 100].concat(max > 0 ? [max] : []);
     giftChips.innerHTML = chips.map(function (v, i) {
-      var label = (i === 3) ? '전부 ' + v.toLocaleString('ko-KR') + '일'
+      var label = (i === 3) ? (balance() > 1000000 ? '최대 ' : '전부 ') + v.toLocaleString('ko-KR') + '일'
                             : v.toLocaleString('ko-KR') + '일';
       var off = v > max || v <= 0;
       return '<button type="button" class="gift-chip" data-days="' + v + '"' +
@@ -4166,12 +4489,13 @@
 
   // 입력값에 문제가 있으면 문구를 돌려준다. 없으면 빈 문자열.
   function giftAmountError(n) {
-    if (!isFinite(n) || n < 1) return '선물할 일수를 1일 이상 입력해 주세요.';
+    if (!isFinite(n) || Math.floor(n) !== n || n < 1 || n > 1000000) return '선물할 일수를 1~1,000,000 사이의 정수로 입력해 주세요.';
     if (n > balance()) return '보유한 일수(' + balance().toLocaleString('ko-KR') + '일)보다 많이 보낼 수 없습니다.';
     return '';
   }
 
   function openGift() {
+    if (giftLinkReady) { showGiftPane('giftShare', '보내기'); openModal(giftScrim, giftClose); return; }
     if (!supabaseClient) {
       openModal(giftScrim, giftClose);
       showGiftPane('giftGate');
@@ -4193,7 +4517,13 @@
   }
 
   function closeGift() {
-    closeModal(giftScrim, giftOpen);
+    closeModal(giftScrim, shopOpen);
+    if (giftOrigin === 'shop') {
+      activeShopCat = '위병소'; shopSearch.value = '';
+      selectShopCategory('위병소'); openShop();
+      var card = shopBody.querySelector('[data-id="gift-days"]');
+      if (card) { card.focus(); card.scrollIntoView({ block: 'nearest' }); }
+    }
     // 수령 화면을 닫았으면 주소를 정리한다 — 새로고침에 다시 뜨지 않게
     if (claimToken) { clearGiftParam(); claimToken = ''; }
   }
@@ -4223,6 +4553,10 @@
 
   /* 2단계 → 생성 → 공유 */
   function sendGift() {
+    return withSpendLock(sendGiftUnlocked);
+  }
+
+  function sendGiftUnlocked() {
     if (giftSending) return;
 
     // 다른 탭이 그새 썼을 수 있다 — 보내기 직전에 저장된 값으로 다시 판단한다
@@ -4236,9 +4570,11 @@
     giftSending = true;
     giftErr2.textContent = '';
     var days = giftPending;
+    var sendingUser = currentUser && currentUser.id;
+    if (!sendingUser || !supabaseClient) { giftSending = false; throw new Error('로그인 후 다시 보내 주세요.'); }
     var msg = giftMsg.value.slice(0, GIFT_MSG_MAX);
 
-    supabaseClient.rpc('create_gift', { p_days: days, p_message: msg }).then(function (res) {
+    return supabaseClient.rpc('create_gift', { p_days: days, p_message: msg }).then(function (res) {
       giftSending = false;
       if (res.error || !res.data) {
         giftErr2.textContent = '선물을 만들지 못했습니다. 잠시 뒤 다시 시도해 주세요.';
@@ -4248,10 +4584,17 @@
 
       // 차감은 서버가 선물을 만든 뒤에만. 먼저 깎고 요청이 실패하면 일수가 증발한다.
       // spent 는 잔액에서, gsent 는 누적 삭제 일수에서 뺀다 (netTotal 참고).
+      if (load(LS.acct) !== sendingUser) {
+        var prior = JSON.parse(load('ad.wallet.' + sendingUser) || 'null');
+        if (!prior) throw new Error('발신 계정의 지갑을 확인할 수 없습니다.');
+        prior.spent += days; prior.gsent += days;
+        localStorage.setItem('ad.wallet.' + sendingUser, JSON.stringify(prior));
+        return;
+      }
       spent = readInt(LS.spent) + days;
       gsent = readInt(LS.gsent) + days;
-      store(LS.spent, String(spent));
-      store(LS.gsent, String(gsent));
+      localStorage.setItem(LS.spent, String(spent));
+      localStorage.setItem(LS.gsent, String(gsent));
       renderWallet();
       refreshShopSoon();
       syncUserRecord();
@@ -4278,6 +4621,7 @@
       var url = location.origin + location.pathname + '?gift=' + encodeURIComponent(res.data) +
         (giftShareId ? '&sid=' + encodeURIComponent(giftShareId) : '');
       giftUrl.value = url;
+      giftLinkReady = true;
       giftShareLead.textContent = days.toLocaleString('ko-KR') + '일을 담은 편지가 준비됐습니다. 링크를 보내면 상대가 받을 수 있습니다.';
       giftMsgOut('', true);
       showGiftPane('giftShare', '보내기');
@@ -4350,6 +4694,7 @@
   }
 
   function openClaim(token) {
+    giftOrigin = 'main';
     claimToken = token;
     // gift_claimed 는 버튼을 눌러 서버가 성공을 돌려준 뒤에만 찍힌다 — 링크만
     // 열고 받지 않은 사람은 그걸로 안 보인다. 이 이벤트가 그 분모다. 토큰은
@@ -4425,7 +4770,7 @@
       claimBtn.textContent = d.days.toLocaleString('ko-KR') + '일이 추가되었습니다';
       clearGiftParam();
       claimToken = '';
-      setTimeout(function () { closeModal(giftScrim, giftOpen); }, 900);
+      setTimeout(function () { if (giftScrim.classList.contains('on') && !claimToken) closeGift(); }, 900);
     }, function (e) {
       claiming = false;
       claimBtn.disabled = false;
@@ -4435,12 +4780,15 @@
   }
 
   /* 배선 */
-  giftOpen.addEventListener('click', openGift);
+  // 위병소 카드는 renderShop에서 다시 그리므로 이벤트 위임으로 연다.
   giftClose.addEventListener('click', closeGift);
   giftScrim.addEventListener('click', function (e) {
     if (e.target === giftScrim) closeGift();
   });
-  $('giftLogin').addEventListener('click', signInWithGoogle);
+  $('giftLogin').addEventListener('click', function () {
+    try { sessionStorage.setItem('ad.giftReturn', '1'); } catch (e) {}
+    signInWithGoogle();
+  });
   $('giftNext').addEventListener('click', toLetter);
   $('giftBack').addEventListener('click', function () {
     renderGiftStep1();
@@ -4449,6 +4797,11 @@
   });
   $('giftSend').addEventListener('click', sendGift);
   $('giftShareBtn').addEventListener('click', shareGift);
+  var newGiftButton = document.createElement('button');
+  newGiftButton.type = 'button'; newGiftButton.className = 'gift-chip';
+  newGiftButton.textContent = '새 선물 만들기';
+  $('giftShare').appendChild(newGiftButton);
+  newGiftButton.addEventListener('click', function () { giftLinkReady = false; giftUrl.value = ''; openGift(); });
   $('giftCopyBtn').addEventListener('click', copyGiftLink);
   claimBtn.addEventListener('click', claimGift);
 
@@ -4468,32 +4821,39 @@
   if (supabaseClient) {
     supabaseClient.auth.getSession().then(function (res) {
       if (res && res.data && res.data.session) {
-        currentUser = res.data.session.user;
+        currentUser = res.data.session.user; authResolved = true;
         identifyUserSession();
-        pullAccount().then(function () { syncUserRecord(); });
+        pullAccount();
+      } else {
+        authResolved = true; accountReady = true; initializeLeave(); renderWallet();
+        if (shopScrim.classList.contains('on')) renderShop();
       }
-    });
+    }, function () { authResolved = true; accountReady = false; shopMessage('로그인 상태 확인에 실패했습니다. 새로고침해 주세요.'); });
 
     supabaseClient.auth.onAuthStateChange(function (evt, session) {
-      currentUser = (session && session.user) ? session.user : null;
+      var wasUser = currentUser && currentUser.id;
+      currentUser = (session && session.user) ? session.user : null; authResolved = true;
+      if (wasUser && (!currentUser || currentUser.id !== wasUser)) { giftLinkReady = false; giftUrl.value = ''; }
       if (currentUser) {
         identifyUserSession(evt);
         // 불러오기가 먼저다 — 순서가 뒤집히면 빈 로컬 상태를 서버에 밀어 넣는다
-        pullAccount().then(syncUserRecord).then(function () {
+        pullAccount().then(function () {
           if (lbScrim.classList.contains('on')) refreshBoard();
         });
         if (window.location.hash && window.location.hash.indexOf('access_token') !== -1) {
           history.replaceState(null, '', window.location.pathname + window.location.search);
-          openLb();
+          if (!loadSessionGiftReturn()) openLb();
         }
       } else {
-        lastLoginUserId = null;
+        lastLoginUserId = null; pulledFor = ''; accountReady = true;
+        try { if (leaveLedger) leaveLedger.setAccount(null); initializeLeave(); refreshLeave(); } catch (e) { ledgerError = e.message; }
+        renderWallet();
       }
       if (lbScrim.classList.contains('on')) renderBoard();
     });
 
     setInterval(function () {
-      if (currentUser) syncUserRecord();
+      if (currentUser) { if (!pulledFor) pullAccount(); else syncUserRecord().then(function (ok) { if (ok) syncLeave(); }); }
     }, 10000);
 
     window.addEventListener('pagehide', function () {
@@ -4536,7 +4896,8 @@
 
   // 다른 탭이 값을 바꾸면 화면을 맞춘다. storage 이벤트는 "다른" 탭에서만 온다.
   window.addEventListener('storage', function (e) {
-    if (!e.key) return;
+    if (!walletMatches() || !e.key) return;
+    if (e.key.indexOf('ad.leave.') === 0) { refreshLeave(); renderWallet(); if (shopScrim.classList.contains('on')) renderShop(); return; }
     if (e.key === LS.total) total = readInt(LS.total);
     else if (e.key === LS.spent) spent = readInt(LS.spent);
     else if (e.key === LS.gifted) gifted = readInt(LS.gifted);
@@ -4545,6 +4906,11 @@
     else return;
     renderWallet();
     if (shopScrim.classList.contains('on')) renderShop();
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { autoTimers.forEach(clearInterval); autoTimers = []; autoSignature = ''; }
+    else if (catalog && !adPaused) { settleOfflineV2(); autoSignature = ''; applyEffects(); }
   });
 
   // 복원
@@ -4572,13 +4938,15 @@
       });
     }
   }
+  initializeLeave();
+  updateMotion();
   renderWallet();
   syncSoundBtn();
   syncPresets();
   render();
   initAds();
   // 상점을 열지 않아도 자동 대원이 일해야 하므로 아이템은 시작할 때 읽는다
-  loadItems().then(applyEffects);
+  loadItems().then(function () { applyEffects(); settleOffline(); });
   watchBoost();
 
   // 콘솔 검증용. __army.selfCheck() 로 회계 로직을 확인한다.
@@ -4589,7 +4957,8 @@
       function ok(c, m) { if (!c) throw new Error(m); }
 
       // 지갑: 잔액은 누적에서 쓴 만큼 뺀 값이고 음수가 되지 않는다
-      var t0 = total, s0 = spent, g0 = gifted, gs0 = gsent;
+      var t0 = total, s0 = spent, g0 = gifted, gs0 = gsent, lc0 = leaveCost;
+      leaveCost = 0;
       total = 100; spent = 30; gifted = 0;
       ok(balance() === 70, '잔액 = 누적 + 받은 선물 - 사용액');
       total = 100; spent = 500; gifted = 0;
@@ -4619,7 +4988,7 @@
       total = 0; spent = 0; gifted = 0; gsent = 500;
       ok(netTotal() === 0, '누적은 음수가 되지 않는다');
 
-      total = t0; spent = s0; gifted = g0; gsent = gs0;
+      total = t0; spent = s0; gifted = g0; gsent = gs0; leaveCost = lc0;
 
       // 저장된 값을 다시 읽고 더한다 — 탭이 둘일 때 서로 덮어쓰지 않는 근거
       var keep = load(LS.total);

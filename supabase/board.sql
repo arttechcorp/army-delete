@@ -190,6 +190,182 @@ as $$
   );
 $$;
 
+-- 휴가 구매는 재구매할 수 있어 단순 owned 배열이나 종류별 max 값으로는 병합할 수
+-- 없다. operation_id 하나가 비용과 휴가를 함께 보존하는 영수증 한 장이다.
+create table if not exists public.leave_purchases (
+  operation_id    uuid primary key,
+  user_id         uuid not null references auth.users(id) on delete cascade,
+  product_id      text not null,
+  catalog_version smallint not null,
+  cost            bigint not null check (cost >= 0),
+  leave_kind      text not null check (leave_kind in ('annual', 'reward', 'comfort')),
+  leave_days      integer not null check (leave_days > 0),
+  source          text not null check (source in ('purchase', 'legacy_migration')),
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists leave_purchases_user_created_idx
+  on public.leave_purchases (user_id, created_at, operation_id);
+
+alter table public.leave_purchases enable row level security;
+
+drop policy if exists "leave_purchases_select_own" on public.leave_purchases;
+create policy "leave_purchases_select_own"
+  on public.leave_purchases
+  for select to authenticated
+  using (auth.uid() = user_id);
+
+-- 본인 영수증만 커서 페이지로 읽는다. created_at 이 같은 행도 operation_id 로
+-- 이어 읽으므로 offset 변화로 한 장을 건너뛰지 않는다.
+create or replace function public.my_leave_purchases(
+  p_after_created_at timestamptz default null,
+  p_after_operation_id uuid default null,
+  p_limit integer default 100
+)
+returns table (
+  operation_id uuid,
+  product_id text,
+  catalog_version smallint,
+  cost bigint,
+  leave_kind text,
+  leave_days integer,
+  source text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then raise exception '인증이 필요합니다.'; end if;
+  if p_limit is null or p_limit < 1 or p_limit > 100 then
+    raise exception '페이지 크기는 1~100이어야 합니다.';
+  end if;
+  if (p_after_created_at is null) <> (p_after_operation_id is null) then
+    raise exception '커서 시각과 operation ID를 함께 보내야 합니다.';
+  end if;
+
+  return query
+    select p.operation_id, p.product_id, p.catalog_version, p.cost,
+           p.leave_kind, p.leave_days, p.source, p.created_at
+      from public.leave_purchases p
+     where p.user_id = v_uid
+       and (p_after_created_at is null
+         or (p.created_at, p.operation_id) > (p_after_created_at, p_after_operation_id))
+     order by p.created_at, p.operation_id
+     limit p_limit;
+end;
+$$;
+
+-- 클라이언트는 operation_id/product_id/catalog_version만 보낸다. 가격, 종류,
+-- 일수는 이 함수 안의 가격표에서만 만들어서 변조한 숫자를 회계에 넣지 않는다.
+create or replace function public.sync_leave_purchases(p_operations jsonb)
+returns table (
+  operation_id uuid,
+  product_id text,
+  catalog_version smallint,
+  cost bigint,
+  leave_kind text,
+  leave_days integer,
+  source text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_item jsonb;
+  v_op uuid;
+  v_product text;
+  v_version integer;
+  v_cost bigint;
+  v_kind text;
+  v_days integer;
+  v_source text;
+  v_existing public.leave_purchases%rowtype;
+  v_legacy_op uuid;
+begin
+  if v_uid is null then raise exception '인증이 필요합니다.'; end if;
+  if p_operations is null or jsonb_typeof(p_operations) <> 'array' then
+    raise exception '휴가 operation 목록은 배열이어야 합니다.';
+  end if;
+  if jsonb_array_length(p_operations) > 100 then
+    raise exception '한 번에 100건까지만 동기화할 수 있습니다.';
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_operations) loop
+    if jsonb_typeof(v_item) <> 'object' then raise exception '휴가 operation 형식이 올바르지 않습니다.'; end if;
+    -- 숫자 값을 받지 않으므로 같은 operation ID에 다른 가격을 끼워 넣는 API가 없다.
+    if v_item ? 'cost' or v_item ? 'leave_kind' or v_item ? 'leave_days' or v_item ? 'source' then
+      raise exception '휴가 가격과 종류는 서버가 계산합니다.';
+    end if;
+    begin
+      v_op := (v_item ->> 'operation_id')::uuid;
+      v_product := v_item ->> 'product_id';
+      v_version := (v_item ->> 'catalog_version')::integer;
+    exception when others then
+      raise exception '휴가 operation 값이 올바르지 않습니다.';
+    end;
+    if v_op is null or v_product is null or v_version is null then
+      raise exception '휴가 operation 값이 올바르지 않습니다.';
+    end if;
+
+    if v_product = 'leave-annual' and v_version = 1 then
+      v_cost := 1000; v_kind := 'annual'; v_days := 1; v_source := 'purchase';
+    elsif v_product = 'leave-reward' and v_version = 1 then
+      v_cost := 2800; v_kind := 'reward'; v_days := 3; v_source := 'purchase';
+    elsif v_product = 'leave-comfort' and v_version = 1 then
+      v_cost := 4500; v_kind := 'comfort'; v_days := 5; v_source := 'purchase';
+    elsif v_product = 'legacy-long-leave' and v_version = 1 then
+      -- JS legacyId()와 같은 결정 UUID. 다른 계정/다른 구아이템을 위조할 수 없다.
+      v_legacy_op := overlay(overlay(v_uid::text placing '5' from 15 for 1) placing '8' from 20 for 1)::uuid;
+      if v_op <> v_legacy_op then raise exception '구 위로휴가 operation ID가 올바르지 않습니다.'; end if;
+      if not exists (select 1 from public.user_records
+                     where user_id = v_uid and 'long-leave' = any(owned)) then
+        raise exception '구 위로휴가 보유 기록이 없습니다.';
+      end if;
+      v_cost := 0; v_kind := 'comfort'; v_days := 7; v_source := 'legacy_migration';
+    else
+      raise exception '알 수 없는 휴가 상품 또는 가격표 버전입니다.';
+    end if;
+
+    select p.* into v_existing from public.leave_purchases p where p.operation_id = v_op;
+    if found then
+      if v_existing.user_id <> v_uid or v_existing.product_id <> v_product or
+         v_existing.catalog_version <> v_version or v_existing.cost <> v_cost or
+         v_existing.leave_kind <> v_kind or v_existing.leave_days <> v_days or v_existing.source <> v_source then
+        raise exception '같은 operation ID의 내용 또는 소유자가 다릅니다.';
+      end if;
+    else
+      begin
+        insert into public.leave_purchases
+          (operation_id, user_id, product_id, catalog_version, cost, leave_kind, leave_days, source)
+        values (v_op, v_uid, v_product, v_version, v_cost, v_kind, v_days, v_source);
+      exception when unique_violation then
+        select p.* into v_existing from public.leave_purchases p where p.operation_id = v_op;
+        if not found or v_existing.user_id <> v_uid or v_existing.product_id <> v_product or
+           v_existing.catalog_version <> v_version or v_existing.cost <> v_cost or
+           v_existing.leave_kind <> v_kind or v_existing.leave_days <> v_days or v_existing.source <> v_source then
+          raise exception '같은 operation ID의 내용 또는 소유자가 다릅니다.';
+        end if;
+      end;
+    end if;
+  end loop;
+
+  return query
+    select p.operation_id, p.product_id, p.catalog_version, p.cost,
+           p.leave_kind, p.leave_days, p.source, p.created_at
+      from public.leave_purchases p
+     where p.user_id = v_uid
+       and p.operation_id in (select (value ->> 'operation_id')::uuid from jsonb_array_elements(p_operations))
+     order by p.created_at, p.operation_id;
+end;
+$$;
+
 -- 권한 부여
 revoke all on table public.user_records from public, anon;
 
@@ -201,11 +377,19 @@ revoke all on table public.user_records from public, anon;
 grant select on table public.user_records to authenticated;
 revoke insert, update, delete on table public.user_records from authenticated;
 
+revoke all on table public.leave_purchases from public, anon;
+grant select on table public.leave_purchases to authenticated;
+revoke insert, update, delete on table public.leave_purchases from authenticated;
+
 -- Supabase 는 public 스키마 함수에 대해 anon·authenticated 에게 EXECUTE 를
 -- 기본 부여한다. from public 만 회수하면 anon 권한이 남으므로 따로 적는다.
 -- (본체의 auth.uid() 검사가 한 겹 더 막지만, 권한으로도 막아둔다.)
 revoke all on function public.sync_my_record(text, bigint, bigint, text[], bigint, bigint) from public, anon;
 revoke all on function public.leaderboard() from public;
+revoke all on function public.sync_leave_purchases(jsonb) from public, anon;
+revoke all on function public.my_leave_purchases(timestamptz, uuid, integer) from public, anon;
 
 grant execute on function public.sync_my_record(text, bigint, bigint, text[], bigint, bigint) to authenticated;
 grant execute on function public.leaderboard() to anon, authenticated;
+grant execute on function public.sync_leave_purchases(jsonb) to authenticated;
+grant execute on function public.my_leave_purchases(timestamptz, uuid, integer) to authenticated;
