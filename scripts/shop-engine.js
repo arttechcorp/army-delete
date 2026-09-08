@@ -6,8 +6,8 @@
 }(typeof window !== 'undefined' ? window : this, function () {
   'use strict';
 
-  var TYPES = { auto: 1, share: 1, manual_add: 1, crew_power: 1, crew_speed: 1,
-    leave: 1, multiplier: 1, senior: 1, offline: 1, roll: 1 };
+  var TYPES = { auto: 1, share: 1, manual_add: 1, crew_speed: 1,
+    leave: 1, offline: 1, roll: 1 };
   var ACTIVE_CATEGORIES = { '생활관': 1, '체단실': 1, 'P.X': 1, '행정반': 1, '위병소': 1 };
   function positiveInteger(n) { return typeof n === 'number' && isFinite(n) && n > 0 && Math.floor(n) === n; }
   function clamp(n, low, high) { return Math.max(low, Math.min(high, n)); }
@@ -26,8 +26,8 @@
     var effect = item.effect;
     if (!TYPES[effect.type]) throw new Error('invalid effect type: ' + item.id);
     if (effect.type === 'auto' && !positiveInteger(effect.intervalMs)) throw new Error('invalid auto interval: ' + item.id);
-    if ((effect.type === 'manual_add' || effect.type === 'crew_power' || effect.type === 'crew_speed' ||
-         effect.type === 'multiplier' || effect.type === 'senior') && !positiveInteger(effect.value)) throw new Error('invalid effect value: ' + item.id);
+    if ((effect.type === 'manual_add' || effect.type === 'crew_speed') &&
+        !positiveInteger(effect.value)) throw new Error('invalid effect value: ' + item.id);
     if (effect.type === 'share' && (!positiveInteger(effect.value) || !positiveInteger(effect.durationMs))) throw new Error('invalid share effect: ' + item.id);
     if (effect.type === 'leave' && (!/^(annual|reward|comfort)$/.test(effect.kind) || !positiveInteger(effect.days))) throw new Error('invalid leave effect: ' + item.id);
     if (effect.type === 'offline' && !positiveInteger(effect.capMs)) throw new Error('invalid offline cap: ' + item.id);
@@ -50,45 +50,40 @@
     return true;
   }
   function allItems(data) { validateCatalog(data); return data.items.concat(data.legacyItems); }
+  // progress 인자는 짬(senior) 배수를 쓰던 시절의 잔재다. 호출부를 건드리지 않으려고 자리만 남겼다.
+  //
+  // 판매 종료한 아이템(legacyItems)의 효과는 여기서 단 하나도 읽지 않는다. data.items 만
+  // 본다 — 타입 목록을 따로 관리하면 새 타입이 생길 때마다 빠뜨린다. 옛 배수가
+  // Math.max 로 신규 효과를 덮어써서 뭘 사도 수치가 안 오르던 사고가 여기서 났다.
   function stats(data, owned, progress, boosted) {
     validateCatalog(data);
-    var active = data.items, legacy = data.legacyItems, set = ownSet(owned), p = Number(progress);
-    var manualAdd = 0, crewPower = 0, speedPercent = 100, legacyMultiplier = 1, shareMultiplier = 1;
-    if (!isFinite(p)) p = 0;
-    p = clamp(p, 0, 1);
-    active.concat(legacy).forEach(function (item) {
+    var active = data.items, set = ownSet(owned);
+    var manualAdd = 0, speedPercent = 100, shareMultiplier = 1;
+    active.forEach(function (item) {
       var effect = item.effect;
       if (!set[item.id] || !effect) return;
       if (effect.type === 'manual_add') manualAdd += effect.value;
-      else if (effect.type === 'crew_power') crewPower += effect.value;
       else if (effect.type === 'crew_speed') speedPercent += effect.value;
-      else if (effect.type === 'multiplier') legacyMultiplier = Math.max(legacyMultiplier, effect.value);
-      else if (effect.type === 'senior') legacyMultiplier = Math.max(legacyMultiplier, Math.floor(1 + p * effect.value));
     });
     active.forEach(function (item) {
       if (item.effect && item.effect.type === 'share') shareMultiplier = boosted ? item.effect.value : 1;
     });
-    var manualBase = Math.max(1 + manualAdd, legacyMultiplier);
-    var crewBase = Math.max(1 + crewPower, legacyMultiplier);
+    var manualBase = 1 + manualAdd;
+    var crewBase = 1;
     var autos = [];
-    function addAutos(list, legacyAuto) {
-      list.forEach(function (item) {
-        var effect = item.effect;
-        if (!set[item.id] || !effect || effect.type !== 'auto') return;
-        var baseDays = legacyAuto ? legacyMultiplier : crewBase;
-        autos.push({ id: item.id, name: item.name, intervalMs: legacyAuto ? effect.intervalMs : effect.intervalMs / (speedPercent / 100),
-          days: baseDays * shareMultiplier, legacy: legacyAuto, baseDays: baseDays });
-      });
-    }
-    addAutos(active, false);
-    addAutos(legacy, true);
+    active.forEach(function (item) {
+      var effect = item.effect;
+      if (!set[item.id] || !effect || effect.type !== 'auto') return;
+      autos.push({ id: item.id, name: item.name, intervalMs: effect.intervalMs / (speedPercent / 100),
+        days: crewBase * shareMultiplier, baseDays: crewBase });
+    });
     var autoPerSecond = 0, offlineCapMs = 0;
     autos.forEach(function (auto) { autoPerSecond += auto.days * 1000 / auto.intervalMs; });
-    legacy.forEach(function (item) {
+    active.forEach(function (item) {
       if (set[item.id] && item.effect && item.effect.type === 'offline') offlineCapMs = Math.max(offlineCapMs, item.effect.capMs);
     });
     return { manualDays: manualBase * shareMultiplier, crewDays: crewBase * shareMultiplier, speedPercent: speedPercent,
-      autoPerSecond: autoPerSecond, autos: autos, legacyMultiplier: legacyMultiplier, shareMultiplier: shareMultiplier, offlineCapMs: offlineCapMs };
+      autoPerSecond: autoPerSecond, autos: autos, shareMultiplier: shareMultiplier, offlineCapMs: offlineCapMs };
   }
   function offlineDays(snapshot, elapsedMs, boostRemainingMs) {
     if (!snapshot || !Array.isArray(snapshot.autos)) return 0;

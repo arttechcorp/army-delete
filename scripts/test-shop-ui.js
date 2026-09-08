@@ -275,7 +275,7 @@ async function createApp(seed, authMock, url) {
 async function openShop(app) {
   var document = app.window.document;
   document.getElementById('shopOpen').click();
-  await waitFor(function () { return document.querySelectorAll('#shopBody .item').length === 23; });
+  await waitFor(function () { return document.querySelectorAll('#shopBody .item').length === 27; });
 }
 
 async function buy(app, id) {
@@ -295,11 +295,11 @@ if (!JSDOM) {
     assert.fail('JSDOM is required: install it with `npm install --prefix /private/tmp/shop-validation jsdom` or set SHOP_JSDOM_MODULE to its absolute module path. ' + (jsdomError && jsdomError.message));
   });
 } else {
-  test('loads the real app fixture and renders all 23 active shop cards', async function () {
+  test('loads the real app fixture and renders all 27 active shop cards', async function () {
     var app = await createApp({ 'ad.total': '10000' });
     try {
       await openShop(app);
-      assert.equal(app.window.document.querySelectorAll('#shopBody .item').length, 23);
+      assert.equal(app.window.document.querySelectorAll('#shopBody .item').length, 27);
       assert.ok(app.fetchCalls.some(function (url) { return url.indexOf('items.json') !== -1; }));
       assert.ok(app.fetchCalls.every(function (url) { return url.indexOf('supabase') === -1; }));
       assert.equal(typeof app.window.__army.selfCheck, 'function');
@@ -312,11 +312,32 @@ if (!JSDOM) {
       await openShop(app);
       await buy(app, 'exercise-pushup');
       assert.match(app.window.document.getElementById('manualStat').textContent, /2일\/회/);
+      // 문구는 누적 수치가 아니라 이 아이템이 주는 증가폭이다 — 옛 아이템 배수가 있어도 안 흔들린다.
+      var foodCard = app.window.document.querySelector('#shopBody [data-id="food-choco"]').closest('.item');
+      assert.equal(foodCard.querySelector('.item-effect').textContent,
+        '전체 병사 클릭 속도 +3% · 충원 후 적용 (병사 0명)');
       await buy(app, 'food-choco');
       await buy(app, 'rank-pvt');
+      assert.equal(app.window.document.querySelector('#shopBody [data-id="food-chicken"]').closest('.item')
+        .querySelector('.item-effect').textContent, '전체 병사 클릭 속도 +7%');
       assert.equal(app.window.document.querySelectorAll('#crew .crew-view__unit').length, 1);
       assert.equal(app.window.document.querySelector('#crew [data-id="rank-pvt"] .crew-view__details').textContent.includes('일\/회'), true);
       assert.match(app.window.document.getElementById('autoStat').textContent, /병사 자동/);
+    } finally { closeApp(app); }
+  });
+
+  test('구매 확인 문구는 3초 뒤 스스로 사라진다', async function () {
+    // 예전엔 다음 구매나 오류가 덮어쓸 때까지 계속 떠 있었다.
+    var app = await createApp({ 'ad.total': '10000' });
+    try {
+      await openShop(app);
+      var notice = app.window.document.getElementById('shopNotice');
+      await buy(app, 'exercise-pushup');
+      assert.equal(notice.hidden, false);
+      assert.match(notice.textContent, /구매 완료/);
+      await wait(3100);
+      assert.equal(notice.hidden, true, '3초가 지나도 안 사라졌다');
+      assert.equal(notice.textContent, '');
     } finally { closeApp(app); }
   });
 

@@ -53,6 +53,14 @@ sed -n '/^<script>$/,/^<\/script>$/p' index.html | grep -v '^</\?script>$' | nod
   `gsent` 를 함께 올린다.
 - 선물 발신 키는 **`ad.gsent`** 다. `ad.sent` 는 옛 익명 리더보드가 쓰던 이름이라
   그 시절 값이 남은 브라우저에서 누적이 통째로 깎인다 — 재사용 금지.
+- **판매 종료한 아이템(`items.json` 의 `legacyItems`)에는 `effect` 를 남기지 않는다.**
+  `ShopEngine.stats()` 는 `data.items` 만 읽는다 — 타입별로 걸러내면 효과 타입이 늘 때마다
+  빠뜨린다. 옛 배수(`multiplier`·`senior`)가 `Math.max` 로 신규 효과를 이겨서 상점에서 뭘 사도
+  `전체 병사 8 → 8일/회` 처럼 수치가 안 오르던 사고가 여기서 났다. 아이템을 내릴 때는
+  `items` → `legacyItems` 로 옮기면서 `effect` 를 통째로 뗀다.
+  **보유 기록(`owned`)은 건드리지 않는다** — 지우면 '기존 보유품' 목록이 비고, 서버 `owned` 는
+  합집합으로 병합돼(`board.sql` 의 `sync_my_record`) 클라이언트 localStorage 에서 되살아난다.
+  예외는 `long-leave` 하나다. 이미 지급한 휴가 영수증이라 회수하지 않는다.
 - 서버 검증 변경 시 `supabase/board_test.sql` 도 함께 (assert 후 rollback 하는 자체 점검).
 
 ## 스타일

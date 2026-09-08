@@ -1899,7 +1899,6 @@
     </div>
     <div class="crew" id="crew" aria-label="함께 누르는 병사"></div>
     <p class="warn">누르지 마시오</p>
-    <p class="crew-summary" id="crewSummary"></p>
   </div>
 
   <div class="wallet" aria-label="삭제 일수 지갑">
@@ -1907,7 +1906,7 @@
     <p class="wallet-main"><span id="balanceNum">0</span><span class="unit">일 보유</span><span class="mult-badge" id="multBadge" hidden></span></p>
     <p class="growth-summary"><span id="manualStat">내 클릭 1일/회</span><span id="autoStat">병사 자동 0일/초</span></p>
     <p class="leave-total">누적 휴가 <b id="leaveTotal">0</b>일</p>
-    <p class="wallet-sub">누적 삭제 기록 <span id="totalNum">0</span>일 · 상점에서 사용해도 누적 기록은 보존됩니다</p>
+    <p class="wallet-sub">누적 삭제 기록 <span id="totalNum">0</span>일</p>
   </div>
 
   <div class="enter-row">
@@ -3237,12 +3236,16 @@
     return ShopEngine.stats(catalog, owned, serviceProgress(), boostLeft() > 0);
   }
 
+  var noticeTimer = null;
   function shopMessage(message, feedback) {
     var notice = $('shopNotice');
+    if (noticeTimer) { clearTimeout(noticeTimer); noticeTimer = null; }
     notice.textContent = message || ''; notice.hidden = !message;
     notice.classList.remove('purchase-feedback');
     notice.removeAttribute('data-feedback');
-    if (feedback) { notice.setAttribute('data-feedback', feedback); void notice.offsetWidth; notice.classList.add('purchase-feedback'); }
+    if (!feedback) return;   // 오류 안내는 유저가 읽고 조치해야 하므로 남겨 둔다
+    notice.setAttribute('data-feedback', feedback); void notice.offsetWidth; notice.classList.add('purchase-feedback');
+    noticeTimer = setTimeout(function () { noticeTimer = null; shopMessage(''); }, 3000);
   }
 
   function refreshLeave() {
@@ -3319,24 +3322,10 @@
 
   function multiplier() {
     if (typeof catalog !== 'undefined' && catalog && typeof ShopEngine !== 'undefined') return currentStats().manualDays;
+    // 카탈로그를 못 받은 비상 경로. 삭제된 옛 아이템(박카스·짬)의 배수는 세지 않는다 —
+    // 그 배수가 상점에서 산 효과를 통째로 덮어써 왔다.
     var boosted = boostLeft() > 0 && shareItem();
-    var m = boosted ? boosted.effect.value : 1;
-    var progress = -1;   // 매 클릭마다 도는 함수다. 짬 아이템이 있을 때만 날짜를 계산한다.
-    ownedItems().forEach(function (it) {
-      if (!it.effect) return;
-      if (it.effect.type === 'multiplier') {
-        m = Math.max(m, it.effect.value);
-      } else if (it.effect.type === 'senior') {
-        // 짬은 못 이긴다 — 진행률이 높을수록 배수가 커진다.
-        if (progress < 0) progress = serviceProgress();
-        m = Math.max(m, 1 + progress * it.effect.value);
-      }
-    });
-    // 일수는 정수로만 센다. 짬은 1+진행률×value 라 소수가 나오는데, 그대로 두면
-    // 배지·팝업은 '×3.5'·'-3.5일' 로 보이는데 실제로는 3 만 들어가 화면과 회계가 어긋난다.
-    // (부동소수점 탓에 '-3.5000000000000004일' 이 찍히기도 한다.) 여기서 한 번 자르면
-    // 배지·팝업·가산이 전부 같은 값을 쓴다.
-    return Math.floor(m);
+    return boosted ? boosted.effect.value : 1;
   }
 
   var autoTimers = [];
@@ -3347,7 +3336,7 @@
     var live = currentStats().autos.filter(function (a) { return a.id === item.id; })[0];
     if (!live) return;
     addDays(live.days);
-    if (!document.hidden && !shopScrim.classList.contains('on') && crewView && !live.legacy) crewView.tick(live.id, live.days);
+    if (!document.hidden && !shopScrim.classList.contains('on') && crewView) crewView.tick(live.id, live.days);
   }
 
   // 국방부 시계는 거꾸로 매달아도 돈다 — 꺼둔 동안에도 자동 대원이 일한 것으로 친다.
@@ -3400,7 +3389,7 @@
     if (!catalog) { renderWallet(); return; }
     economy = currentStats();
     if (!crewView && window.CrewView) crewView = CrewView.create({ container: crew, button: btn, stage: stage });
-    if (crewView) { crewView.setReduced(reduced); crewView.render(economy.autos.filter(function (a) { return !a.legacy; })); }
+    if (crewView) { crewView.setReduced(reduced); crewView.render(economy.autos); }
     var signature = economy.autos.map(function (a) { return a.id + ':' + a.intervalMs; }).join('|');
     if (signature !== autoSignature) {
       autoTimers.forEach(clearInterval); autoTimers = [];
@@ -3409,8 +3398,6 @@
         autoTimers.push(setInterval(function () { autoTick(a); }, a.intervalMs));
       });
     }
-    var legacy = economy.autos.filter(function (a) { return a.legacy; });
-    $('crewSummary').textContent = legacy.length ? '이전 부대 지원 ' + legacy.length + '종 · 기존 자동 효과 유지 중' : '';
     renderWallet(); renderReward();
   }
 
@@ -3654,9 +3641,10 @@
     }
     var next = has ? stats : ShopEngine.stats(catalog, owned.concat([item.id]), serviceProgress(), boostLeft() > 0);
     if (type === 'manual_add') return '내 클릭 ' + stats.manualDays + (has ? '' : ' → ' + next.manualDays) + '일/회';
-    var empty = !stats.autos.some(function (a) { return !a.legacy; }) ? ' · 충원 후 적용 (병사 0명)' : '';
-    if (type === 'crew_power') return '전체 병사 ' + stats.crewDays + (has ? '' : ' → ' + next.crewDays) + '일/회' + empty;
-    if (type === 'crew_speed') return '자동 속도 ' + stats.speedPercent + (has ? '' : ' → ' + next.speedPercent) + '%' + empty;
+    // 옛 아이템 배수가 수치를 덮어쓰던 시절엔 '전체 병사 8 → 8일/회' 처럼 사도 안 오르는
+    // 화살표가 떴다. 이제 누적값 대신 이 아이템이 주는 증가폭만 적는다.
+    var empty = !stats.autos.length ? ' · 충원 후 적용 (병사 0명)' : '';
+    if (type === 'crew_speed') return '전체 병사 클릭 속도 +' + effect.value + '%' + empty;
     return '수집용 · 능력치 변화 없음';
   }
 
@@ -3714,7 +3702,7 @@
       'all': ['부대 안 상점', '직접 누르고, 같이 먹고, 휴가를 모읍니다.'],
       '생활관': ['신병 왔습니다!', '병사를 충원하면 함께 버튼을 누릅니다.'],
       '체단실': ['한 세트만 더 하고 씻자.', '내 클릭 ' + stats.manualDays + '일/회 · 직접 클릭만 강화'],
-      'P.X': ['냉동 돌릴 건데 같이 먹을 사람?', '병사 ' + stats.crewDays + '일/회 · 자동 속도 ' + stats.speedPercent + '%'],
+      'P.X': ['냉동 돌릴 건데 같이 먹을 사람?', '전체 병사 클릭 속도 ' + stats.speedPercent + '%'],
       '행정반': ['누적 휴가 ' + leaveTotals.total + '일', '연가 ' + leaveTotals.annual + '일 · 포상휴가 ' + leaveTotals.reward + '일 · 위로휴가 ' + leaveTotals.comfort + '일'],
       '위병소': ['나갈 때가 제일 빠르다.', '동기에게 일수를 보내고, 같이 군생활을 삭제합니다.']
     };

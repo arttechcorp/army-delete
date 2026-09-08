@@ -1,4 +1,4 @@
-// 상점 아이템 데이터와 신규 효과(senior / offline)의 회계를 검증한다.
+// 상점 아이템 데이터와 offline(국방부 시계) 회계를 검증한다.
 //
 // 이 테스트는 index.html 원문에서 함수 소스를 그대로 뽑아 실행한다. 로직을 여기에
 // 복붙해 재구현하면 index.html 이 바뀌어도 테스트는 계속 통과해 버려서, 검증하는
@@ -102,48 +102,28 @@ test('모든 아이템이 필수 필드를 갖는다', () => {
   }
 });
 
-/* ── senior (짬) ── */
+/* ── 삭제된 옛 아이템 ── */
 
-test('senior: 진행률이 없는 상태는 전부 ×1 로 떨어진다', () => {
-  // calcService 는 'empty'/'invalid'/'before' 에서 progress 프로퍼티를 아예 안 준다.
-  // 그대로 곱하면 NaN 이 되어 클릭당 일수가 통째로 깨진다.
-  const h = makeHarness();
-  h.api.setState([SENIOR]);
-
-  h.dates('', '');
-  assert.equal(h.api.multiplier(), 1, '날짜 미입력');
-  h.dates('2027-01-01', '2026-01-01');
-  assert.equal(h.api.multiplier(), 1, '전역일이 입대일보다 앞');
-  h.dates(h.iso(Date.now() + 30 * h.DAY), h.iso(Date.now() + 600 * h.DAY));
-  assert.equal(h.api.multiplier(), 1, '아직 입대 전');
-});
-
-test('senior: 진행률에 따라 정수 계단으로 오른다', () => {
-  const h = makeHarness();
-  h.api.setState([SENIOR]);
-  assert.equal(h.atProgress(0.10), 1);
-  assert.equal(h.atProgress(0.20), 2);
-  assert.equal(h.atProgress(0.50), 3);
-  assert.equal(h.atProgress(0.90), 5);
-  assert.equal(h.atProgress(1.00), 6, '말년');
-});
-
-test('multiplier 는 언제나 정수다 — 소수면 화면과 회계가 어긋난다', () => {
-  // 배지는 '×' + m, 팝업은 '-' + m + '일' 로 값을 그대로 찍는다. m 이 3.5 면
-  // 화면엔 -3.5일이 뜨는데 total 은 정수라 3 만 들어간다.
-  const h = makeHarness();
-  h.api.setState([SENIOR]);
-  for (let i = 0; i <= 100; i++) {
-    const m = h.atProgress(i / 100);
-    assert.ok(Number.isInteger(m), `진행률 ${i}% 에서 소수 배수: ${m}`);
+test('legacyItems 는 effect 를 하나도 갖지 않는다', () => {
+  // 판매 종료한 아이템은 보유 기록만 남기고 게임에는 영향을 주지 않는다. 하나라도
+  // 되살아나면 옛 유저 화면이 다시 '전체 병사 8 → 8일/회' 처럼 굳는다.
+  for (const it of data.legacyItems || []) {
+    assert.equal(it.effect, undefined, `판매 종료 아이템에 효과 잔존: ${it.id}`);
+  }
+  for (const it of data.items) {
+    const t = it.effect && it.effect.type;
+    assert.ok(!['multiplier', 'senior', 'crew_power'].includes(t), `폐기된 효과 타입: ${it.id}`);
   }
 });
 
-test('senior 는 multiplier 와 최댓값 하나만 경쟁한다', () => {
+test('카탈로그를 못 받은 비상 경로도 옛 배수를 무시한다', () => {
+  // items.json 에서 빼도 이 경로가 effect 를 직접 읽던 시절엔 배수가 되살아났다.
   const h = makeHarness();
   h.api.setState([SENIOR, TV]);
-  assert.equal(h.atProgress(0.10), 4, '짬이 약하면 지니티비(×4)가 이긴다');
-  assert.equal(h.atProgress(1.00), 6, '말년 짬(×6)이 지니티비를 이긴다');
+  assert.equal(h.atProgress(0.10), 1);
+  assert.equal(h.atProgress(1.00), 1, '말년이어도 그대로');
+  h.dates('', '');
+  assert.equal(h.api.multiplier(), 1, '날짜 미입력');
 });
 
 /* ── offline (국방부 시계) ── */
