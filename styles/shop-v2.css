@@ -6,7 +6,8 @@
 .item-buy .buy-btn{min-height:44px;font-size:.75rem;padding:.55rem .7rem}.item-buy .item-price{font-size:.72rem}
 .legacy-items{margin:1rem;padding:1rem;border:1px solid var(--line);border-radius:.5rem;font-size:.8rem;line-height:1.7}.legacy-items summary{cursor:pointer;min-height:44px;display:flex;align-items:center}.legacy-items p{color:var(--muted)}
 .shop-chips{flex-shrink:0}.shop-context,.shop-notice{flex-shrink:0}.shop-scroll{min-height:0}.foot-row{flex-wrap:wrap}
-@media(max-width:430px){.item{grid-template-columns:36px minmax(0,1fr)}.item .item-buy{grid-column:2;display:flex;justify-content:space-between;align-items:center;gap:.5rem}.item-buy .item-price{white-space:nowrap}.shop-context{padding:.8rem 1rem}.growth-summary{gap:.5rem;font-size:.75rem}}
+/* 좁은 화면에서 카드가 너무 높아 한 화면에 한 장 반밖에 안 들어간다 */
+@media(max-width:430px){.item{grid-template-columns:36px minmax(0,1fr);gap:.45rem .6rem;padding:.6rem .7rem}/* index.html의 flex-direction:column이 새어 들어오는 걸 막으려고 flex 관련 속성을 전부 재선언한다 */.item .item-buy{grid-column:2;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:.5rem}.item-buy .item-price{white-space:nowrap}.shop-context{padding:.8rem 1rem}.growth-summary{gap:.5rem;font-size:.75rem}}
 @media(prefers-reduced-motion:reduce){.item{transition:none}}
 @media(pointer:coarse){.shop-search,.gift-input,.gift-message{font-size:16px}}
 .motion-reduced .ripple,.motion-reduced .particle,.motion-reduced .screen-flash{display:none!important}.motion-reduced .shake{animation:none!important}

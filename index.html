@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>군생활 삭제 버튼 — 전역일 계산기</title>
 <meta name="description" content="입대일만 넣으면 전역일 계산기로 D-day와 복무율을 자동 계산. 남은 군생활을 마음껏 눌러 삭제하세요.">
 <link rel="canonical" href="https://army-delete.vercel.app/">
@@ -1096,7 +1096,8 @@
     display:none;
     align-items:center;
     justify-content:center;
-    padding:1rem;
+    /* 노치 아이폰 홈 인디케이터에 모달 모서리가 겹치지 않도록 safe-area 만큼 더 띄운다 */
+    padding:calc(1rem + env(safe-area-inset-top, 0px)) calc(1rem + env(safe-area-inset-right, 0px)) calc(1rem + env(safe-area-inset-bottom, 0px)) calc(1rem + env(safe-area-inset-left, 0px));
     z-index:60;
   }
   .shop-scrim.on{display:flex}
@@ -1105,7 +1106,11 @@
     flex-direction:column;
     width:100%;
     max-width:560px;
-    max-height:min(85vh,760px);
+    /* iOS Safari 는 주소창을 숨긴 큰 뷰포트 기준으로 vh 를 계산하는데 스크림은
+       fixed(작은 뷰포트) 라, 주소창이 보일 때 모달 하단이 툴바에 잘린다 — dvh 로 방지.
+       100% 를 같이 넣는 이유: 스크림 패딩(1rem + safe-area)이 커지면 85dvh 가
+       남은 높이를 넘겨 위아래가 잘린다 — 실제 가용 높이로 한 번 더 자른다 */
+    max-height:min(85dvh,760px,100%);
     background:var(--surface);
     border:1px solid var(--line);
     border-radius:14px;
@@ -1141,7 +1146,10 @@
     cursor:pointer;
     transition:color .15s, border-color .15s, transform .1s;
     flex-shrink:0;
+    position:relative;
   }
+  /* 보이는 크기(32px)는 유지하고 히트영역만 iOS 권장 44px 로 넓힌다 */
+  .shop-close::before{content:"";position:absolute;inset:-6px}
   .shop-close:hover{color:var(--ink);border-color:var(--muted)}
   .shop-close:active{transform:scale(.92)}
 
@@ -1153,6 +1161,8 @@
     padding:0 .9rem .65rem;
     border-bottom:1px solid var(--line);
     flex-shrink:0;
+    /* 잔액 자릿수가 길어져도 검색창이 0까지 찌그러지지 않고 두 줄로 떨어지게 한다 */
+    flex-wrap:wrap;
   }
   .shop-chips{
     display:flex;
@@ -1165,6 +1175,8 @@
     flex-shrink:0;
     border-bottom:1px solid var(--line);
     background:var(--ground);
+    /* 가로 끝에서 스와이프가 브라우저 뒤로가기 제스처로 새지 않게 막는다 */
+    overscroll-behavior-x:contain;
   }
   .shop-chips::-webkit-scrollbar{
     display:none;
@@ -1187,9 +1199,10 @@
     white-space:nowrap;
     flex-shrink:0;
     user-select:none;
-    -webkit-tap-highlight-color:transparent;
     transition:border-color .15s, background .15s, color .15s;
   }
+  /* iOS 탭 시 파란 하이라이트 박스가 번쩍이는 걸 막는다 */
+  .buy-btn,.reward-btn,.shop-close,.shop-enter,.anchor-close,.shop-chip{-webkit-tap-highlight-color:transparent}
   .shop-chip:hover{border-color:var(--accent);color:var(--accent)}
   .shop-chip.active{
     background:var(--accent);
@@ -1205,7 +1218,7 @@
   }
   .shop-search{
     flex:1;
-    min-width:0;
+    min-width:8rem;
     font-family:var(--sans);
     font-size:.85rem;
     color:var(--ink);
@@ -1230,6 +1243,9 @@
     flex:1;
     min-height:0;
     overflow-y:auto;
+    /* 목록 끝에서 튕겼을 때 스크롤이 뒤 body 로 새서 모달을 닫으면 페이지가
+       엉뚱한 위치로 가있는 문제를 막는다 */
+    overscroll-behavior:contain;
     padding:.85rem .9rem 1rem;
     display:grid;
     gap:.55rem;
@@ -1720,12 +1736,16 @@
     border-radius:50%;
     cursor:pointer;
   }
+  /* 보이는 크기(26px)는 유지하고 히트영역만 iOS 권장 44px 로 넓힌다 */
+  .anchor-close::before{content:"";position:absolute;inset:-9px}
   .anchor-close:hover{color:var(--ink)}
 
   /* iOS Safari 는 글자 16px 미만인 입력창에 포커스가 가면 페이지를 강제로
      확대하고, 그 배율을 되돌리지 않는다. 그래서 상점을 열었다 닫으면 본문이
      확대된 채로 남아 두 화면의 배율이 어긋난다.
-     터치 기기에서만 16px 로 올린다 — 마우스 쓰는 화면은 촘촘한 편이 낫다. */
+     터치 기기에서만 16px 로 올린다 — 마우스 쓰는 화면은 촘촘한 편이 낫다.
+     (짝: head 의 <meta viewport interactive-widget=resizes-content> — 이건 확대 대신
+     키보드가 fixed 모달 입력창을 가리는 문제를 막는다) */
   /* ---------- 선물하기 ---------- */
   /* 대화상자 틀은 상점의 .shop-scrim / .shop 을 그대로 쓴다. 여기서는 그 안에서
      교체되는 단계(pane)만 정의한다 — 창을 새로 띄우지 않는다. */
@@ -1736,6 +1756,8 @@
     gap:.85rem;
     min-height:0;
     overflow-y:auto;
+    /* 목록 끝에서 튕겼을 때 스크롤이 뒤 body 로 새는 것을 막는다 */
+    overscroll-behavior:contain;
     padding:.9rem .9rem 1.1rem;
   }
   .gift-lead{margin:0;font-size:.95rem;line-height:1.7;color:var(--ink)}
