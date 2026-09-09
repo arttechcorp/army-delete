@@ -1868,7 +1868,7 @@
 <link rel="stylesheet" href="/styles/crew-view.css">
 <link rel="stylesheet" href="/styles/shop-v2.css">
 </head>
-<body>
+<body class="ad-closed">
 
 <div class="milestone-toast" id="milestoneToast" role="status" aria-live="polite"></div>
 
@@ -2110,7 +2110,8 @@
   </div>
 </div>
 
-<aside class="anchor" id="anchor" aria-label="광고">
+<!-- ponytail: 하단 앵커 광고 임시 비활성화. 다시 켜려면 이 aside의 class="anchor closed" → class="anchor" 로, body 태그의 class="ad-closed" 를 제거 -->
+<aside class="anchor closed" id="anchor" aria-label="광고">
   <button class="anchor-close" id="anchorClose" type="button" aria-label="광고 닫기">
     <svg class="svg-ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
   </button>
