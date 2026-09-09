@@ -62,6 +62,9 @@ sed -n '/^<script>$/,/^<\/script>$/p' index.html | grep -v '^</\?script>$' | nod
   합집합으로 병합돼(`board.sql` 의 `sync_my_record`) 클라이언트 localStorage 에서 되살아난다.
   예외는 `long-leave` 하나다. 이미 지급한 휴가 영수증이라 회수하지 않는다.
 - 서버 검증 변경 시 `supabase/board_test.sql` 도 함께 (assert 후 rollback 하는 자체 점검).
+- **`.shop-scrim` 모달을 새로 만들면 스크롤 영역을 `.shop-scroll` 로 감쌀 것.**
+  `.shop` 이 `overflow:hidden` 이라 안 감싸면 넘친 부분에 손가락이 닿지 않는다.
+  리더보드가 이걸 빠뜨려 로그아웃 버튼이 잘려 있었다.
 
 ## 스타일
 

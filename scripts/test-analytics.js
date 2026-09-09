@@ -552,6 +552,31 @@ test('index.html contains leaderboard and identity tracking instrumentation', ()
   assert.match(html, /function signOutGoogle[\s\S]*?__analytics\.reset\(\)/);
 });
 
+test('모든 .shop-scrim 모달은 스크롤 영역을 갖는다 — 없으면 넘친 만큼 손가락이 안 닿는다', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  // split 은 각 조각이 다음 모달까지 통째로 삼켜 과대 매칭될 수 있어 —
+  // 마커 위치를 직접 찾아 다음 모달 시작 전까지로 자른다.
+  const marker = '<div class="shop-scrim"';
+  const starts = [];
+  for (let i = html.indexOf(marker); i !== -1; i = html.indexOf(marker, i + marker.length)) {
+    starts.push(i);
+  }
+  assert.ok(starts.length >= 3, '모달을 못 찾았다 — 마크업이 바뀌었으면 이 테스트도 고칠 것');
+  starts.forEach((start, i) => {
+    const end = i + 1 < starts.length ? starts[i + 1] : html.length;
+    const modal = html.slice(start, end);
+    const id = (modal.match(/id="(\w+)"/) || [])[1];
+    assert.ok(/shop-scroll|gift-pane/.test(modal), id + ' 에 스크롤 영역이 없다');
+  });
+});
+
+test('viewport meta 의 interactive-widget 은 안드로이드용이다 — Safari 가 무시한다고 지우지 말 것', () => {
+  const html = fs.readFileSync('index.html', 'utf8');
+  // 크롬·파이어폭스는 이걸로 키보드가 뜰 때 레이아웃을 줄인다. WebKit 은 미구현이라
+  // 아이폰에서 효과가 없어 보이지만, 지우면 안드로이드에서 입력창이 키보드에 가린다.
+  assert.match(html, /interactive-widget=resizes-content/);
+});
+
 test('privacy.html includes PostHog disclosures', () => {
   const privacyHtml = fs.readFileSync('privacy.html', 'utf8');
   assert.match(privacyHtml, /PostHog/);

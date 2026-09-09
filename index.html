@@ -1239,6 +1239,7 @@
   .shop-balance b{color:var(--accent);font-size:1.05rem;font-weight:600}
 
   /* 스크롤은 바깥이 맡는다 — 보상 줄도 아이템과 같이 스크롤되어야 한다 */
+  /* .shop-scrim 모달을 새로 만들 때도 스크롤 영역은 이 클래스로 감쌀 것 — 새 규칙 만들지 말 것 */
   .shop-scroll{
     flex:1;
     min-height:0;
@@ -2057,7 +2058,11 @@
         <svg class="svg-ic" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
-    <div class="shop-body" id="lbBody" aria-live="polite"></div>
+    <!-- .shop 이 overflow:hidden 이라 모달 안에서 넘치는 영역은 반드시
+         .shop-scroll 이 맡아야 한다 — 안 감싸면 넘친 만큼 손가락이 닿지 않는다 -->
+    <div class="shop-scroll">
+      <div class="shop-body" id="lbBody" aria-live="polite"></div>
+    </div>
   </div>
 </div>
 
